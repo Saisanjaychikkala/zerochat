@@ -8,9 +8,7 @@ import {
   Share2, 
   Radio, 
   RotateCcw,
-  AlertCircle,
-  PhoneOff,
-  Sparkles
+  AlertCircle
 } from 'lucide-react';
 
 const QUICK_EMOJIS = ['👍', '🔥', '🚀', '❤️', '⚡', '🎉', '👀'];
@@ -51,13 +49,20 @@ export default function ChatArea({
   };
 
   const handleSend = (e) => {
-    e.preventDefault();
+    if (e) e.preventDefault();
     if (!inputText.trim()) return;
 
     onSendMessage(inputText.trim());
     setInputText('');
     onTyping(false);
     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSend(e);
+    }
   };
 
   const handleAddEmoji = (emoji) => {
@@ -82,16 +87,18 @@ export default function ChatArea({
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <span style={{ fontWeight: 700, fontSize: '0.95rem' }}>
-                {remotePeerNickname || (remotePeerId ? `Peer: ${remotePeerId.substring(0, 10)}...` : 'Waiting for Peer')}
+                {remotePeerNickname || (remotePeerId ? `Peer: ${remotePeerId.substring(0, 12)}...` : 'Waiting for Peer')}
               </span>
               <span className="e2ee-tag">
                 <Lock size={10} />
-                <span>AES-GCM + DTLS</span>
+                <span>WebRTC E2EE</span>
               </span>
             </div>
             <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
               {isConnected 
                 ? 'Encrypted peer memory channel active' 
+                : status === 'connecting'
+                ? 'Establishing P2P handshake...'
                 : sessionEnded 
                 ? 'Session terminated' 
                 : 'Share room link or QR code to connect'}
@@ -123,10 +130,12 @@ export default function ChatArea({
 
             <div>
               <h3 style={{ fontSize: '1.2rem', fontWeight: 700, marginBottom: '6px' }}>
-                Room Ready for Connection
+                {status === 'connecting' ? 'Connecting to Peer...' : 'Room Ready for Connection'}
               </h3>
               <p style={{ fontSize: '0.84rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>
-                Share your invite link with your contact. Once they open it, you are instantly connected memory-to-memory.
+                {status === 'connecting' 
+                  ? 'Negotiating WebRTC ICE candidates and encrypted data channels...'
+                  : 'Share your invite link with your contact. Once they open it, you are instantly connected memory-to-memory.'}
               </p>
             </div>
 
@@ -234,13 +243,16 @@ export default function ChatArea({
           type="text" 
           placeholder={
             isConnected 
-              ? "Type an encrypted message..." 
+              ? "Type an encrypted message (Press Enter to send)..." 
+              : status === 'connecting'
+              ? "Connecting to peer..."
               : sessionEnded 
-              ? "Chat has ended. Start a new chat to continue." 
+              ? "Chat has ended. Click 'Start New Chat' above." 
               : "Waiting for peer to connect..."
           } 
           value={inputText}
           onChange={handleTextChange}
+          onKeyDown={handleKeyDown}
           disabled={!isConnected}
           className="chat-input"
         />

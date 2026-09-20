@@ -8,9 +8,10 @@ class PeerService {
     this.myPeerId = null;
     this.myNickname = 'Anonymous';
     this.listeners = new Map();
-    this.pingIntervals = new Map(); // peerId -> interval
-    this.incomingFiles = new Map(); // fileId -> { meta, chunks: [], receivedCount, totalBytes }
+    this.pingIntervals = new Map(); // peerId -> intervalId
+    this.incomingFiles = new Map(); // fileId -> { meta, chunks: [], receivedCount, receivedBytes }
     this.activeSenders = new Map(); // fileId -> { cancel: boolean }
+    this.isInitializing = false;
   }
 
   setNickname(name) {
@@ -45,10 +46,24 @@ class PeerService {
     }
   }
 
-  async init(customId = null) {
-    if (this.peer && !this.peer.destroyed) {
+  // Initialize PeerJS client with auto-recovery on ID collisions
+  async init(customId = null, retryCount = 0) {
+    if (this.peer && !this.peer.destroyed && this.myPeerId) {
       return this.myPeerId;
     }
+
+    if (this.isInitializing) {
+      return new Promise((resolve) => {
+        const checkInterval = setInterval(() => {
+          if (this.myPeerId) {
+            clearInterval(checkInterval);
+            resolve(this.myPeerId);
+          }
+        }, 100);
+      });
+    }
+
+    this.isInitializing = true;
 
     return new Promise((resolve, reject) => {
       const config = {
@@ -59,52 +74,95 @@ class PeerService {
             { urls: 'stun:stun2.l.google.com:19302' },
             { urls: 'stun:stun3.l.google.com:19302' },
           ],
+          iceCandidatePoolSize: 10,
         },
         debug: 1,
       };
 
       const peerId = customId || this.generateRoomId();
-      this.peer = new Peer(peerId, config);
+      
+      try {
+        if (this.peer && !this.peer.destroyed) {
+          this.peer.destroy();
+        }
+        this.peer = new Peer(peerId, config);
+      } catch (err) {
+        this.isInitializing = false;
+        return reject(err);
+      }
 
       this.peer.on('open', (id) => {
         this.myPeerId = id;
+        this.isInitializing = false;
+        console.log('[ZeroChat] Peer initialized with ID:', id);
         this.emit('ready', id);
         resolve(id);
       });
 
+      // Incoming connection handler (Receiver side)
       this.peer.on('connection', (connection) => {
+        console.log('[ZeroChat] Incoming connection from:', connection.peer);
         this.setupConnection(connection);
       });
 
       this.peer.on('error', (err) => {
-        console.error('PeerJS error:', err);
-        this.emit('error', err);
+        console.error('[ZeroChat] Peer error:', err);
+        this.isInitializing = false;
+
+        // Auto-recover from taken ID
+        if (err.type === 'unavailable-id' && retryCount < 3) {
+          console.warn('[ZeroChat] ID already taken, regenerating unique ID...');
+          resolve(this.init(null, retryCount + 1));
+          return;
+        }
+
+        if (err.type === 'peer-unavailable') {
+          this.emit('peer_not_found', err);
+          this.emit('status', { status: 'disconnected', peerId: this.activePeerId, error: 'Peer room not found' });
+        } else {
+          this.emit('error', err);
+        }
+
         if (!this.myPeerId) {
           reject(err);
         }
       });
 
       this.peer.on('disconnected', () => {
-        this.emit('status', { status: 'disconnected', peerId: this.activePeerId });
+        console.warn('[ZeroChat] Peer broker disconnected, attempting reconnect...');
+        try {
+          if (this.peer && !this.peer.destroyed) {
+            this.peer.reconnect();
+          }
+        } catch (e) {}
       });
 
       this.peer.on('close', () => {
-        this.cleanup();
+        console.log('[ZeroChat] Peer destroyed');
+        this.myPeerId = null;
+        this.isInitializing = false;
       });
     });
   }
 
+  // Connect to a remote peer room (Initiator side)
   connectToPeer(remoteId) {
     if (!this.peer || this.peer.destroyed) {
-      throw new Error('Peer not initialized');
+      console.warn('[ZeroChat] Cannot connect: Peer not initialized');
+      return;
     }
 
-    if (remoteId === this.myPeerId) {
-      throw new Error('Cannot connect to your own room ID');
+    const cleanId = remoteId.trim();
+    if (!cleanId || cleanId === this.myPeerId) {
+      console.warn('[ZeroChat] Cannot connect to own ID or empty ID');
+      return;
     }
 
-    this.emit('status', { status: 'connecting', peerId: remoteId });
-    const connection = this.peer.connect(remoteId, {
+    console.log('[ZeroChat] Initiating connection to:', cleanId);
+    this.activePeerId = cleanId;
+    this.emit('status', { status: 'connecting', peerId: cleanId });
+
+    const connection = this.peer.connect(cleanId, {
       reliable: true,
       serialization: 'json',
     });
@@ -112,45 +170,56 @@ class PeerService {
     this.setupConnection(connection);
   }
 
+  // Setup connection handlers for both Initiator and Receiver
   setupConnection(connection) {
     const peerId = connection.peer;
+    this.connections.set(peerId, connection);
 
-    connection.on('open', () => {
+    const onOpen = () => {
+      console.log('[ZeroChat] WebRTC DataChannel OPEN with peer:', peerId);
       this.connections.set(peerId, connection);
       this.activePeerId = peerId;
 
-      // 1. Send Handshake with Nickname immediately
+      // 1. Send immediate Handshake with Nickname
       this.sendToPeer(peerId, {
         type: 'handshake',
         nickname: this.myNickname,
         peerId: this.myPeerId,
       });
 
-      // 2. Send Immediate Ping
+      // 2. Send immediate Ping measurement
       this.sendToPeer(peerId, {
         type: 'ping',
         sendTime: performance.now(),
       });
 
-      // 3. Start periodic Ping monitor
+      // 3. Start Heartbeat Ping monitor
       this.startPingMonitor(peerId);
 
+      // Emit connected events
       this.emit('status', { status: 'connected', peerId });
       this.emit('peer_connected', { peerId });
-    });
+    };
+
+    // CRITICAL FIX: In PeerJS, connection.open can already be true on incoming connections
+    if (connection.open) {
+      onOpen();
+    } else {
+      connection.on('open', onOpen);
+    }
 
     connection.on('data', (data) => {
       this.handleIncomingData(peerId, data);
     });
 
     connection.on('close', () => {
+      console.log('[ZeroChat] Connection closed with peer:', peerId);
       this.stopPingMonitor(peerId);
       this.connections.delete(peerId);
       this.emit('status', { status: 'disconnected', peerId });
-      this.emit('session_ended', { peerId, reason: 'disconnected' });
+      this.emit('session_ended', { peerId, reason: 'Remote peer disconnected' });
 
       if (this.activePeerId === peerId) {
-        // Switch to another active connection if available
         const remaining = Array.from(this.connections.keys());
         this.activePeerId = remaining.length > 0 ? remaining[0] : null;
         this.emit('active_peer_changed', this.activePeerId);
@@ -158,7 +227,7 @@ class PeerService {
     });
 
     connection.on('error', (err) => {
-      console.error(`Connection error with ${peerId}:`, err);
+      console.error(`[ZeroChat] Connection error with ${peerId}:`, err);
       this.emit('error', { peerId, error: err });
     });
   }
@@ -168,6 +237,20 @@ class PeerService {
 
     switch (data.type) {
       case 'handshake':
+        console.log(`[ZeroChat] Handshake from ${fromPeerId}: ${data.nickname}`);
+        this.emit('peer_handshake', {
+          peerId: fromPeerId,
+          nickname: data.nickname || 'Peer',
+        });
+        // Respond with handshake if we haven't yet
+        this.sendToPeer(fromPeerId, {
+          type: 'handshake_ack',
+          nickname: this.myNickname,
+          peerId: this.myPeerId,
+        });
+        break;
+
+      case 'handshake_ack':
         this.emit('peer_handshake', {
           peerId: fromPeerId,
           nickname: data.nickname || 'Peer',
@@ -195,7 +278,7 @@ class PeerService {
       case 'typing':
         this.emit('typing', {
           peerId: fromPeerId,
-          isTyping: data.isTyping,
+          isTyping: !!data.isTyping,
           nickname: data.nickname || 'Peer',
         });
         break;
@@ -215,9 +298,10 @@ class PeerService {
         break;
 
       case 'session_end':
+        console.log(`[ZeroChat] Peer ${fromPeerId} ended the session:`, data.reason);
         this.emit('session_ended', {
           peerId: fromPeerId,
-          reason: data.reason || 'Peer left the session',
+          reason: data.reason || 'Peer ended the session',
         });
         this.closePeerConnection(fromPeerId);
         break;
@@ -259,57 +343,59 @@ class PeerService {
     const record = this.incomingFiles.get(data.fileId);
     if (!record) return;
 
-    // Convert Base64 chunk string back to ArrayBuffer
-    const binary = window.atob(data.chunkData);
-    const bytes = new Uint8Array(binary.length);
-    for (let i = 0; i < binary.length; i++) {
-      bytes[i] = binary.charCodeAt(i);
-    }
+    try {
+      const binary = window.atob(data.chunkData);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) {
+        bytes[i] = binary.charCodeAt(i);
+      }
 
-    record.chunks[data.chunkIndex] = bytes.buffer;
-    record.receivedCount += 1;
-    record.receivedBytes += bytes.length;
+      record.chunks[data.chunkIndex] = bytes.buffer;
+      record.receivedCount += 1;
+      record.receivedBytes += bytes.length;
 
-    const progress = Math.min(
-      100,
-      Math.round((record.receivedCount / record.meta.totalChunks) * 100)
-    );
-    const elapsedSec = (performance.now() - record.startTime) / 1000;
-    const speedBps = elapsedSec > 0 ? record.receivedBytes / elapsedSec : 0;
+      const progress = Math.min(
+        100,
+        Math.round((record.receivedCount / record.meta.totalChunks) * 100)
+      );
+      const elapsedSec = (performance.now() - record.startTime) / 1000;
+      const speedBps = elapsedSec > 0 ? record.receivedBytes / elapsedSec : 0;
 
-    this.emit('file_progress', {
-      fileId: data.fileId,
-      peerId: fromPeerId,
-      progress,
-      speedBps,
-      isSender: false,
-    });
-
-    if (record.receivedCount === record.meta.totalChunks) {
-      // Reassemble file
-      const blob = new Blob(record.chunks, { type: record.meta.fileType });
-      const downloadUrl = URL.createObjectURL(blob);
-
-      this.emit('file_complete', {
+      this.emit('file_progress', {
         fileId: data.fileId,
-        fileName: record.meta.fileName,
-        fileSize: record.meta.fileSize,
-        fileType: record.meta.fileType,
-        senderNickname: record.meta.senderNickname,
         peerId: fromPeerId,
-        downloadUrl,
-        blob,
+        progress,
+        speedBps,
         isSender: false,
       });
 
-      this.incomingFiles.delete(data.fileId);
+      if (record.receivedCount === record.meta.totalChunks) {
+        const blob = new Blob(record.chunks, { type: record.meta.fileType });
+        const downloadUrl = URL.createObjectURL(blob);
+
+        this.emit('file_complete', {
+          fileId: data.fileId,
+          fileName: record.meta.fileName,
+          fileSize: record.meta.fileSize,
+          fileType: record.meta.fileType,
+          senderNickname: record.meta.senderNickname,
+          peerId: fromPeerId,
+          downloadUrl,
+          blob,
+          isSender: false,
+        });
+
+        this.incomingFiles.delete(data.fileId);
+      }
+    } catch (err) {
+      console.error('[ZeroChat] Error processing file chunk:', err);
     }
   }
 
-  sendTextMessage(text, targetPeerId = null, encrypted = false) {
+  sendTextMessage(text, targetPeerId = null) {
     const peerId = targetPeerId || this.activePeerId;
     if (!peerId || !this.isPeerConnected(peerId)) {
-      throw new Error('Not connected to peer');
+      throw new Error(`Not connected to peer ${peerId}`);
     }
 
     const message = {
@@ -318,7 +404,6 @@ class PeerService {
       text,
       senderNickname: this.myNickname,
       timestamp: Date.now(),
-      encrypted,
     };
 
     this.sendToPeer(peerId, message);
@@ -331,7 +416,7 @@ class PeerService {
 
     this.sendToPeer(peerId, {
       type: 'typing',
-      isTyping,
+      isTyping: !!isTyping,
       nickname: this.myNickname,
     });
   }
@@ -387,15 +472,14 @@ class PeerService {
       // Backpressure check on DataChannel buffer
       const conn = this.connections.get(peerId);
       const rawChannel = conn?.dataChannel;
-      if (rawChannel && rawChannel.bufferedAmount > 4 * 1024 * 1024) {
-        await new Promise((resolve) => setTimeout(resolve, 40));
+      if (rawChannel && rawChannel.bufferedAmount > 3 * 1024 * 1024) {
+        await new Promise((resolve) => setTimeout(resolve, 30));
         continue;
       }
 
       const slice = file.slice(offset, offset + CHUNK_SIZE);
       const arrayBuffer = await slice.arrayBuffer();
 
-      // Convert slice to Base64
       let binary = '';
       const bytes = new Uint8Array(arrayBuffer);
       for (let i = 0; i < bytes.byteLength; i++) {
@@ -426,7 +510,7 @@ class PeerService {
         isSender: true,
       });
 
-      await new Promise((resolve) => setTimeout(resolve, 3));
+      await new Promise((resolve) => setTimeout(resolve, 2));
     }
 
     this.activeSenders.delete(fileId);
@@ -484,7 +568,11 @@ class PeerService {
   sendToPeer(peerId, data) {
     const conn = this.connections.get(peerId);
     if (conn && conn.open) {
-      conn.send(data);
+      try {
+        conn.send(data);
+      } catch (err) {
+        console.error(`[ZeroChat] Send error to ${peerId}:`, err);
+      }
     }
   }
 
@@ -537,6 +625,7 @@ class PeerService {
 
     this.myPeerId = null;
     this.activePeerId = null;
+    this.isInitializing = false;
     this.incomingFiles.clear();
     this.activeSenders.clear();
   }
@@ -546,8 +635,8 @@ class PeerService {
     const nouns = ['link', 'vault', 'node', 'nexus', 'core', 'portal', 'wave', 'stream'];
     const adj = adjectives[Math.floor(Math.random() * adjectives.length)];
     const noun = nouns[Math.floor(Math.random() * nouns.length)];
-    const num = Math.floor(100 + Math.random() * 900);
-    return `${adj}-${noun}-${num}`;
+    const rand = Math.random().toString(36).substring(2, 6);
+    return `${adj}-${noun}-${rand}`;
   }
 }
 

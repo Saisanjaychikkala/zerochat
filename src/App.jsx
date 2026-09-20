@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import confetti from 'canvas-confetti';
 import { peerService } from './services/peerService';
 import { playSound } from './utils/soundEffects';
@@ -41,40 +41,68 @@ export default function App() {
   const [mobileTab, setMobileTab] = useState('chat');
   const [unreadChatCount, setUnreadChatCount] = useState(0);
 
+  // Toast notifications
+  const [toast, setToast] = useState(null);
+
   // Modals state
   const [isRoomModalOpen, setIsRoomModalOpen] = useState(false);
   const [isNicknameModalOpen, setIsNicknameModalOpen] = useState(false);
   const [isSessionsModalOpen, setIsSessionsModalOpen] = useState(false);
   const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
 
+  // Refs for persistent event handlers (PREVENTS EFFECT TEARDOWNS)
+  const soundEnabledRef = useRef(soundEnabled);
+  soundEnabledRef.current = soundEnabled;
+
+  const activePeerIdRef = useRef(activePeerId);
+  activePeerIdRef.current = activePeerId;
+
+  const mobileTabRef = useRef(mobileTab);
+  mobileTabRef.current = mobileTab;
+
+  const showToast = useCallback((message, type = 'info') => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 3500);
+  }, []);
+
   // Sync nickname to PeerService
   useEffect(() => {
     peerService.setNickname(myNickname);
   }, [myNickname]);
 
-  // Active session data
+  // Current session computed data
   const currentSession = useMemo(() => {
     if (!activePeerId) return { messages: [], transfers: [], peerNickname: null, sessionEnded: false };
     return sessions[activePeerId] || { messages: [], transfers: [], peerNickname: null, sessionEnded: false };
   }, [sessions, activePeerId]);
 
-  // Setup Peer Service Event Listeners
+  // Determine actual active connection status
+  const effectiveStatus = useMemo(() => {
+    if (activePeerId && peerService.isPeerConnected(activePeerId)) {
+      return 'connected';
+    }
+    return status;
+  }, [activePeerId, status, sessions]);
+
+  // SETUP PEER SERVICE ONCE ON MOUNT
   useEffect(() => {
     const unsubReady = peerService.on('ready', (id) => {
       setMyRoomId(id);
 
-      // Handle URL hash joining
+      // Handle room joining from URL hash
       const hash = window.location.hash.replace('#', '').trim();
       if (hash && hash !== id) {
-        console.log('Connecting to target peer room from URL hash:', hash);
+        console.log('[ZeroChat] Auto-joining room from URL hash:', hash);
+        showToast(`Connecting to room ${hash}...`, 'info');
         peerService.connectToPeer(hash);
       }
     });
 
-    const unsubStatus = peerService.on('status', ({ status: newStatus, peerId }) => {
+    const unsubStatus = peerService.on('status', ({ status: newStatus, peerId, error }) => {
       setStatus(newStatus);
       if (newStatus === 'connected') {
-        playSound('connect', soundEnabled);
+        playSound('connect', soundEnabledRef.current);
+        showToast('P2P connection established!', 'success');
         try {
           confetti({
             particleCount: 50,
@@ -84,13 +112,14 @@ export default function App() {
           });
         } catch (e) {}
       } else if (newStatus === 'disconnected') {
-        playSound('disconnect', soundEnabled);
+        playSound('disconnect', soundEnabledRef.current);
         setLatency(null);
       }
     });
 
     const unsubPeerConnected = peerService.on('peer_connected', ({ peerId }) => {
       setActivePeerId(peerId);
+      setStatus('connected');
       setIsRoomModalOpen(false);
 
       setSessions((prev) => {
@@ -118,10 +147,11 @@ export default function App() {
           },
         };
       });
+      showToast(`${nickname} connected`, 'info');
     });
 
     const unsubLatency = peerService.on('latency', ({ peerId, latency: ms }) => {
-      if (peerId === peerService.activePeerId || !peerService.activePeerId) {
+      if (peerId === activePeerIdRef.current || !activePeerIdRef.current) {
         setLatency(ms);
       }
     });
@@ -139,10 +169,10 @@ export default function App() {
         };
       });
 
-      if (mobileTab !== 'chat') {
+      if (mobileTabRef.current !== 'chat') {
         setUnreadChatCount((c) => c + 1);
       }
-      playSound('message', soundEnabled);
+      playSound('message', soundEnabledRef.current);
     });
 
     const unsubAck = peerService.on('message_ack', ({ id, peerId }) => {
@@ -160,14 +190,14 @@ export default function App() {
     });
 
     const unsubTyping = peerService.on('typing', ({ peerId, isTyping, nickname }) => {
-      if (peerId === activePeerId) {
+      if (peerId === activePeerIdRef.current) {
         setIsPeerTyping(isTyping);
         setPeerTypingNickname(nickname);
       }
     });
 
     const unsubSessionEnded = peerService.on('session_ended', ({ peerId, reason }) => {
-      playSound('disconnect', soundEnabled);
+      playSound('disconnect', soundEnabledRef.current);
       setSessions((prev) => {
         const session = prev[peerId];
         if (!session) return prev;
@@ -180,10 +210,16 @@ export default function App() {
           },
         };
       });
-      if (peerId === activePeerId) {
+      if (peerId === activePeerIdRef.current) {
         setStatus('disconnected');
         setLatency(null);
       }
+      showToast(`Chat ended: ${reason}`, 'warning');
+    });
+
+    const unsubPeerNotFound = peerService.on('peer_not_found', () => {
+      showToast('Peer not found. Please verify the room ID.', 'error');
+      setStatus('disconnected');
     });
 
     // File transfer events
@@ -202,6 +238,7 @@ export default function App() {
           },
         };
       });
+      showToast(`Receiving ${fileInfo.fileName}...`, 'info');
     });
 
     const unsubFileProgress = peerService.on('file_progress', ({ fileId, peerId, progress, speedBps }) => {
@@ -237,7 +274,8 @@ export default function App() {
           },
         };
       });
-      playSound('file', soundEnabled);
+      playSound('file', soundEnabledRef.current);
+      showToast(`Transfer complete: ${completedInfo.fileName}`, 'success');
     });
 
     const unsubFileCancelled = peerService.on('file_cancelled', ({ fileId }) => {
@@ -251,13 +289,16 @@ export default function App() {
         });
         return updated;
       });
+      showToast('File transfer cancelled', 'warning');
     });
 
     // Initialize peer
     peerService.init().catch((err) => {
-      console.error('Failed to initialize PeerJS:', err);
+      console.error('[ZeroChat] Initialization error:', err);
+      showToast('Failed to initialize PeerJS network', 'error');
     });
 
+    // Clean up on component unmount ONLY
     return () => {
       unsubReady();
       unsubStatus();
@@ -268,17 +309,21 @@ export default function App() {
       unsubAck();
       unsubTyping();
       unsubSessionEnded();
+      unsubPeerNotFound();
       unsubFileStart();
       unsubFileProgress();
       unsubFileComplete();
       unsubFileCancelled();
       peerService.cleanup();
     };
-  }, [soundEnabled, activePeerId, mobileTab]);
+  }, [showToast]); // Run ONCE on mount!
 
   // Actions
   const handleSendMessage = useCallback((text) => {
-    if (!activePeerId) return;
+    if (!activePeerId) {
+      showToast('Connect to a peer to send messages', 'warning');
+      return;
+    }
     try {
       const sentMsg = peerService.sendTextMessage(text, activePeerId);
       setSessions((prev) => {
@@ -291,20 +336,25 @@ export default function App() {
           },
         };
       });
-      playSound('message', soundEnabled);
+      playSound('message', soundEnabledRef.current);
     } catch (err) {
-      console.error('Failed to send text:', err);
+      console.error('[ZeroChat] Send message failed:', err);
+      showToast('Failed to send message: peer not connected', 'error');
     }
-  }, [activePeerId, soundEnabled]);
+  }, [activePeerId, showToast]);
 
   const handleSendFile = useCallback(async (file) => {
-    if (!activePeerId) return;
+    if (!activePeerId) {
+      showToast('Connect to a peer to send files', 'warning');
+      return;
+    }
     try {
       await peerService.sendFile(file, activePeerId);
     } catch (err) {
-      console.error('Failed to send file:', err);
+      console.error('[ZeroChat] Send file failed:', err);
+      showToast('Failed to send file: peer not connected', 'error');
     }
-  }, [activePeerId]);
+  }, [activePeerId, showToast]);
 
   const handleCancelTransfer = useCallback((fileId) => {
     peerService.cancelFileTransfer(fileId, activePeerId);
@@ -319,10 +369,15 @@ export default function App() {
   const handleJoinRoom = useCallback((targetId) => {
     const cleanId = targetId.includes('#') ? targetId.split('#')[1].trim() : targetId.trim();
     if (cleanId) {
+      if (cleanId === myRoomId) {
+        showToast('Cannot connect to your own room ID', 'warning');
+        return;
+      }
       window.location.hash = cleanId;
+      showToast(`Connecting to ${cleanId}...`, 'info');
       peerService.connectToPeer(cleanId);
     }
-  }, []);
+  }, [myRoomId, showToast]);
 
   const handleEndSession = useCallback(() => {
     if (activePeerId) {
@@ -341,7 +396,7 @@ export default function App() {
   }, []);
 
   const handleBurnSession = useCallback(() => {
-    if (window.confirm('Burn session? This immediately closes all peer channels and completely purges all in-memory chat and file transfer history.')) {
+    if (window.confirm('Burn session? This immediately severs all peer channels and completely purges all in-memory chat and file transfer history.')) {
       peerService.cleanup();
       setSessions({});
       setActivePeerId(null);
@@ -349,8 +404,9 @@ export default function App() {
       setStatus('disconnected');
       window.history.replaceState(null, '', window.location.pathname);
       peerService.init().catch(console.error);
+      showToast('Session burned. Memory cleared.', 'success');
     }
-  }, []);
+  }, [showToast]);
 
   const handleSaveNickname = (name, color) => {
     setMyNickname(name);
@@ -367,6 +423,7 @@ export default function App() {
         peerId: myRoomId,
       });
     });
+    showToast(`Display name updated to ${name}`, 'success');
   };
 
   const activeTransfersCount = useMemo(() => {
@@ -377,9 +434,16 @@ export default function App() {
 
   return (
     <div className="app-container">
+      {/* Toast Alert */}
+      {toast && (
+        <div className={`toast-notification toast-${toast.type}`}>
+          <span>{toast.message}</span>
+        </div>
+      )}
+
       {/* Header */}
       <Header 
-        status={status}
+        status={effectiveStatus}
         roomId={myRoomId}
         remotePeerNickname={currentSession.peerNickname}
         myNickname={myNickname}
@@ -396,12 +460,12 @@ export default function App() {
         sessionsCount={sessionsCount}
       />
 
-      {/* Main Workspace (Mobile tab-filtered, Desktop split) */}
+      {/* Main Workspace */}
       <main className={`main-workspace tab-${mobileTab}`}>
         <ChatArea 
           messages={currentSession.messages}
           onSendMessage={handleSendMessage}
-          status={status}
+          status={effectiveStatus}
           remotePeerId={activePeerId}
           remotePeerNickname={currentSession.peerNickname}
           myNickname={myNickname}
@@ -419,7 +483,7 @@ export default function App() {
           transfers={currentSession.transfers}
           onSendFile={handleSendFile}
           onCancelTransfer={handleCancelTransfer}
-          status={status}
+          status={effectiveStatus}
           remotePeerNickname={currentSession.peerNickname}
         />
       </main>
@@ -445,7 +509,7 @@ export default function App() {
         isOpen={isRoomModalOpen}
         onClose={() => setIsRoomModalOpen(false)}
         roomId={myRoomId}
-        status={status}
+        status={effectiveStatus}
         onJoinRoom={handleJoinRoom}
       />
 
@@ -464,6 +528,8 @@ export default function App() {
         onSelectPeer={(pId) => {
           setActivePeerId(pId);
           peerService.activePeerId = pId;
+          const targetStatus = peerService.isPeerConnected(pId) ? 'connected' : 'disconnected';
+          setStatus(targetStatus);
         }}
         onNewRoom={handleStartNewRoom}
         onDisconnectPeer={(pId) => peerService.closePeerConnection(pId)}
