@@ -5,37 +5,33 @@ export default function MobileNav({
   activeTab, 
   setActiveTab, 
   unreadCount = 0, 
-  activeTransfersCount = 0
+  activeTransfersCount = 0 
 }) {
   return (
-    <nav className="mobile-nav-bar">
+    <div className="mobile-segmented-bar">
       <button 
+        type="button"
         onClick={() => setActiveTab('chat')} 
-        className={`mobile-nav-item ${activeTab === 'chat' ? 'active' : ''}`}
+        className={`segment-btn ${activeTab === 'chat' ? 'active' : ''}`}
       >
-        <div style={{ position: 'relative' }}>
-          <MessageSquare size={19} />
-          {unreadCount > 0 && activeTab !== 'chat' && (
-            <span className="nav-badge">{unreadCount}</span>
-          )}
-        </div>
+        <MessageSquare size={15} />
         <span>Messages</span>
+        {unreadCount > 0 && activeTab !== 'chat' && (
+          <span className="segment-badge">{unreadCount}</span>
+        )}
       </button>
 
       <button 
+        type="button"
         onClick={() => setActiveTab('files')} 
-        className={`mobile-nav-item ${activeTab === 'files' ? 'active' : ''}`}
+        className={`segment-btn ${activeTab === 'files' ? 'active' : ''}`}
       >
-        <div style={{ position: 'relative' }}>
-          <Zap size={19} />
-          {activeTransfersCount > 0 && (
-            <span className="nav-badge" style={{ background: 'var(--accent-cyan)', color: '#000' }}>
-              {activeTransfersCount}
-            </span>
-          )}
-        </div>
+        <Zap size={15} />
         <span>AirDrop Files</span>
+        {activeTransfersCount > 0 && (
+          <span className="segment-badge cyan">{activeTransfersCount}</span>
+        )}
       </button>
-    </nav>
+    </div>
   );
 }

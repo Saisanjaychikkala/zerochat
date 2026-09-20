@@ -13,7 +13,7 @@ import MobileNav from './components/MobileNav';
 export default function App() {
   // Identity & Preferences
   const [myNickname, setMyNickname] = useState(() => {
-    return localStorage.getItem('zerochat_nickname') || 'Guest-' + Math.floor(100 + Math.random() * 900);
+    return localStorage.getItem('zerochat_nickname') || 'User-' + Math.floor(100 + Math.random() * 900);
   });
   const [myAvatarBg, setMyAvatarBg] = useState(() => {
     return localStorage.getItem('zerochat_avatar_bg') || 'linear-gradient(135deg, #00f2fe, #4facfe)';
@@ -30,7 +30,7 @@ export default function App() {
   const [status, setStatus] = useState('disconnected'); // 'disconnected' | 'connecting' | 'connected' | 'reconnecting'
   const [latency, setLatency] = useState(null);
 
-  // Persistent Chat & Transfer History (NEVER WIPED BY TAB SWITCHING)
+  // Messages & Transfers State
   const [messages, setMessages] = useState([]);
   const [transfers, setTransfers] = useState([]);
 
@@ -57,9 +57,11 @@ export default function App() {
   const mobileTabRef = useRef(mobileTab);
   mobileTabRef.current = mobileTab;
 
+  const currentConnectedPeerRef = useRef(null);
+
   const showToast = useCallback((message, type = 'info') => {
     setToast({ message, type });
-    setTimeout(() => setToast(null), 3000);
+    setTimeout(() => setToast(null), 3200);
   }, []);
 
   // Update nickname in PeerService
@@ -67,7 +69,7 @@ export default function App() {
     peerService.setNickname(myNickname);
   }, [myNickname]);
 
-  // INITIALIZE PEER ONCE ON MOUNT (NEVER TEARS DOWN UNLESS UNMOUNTED)
+  // INITIALIZE PEER ONCE ON MOUNT
   useEffect(() => {
     const unsubReady = peerService.on('ready', (id) => {
       setMyRoomId(id);
@@ -75,7 +77,7 @@ export default function App() {
       // Check if URL has hash to auto-join
       const hash = window.location.hash.replace('#', '').trim();
       if (hash && hash !== id) {
-        console.log('[ZeroChat] Auto-connecting to room:', hash);
+        console.log('[ZeroChat] Joining room from URL hash:', hash);
         showToast(`Connecting to room ${hash}...`, 'info');
         peerService.connectToPeer(hash);
       }
@@ -85,7 +87,7 @@ export default function App() {
       setStatus(newStatus);
       if (newStatus === 'connected') {
         playSound('connect', soundEnabledRef.current);
-        showToast('Connected! Direct P2P Channel Active', 'success');
+        showToast('P2P channel active!', 'success');
         try {
           confetti({
             particleCount: 50,
@@ -95,13 +97,21 @@ export default function App() {
           });
         } catch (e) {}
       } else if (newStatus === 'reconnecting') {
-        showToast('Connection paused. Reconnecting...', 'warning');
+        showToast('Connection interrupted. Reconnecting...', 'warning');
       } else if (newStatus === 'disconnected') {
         setLatency(null);
       }
     });
 
     const unsubPeerConnected = peerService.on('peer_connected', ({ peerId, nickname }) => {
+      // RESET CHAT HISTORY IF A DIFFERENT PEER CONNECTS
+      if (currentConnectedPeerRef.current && currentConnectedPeerRef.current !== peerId) {
+        console.log('[ZeroChat] New peer connected. Starting fresh conversation.');
+        setMessages([]);
+        setTransfers([]);
+      }
+      currentConnectedPeerRef.current = peerId;
+
       setRemotePeerId(peerId);
       if (nickname) setRemoteNickname(nickname);
       setStatus('connected');
@@ -116,11 +126,10 @@ export default function App() {
 
     const unsubPeerDisconnected = peerService.on('peer_disconnected', () => {
       setStatus('reconnecting');
-      showToast('Peer connection interrupted. Waiting to reconnect...', 'warning');
     });
 
     const unsubPeerNotFound = peerService.on('peer_not_found', () => {
-      showToast('Room not found. Please verify the room ID.', 'error');
+      showToast('Room not found. Please verify the link.', 'error');
       setStatus('disconnected');
     });
 
@@ -154,7 +163,7 @@ export default function App() {
         ...prev,
       ]);
       if (!fileInfo.isSender) {
-        showToast(`Incoming file: ${fileInfo.fileName}`, 'info');
+        showToast(`Receiving ${fileInfo.fileName}...`, 'info');
       }
     });
 
@@ -223,7 +232,7 @@ export default function App() {
 
   const handleSendFile = useCallback(async (file) => {
     if (!peerService.isConnected()) {
-      showToast('Wait for peer to connect before sending files', 'warning');
+      showToast('Connect a peer before sending files', 'warning');
       return;
     }
     try {
@@ -249,6 +258,10 @@ export default function App() {
         showToast('Cannot connect to your own room ID', 'warning');
         return;
       }
+      // Clear previous conversation when joining another room
+      setMessages([]);
+      setTransfers([]);
+      currentConnectedPeerRef.current = null;
       window.location.hash = cleanId;
       showToast(`Connecting to ${cleanId}...`, 'info');
       peerService.connectToPeer(cleanId);
@@ -257,15 +270,19 @@ export default function App() {
 
   const handleDisconnect = useCallback(() => {
     peerService.disconnect();
+    currentConnectedPeerRef.current = null;
     setRemotePeerId(null);
     setLatency(null);
     setStatus('disconnected');
-    showToast('Disconnected from peer', 'info');
+    setMessages([]);
+    setTransfers([]);
+    showToast('Disconnected. Session history cleared.', 'info');
   }, [showToast]);
 
   const handleBurnSession = useCallback(() => {
     if (window.confirm('Burn session? This immediately wipes all messages and files from memory and resets the room.')) {
       peerService.cleanup();
+      currentConnectedPeerRef.current = null;
       setMessages([]);
       setTransfers([]);
       setRemotePeerId(null);
@@ -273,7 +290,7 @@ export default function App() {
       setStatus('disconnected');
       window.history.replaceState(null, '', window.location.pathname);
       peerService.init().catch(console.error);
-      showToast('Session burned. Memory cleared.', 'success');
+      showToast('Session burned. Fresh room ready.', 'success');
     }
   }, [showToast]);
 
@@ -314,6 +331,17 @@ export default function App() {
         onShowInfoModal={() => setIsInfoModalOpen(true)}
       />
 
+      {/* Mobile Top Segmented Tab Switcher (Visible on Mobile only) */}
+      <MobileNav 
+        activeTab={mobileTab}
+        setActiveTab={(tab) => {
+          setMobileTab(tab);
+          if (tab === 'chat') setUnreadChatCount(0);
+        }}
+        unreadCount={unreadChatCount}
+        activeTransfersCount={activeTransfersCount}
+      />
+
       {/* Main Workspace (Desktop: 2-column side-by-side, Mobile: tab-controlled) */}
       <main className={`main-workspace tab-${mobileTab}`}>
         <ChatArea 
@@ -338,17 +366,6 @@ export default function App() {
           remotePeerNickname={remoteNickname}
         />
       </main>
-
-      {/* Mobile Bottom Navigation Bar (Pure UI switcher, ZERO network side-effects) */}
-      <MobileNav 
-        activeTab={mobileTab}
-        setActiveTab={(tab) => {
-          setMobileTab(tab);
-          if (tab === 'chat') setUnreadChatCount(0);
-        }}
-        unreadCount={unreadChatCount}
-        activeTransfersCount={activeTransfersCount}
-      />
 
       {/* Modals */}
       <RoomModal 

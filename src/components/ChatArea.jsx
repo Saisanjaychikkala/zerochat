@@ -1,14 +1,16 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { QRCodeSVG } from 'qrcode.react';
 import { 
   Send, 
   Smile, 
   Check, 
   CheckCheck, 
   Lock, 
-  Share2, 
+  Copy,
   Radio, 
-  AlertCircle,
-  RefreshCw
+  RefreshCw,
+  Sparkles,
+  ArrowRight
 } from 'lucide-react';
 
 const QUICK_EMOJIS = ['👍', '🔥', '🚀', '❤️', '⚡', '🎉', '👀'];
@@ -28,6 +30,7 @@ export default function ChatArea({
 }) {
   const [inputText, setInputText] = useState('');
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [copied, setCopied] = useState(false);
   const messagesEndRef = useRef(null);
   const typingTimeoutRef = useRef(null);
 
@@ -67,11 +70,20 @@ export default function ChatArea({
     setShowEmojiPicker(false);
   };
 
+  const handleCopyLink = () => {
+    if (!roomId) return;
+    const url = `${window.location.origin}${window.location.pathname}#${roomId}`;
+    navigator.clipboard.writeText(url);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
   const formatTime = (timestamp) => {
     return new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
   const isConnected = status === 'connected';
+  const inviteUrl = typeof window !== 'undefined' ? `${window.location.origin}${window.location.pathname}#${roomId}` : '';
 
   return (
     <section className="chat-container glass-panel">
@@ -84,7 +96,11 @@ export default function ChatArea({
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <span style={{ fontWeight: 700, fontSize: '0.95rem' }}>
-                {remotePeerNickname || (remotePeerId ? `Peer (${remotePeerId.substring(0, 8)})` : 'Waiting for Peer')}
+                {isConnected 
+                  ? remotePeerNickname || `Peer (${remotePeerId?.substring(0, 8)})` 
+                  : status === 'connecting'
+                  ? 'Connecting...'
+                  : 'Ready for Connection'}
               </span>
               <span className="e2ee-tag">
                 <Lock size={10} />
@@ -97,70 +113,99 @@ export default function ChatArea({
                 : status === 'connecting'
                 ? 'Negotiating peer handshake...'
                 : status === 'reconnecting'
-                ? 'Re-establishing connection...'
-                : 'Share room invite to connect'}
+                ? 'Reconnecting in background...'
+                : 'Share room link or scan QR code to connect'}
             </p>
           </div>
         </div>
 
-        {!isConnected && (
-          <button onClick={onOpenRoomModal} className="btn btn-primary" style={{ fontSize: '0.78rem', padding: '6px 14px' }}>
-            <Share2 size={13} />
-            <span>Invite Peer</span>
-          </button>
-        )}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          {!isConnected && (
+            <button onClick={onOpenRoomModal} className="btn btn-secondary" style={{ fontSize: '0.78rem', padding: '6px 12px' }}>
+              <span>Join Other Room</span>
+              <ArrowRight size={13} />
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Reconnecting Alert Bar */}
       {status === 'reconnecting' && (
-        <div style={{ 
-          padding: '8px 16px', 
-          background: 'rgba(245, 158, 11, 0.12)', 
-          borderBottom: '1px solid rgba(245, 158, 11, 0.25)',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px',
-          fontSize: '0.78rem',
-          color: '#fde68a'
-        }}>
+        <div className="reconnecting-bar">
           <RefreshCw size={14} className="animate-spin" />
-          <span>Connection temporarily interrupted. Re-connecting in background... Messages are preserved.</span>
+          <span>Connection paused. Reconnecting in background... Messages are preserved.</span>
         </div>
       )}
 
       {/* Messages Scroll Feed */}
       <div className="messages-list">
-        {/* Empty State when no messages and not connected */}
+        {/* Waiting State Hero (Shown when no messages and not connected) */}
         {messages.length === 0 && !isConnected && (
           <div className="waiting-hero-card">
-            <div className="radar-pulse">
-              <div className="radar-circle" />
-              <div className="radar-circle" />
-              <div className="radar-circle" />
-              <div className="radar-center-icon">
-                <Radio size={28} color="#000" />
-              </div>
+            <div style={{ 
+              background: '#ffffff', 
+              padding: '12px', 
+              borderRadius: '16px',
+              boxShadow: '0 8px 30px rgba(0,0,0,0.5)',
+              margin: '0 auto'
+            }}>
+              {roomId && (
+                <QRCodeSVG 
+                  value={inviteUrl} 
+                  size={150} 
+                  level="M"
+                  includeMargin={false}
+                />
+              )}
             </div>
 
             <div>
-              <h3 style={{ fontSize: '1.2rem', fontWeight: 700, marginBottom: '6px' }}>
-                {status === 'connecting' ? 'Connecting to Room...' : 'Your Secure Room is Ready'}
+              <h3 style={{ fontSize: '1.15rem', fontWeight: 700, marginBottom: '4px' }}>
+                {status === 'connecting' ? 'Connecting to Peer...' : 'Scan with Phone to Connect'}
               </h3>
-              <p style={{ fontSize: '0.84rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>
-                {status === 'connecting'
-                  ? 'Establishing end-to-end encrypted WebRTC channel...'
-                  : 'Scan the QR code or send your room link to your laptop or phone to start chatting and sending files.'}
+              <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', lineHeight: 1.45 }}>
+                Open camera on your phone or share this link to start a private, zero-server chat session.
               </p>
             </div>
 
-            <button onClick={onOpenRoomModal} className="btn btn-primary" style={{ padding: '10px 22px' }}>
-              <Share2 size={16} />
-              <span>Invite Laptop or Phone</span>
-            </button>
+            {/* Room Link Quick Copy */}
+            <div style={{ 
+              width: '100%', 
+              display: 'flex', 
+              alignItems: 'center', 
+              background: 'var(--bg-input)', 
+              border: '1px solid var(--border-subtle)', 
+              borderRadius: 'var(--radius-md)',
+              padding: '6px 10px',
+              gap: '6px'
+            }}>
+              <input 
+                type="text" 
+                readOnly 
+                value={inviteUrl} 
+                style={{ 
+                  flex: 1, 
+                  background: 'transparent', 
+                  border: 'none', 
+                  color: 'var(--text-muted)', 
+                  fontSize: '0.78rem',
+                  fontFamily: 'var(--font-mono)',
+                  outline: 'none'
+                }} 
+              />
+              <button 
+                onClick={handleCopyLink} 
+                className="btn btn-primary" 
+                style={{ padding: '6px 12px', fontSize: '0.75rem' }}
+              >
+                {copied ? <Check size={13} /> : <Copy size={13} />}
+                <span>{copied ? 'Copied!' : 'Copy'}</span>
+              </button>
+            </div>
           </div>
         )}
 
-        {/* Message Items */}
+        {/* Message Bubbles */}
         {messages.map((msg) => (
           <div key={msg.id} className={`message-row ${msg.sender === 'local' ? 'sent' : 'received'}`}>
             <span className="message-sender-name">
@@ -184,7 +229,7 @@ export default function ChatArea({
           </div>
         ))}
 
-        {/* Peer Typing Indicator */}
+        {/* Remote Typing Indicator */}
         {isPeerTyping && isConnected && (
           <div className="message-row received">
             <div className="message-bubble typing-bubble">
@@ -239,7 +284,7 @@ export default function ChatArea({
               ? "Connecting to peer..."
               : status === 'reconnecting'
               ? "Reconnecting to peer..."
-              : "Waiting for peer to connect..."
+              : "Scan QR or invite peer to start chatting..."
           } 
           value={inputText}
           onChange={handleTextChange}
