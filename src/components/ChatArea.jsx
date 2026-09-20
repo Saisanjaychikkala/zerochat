@@ -7,8 +7,8 @@ import {
   Lock, 
   Share2, 
   Radio, 
-  RotateCcw,
-  AlertCircle
+  AlertCircle,
+  RefreshCw
 } from 'lucide-react';
 
 const QUICK_EMOJIS = ['👍', '🔥', '🚀', '❤️', '⚡', '🎉', '👀'];
@@ -24,9 +24,6 @@ export default function ChatArea({
   peerTypingNickname,
   onTyping,
   onOpenRoomModal,
-  onStartNewRoom,
-  sessionEnded,
-  sessionEndReason,
   roomId
 }) {
   const [inputText, setInputText] = useState('');
@@ -36,7 +33,7 @@ export default function ChatArea({
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, isPeerTyping, sessionEnded]);
+  }, [messages, isPeerTyping, status]);
 
   const handleTextChange = (e) => {
     setInputText(e.target.value);
@@ -45,7 +42,7 @@ export default function ChatArea({
     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
     typingTimeoutRef.current = setTimeout(() => {
       onTyping(false);
-    }, 1400);
+    }, 1200);
   };
 
   const handleSend = (e) => {
@@ -74,7 +71,7 @@ export default function ChatArea({
     return new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
-  const isConnected = status === 'connected' && !sessionEnded;
+  const isConnected = status === 'connected';
 
   return (
     <section className="chat-container glass-panel">
@@ -87,7 +84,7 @@ export default function ChatArea({
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <span style={{ fontWeight: 700, fontSize: '0.95rem' }}>
-                {remotePeerNickname || (remotePeerId ? `Peer: ${remotePeerId.substring(0, 12)}...` : 'Waiting for Peer')}
+                {remotePeerNickname || (remotePeerId ? `Peer (${remotePeerId.substring(0, 8)})` : 'Waiting for Peer')}
               </span>
               <span className="e2ee-tag">
                 <Lock size={10} />
@@ -96,17 +93,17 @@ export default function ChatArea({
             </div>
             <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
               {isConnected 
-                ? 'Encrypted peer memory channel active' 
+                ? 'Encrypted peer data channel active' 
                 : status === 'connecting'
-                ? 'Establishing P2P handshake...'
-                : sessionEnded 
-                ? 'Session terminated' 
-                : 'Share room link or QR code to connect'}
+                ? 'Negotiating peer handshake...'
+                : status === 'reconnecting'
+                ? 'Re-establishing connection...'
+                : 'Share room invite to connect'}
             </p>
           </div>
         </div>
 
-        {!isConnected && !sessionEnded && (
+        {!isConnected && (
           <button onClick={onOpenRoomModal} className="btn btn-primary" style={{ fontSize: '0.78rem', padding: '6px 14px' }}>
             <Share2 size={13} />
             <span>Invite Peer</span>
@@ -114,10 +111,27 @@ export default function ChatArea({
         )}
       </div>
 
+      {/* Reconnecting Alert Bar */}
+      {status === 'reconnecting' && (
+        <div style={{ 
+          padding: '8px 16px', 
+          background: 'rgba(245, 158, 11, 0.12)', 
+          borderBottom: '1px solid rgba(245, 158, 11, 0.25)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+          fontSize: '0.78rem',
+          color: '#fde68a'
+        }}>
+          <RefreshCw size={14} className="animate-spin" />
+          <span>Connection temporarily interrupted. Re-connecting in background... Messages are preserved.</span>
+        </div>
+      )}
+
       {/* Messages Scroll Feed */}
       <div className="messages-list">
-        {/* Waiting State if not connected and no messages */}
-        {status !== 'connected' && !sessionEnded && messages.length === 0 && (
+        {/* Empty State when no messages and not connected */}
+        {messages.length === 0 && !isConnected && (
           <div className="waiting-hero-card">
             <div className="radar-pulse">
               <div className="radar-circle" />
@@ -130,18 +144,18 @@ export default function ChatArea({
 
             <div>
               <h3 style={{ fontSize: '1.2rem', fontWeight: 700, marginBottom: '6px' }}>
-                {status === 'connecting' ? 'Connecting to Peer...' : 'Room Ready for Connection'}
+                {status === 'connecting' ? 'Connecting to Room...' : 'Your Secure Room is Ready'}
               </h3>
               <p style={{ fontSize: '0.84rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>
-                {status === 'connecting' 
-                  ? 'Negotiating WebRTC ICE candidates and encrypted data channels...'
-                  : 'Share your invite link with your contact. Once they open it, you are instantly connected memory-to-memory.'}
+                {status === 'connecting'
+                  ? 'Establishing end-to-end encrypted WebRTC channel...'
+                  : 'Scan the QR code or send your room link to your laptop or phone to start chatting and sending files.'}
               </p>
             </div>
 
             <button onClick={onOpenRoomModal} className="btn btn-primary" style={{ padding: '10px 22px' }}>
               <Share2 size={16} />
-              <span>Share Invite Link & QR</span>
+              <span>Invite Laptop or Phone</span>
             </button>
           </div>
         )}
@@ -184,36 +198,13 @@ export default function ChatArea({
           </div>
         )}
 
-        {/* Session Ended Banner */}
-        {sessionEnded && (
-          <div className="session-ended-card">
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#fb7185', fontWeight: 700 }}>
-              <AlertCircle size={18} />
-              <span>Chat has ended</span>
-            </div>
-            <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: '4px 0 12px' }}>
-              {sessionEndReason || 'The remote peer disconnected or ended the session.'}
-            </p>
-            <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-              <button onClick={onStartNewRoom} className="btn btn-primary text-xs" style={{ padding: '8px 16px' }}>
-                <RotateCcw size={14} />
-                <span>Start New Chat</span>
-              </button>
-              <button onClick={onOpenRoomModal} className="btn btn-secondary text-xs" style={{ padding: '8px 16px' }}>
-                <Share2 size={14} />
-                <span>Re-Invite to Room</span>
-              </button>
-            </div>
-          </div>
-        )}
-
         <div ref={messagesEndRef} />
       </div>
 
       {/* Quick Emoji Bar */}
       {showEmojiPicker && isConnected && (
         <div className="quick-emoji-bar">
-          <span style={{ fontSize: '0.72rem', color: 'var(--text-dim)', marginRight: '6px' }}>Quick Reaction:</span>
+          <span style={{ fontSize: '0.72rem', color: 'var(--text-dim)', marginRight: '6px' }}>Reaction:</span>
           {QUICK_EMOJIS.map((emoji) => (
             <button 
               key={emoji} 
@@ -246,8 +237,8 @@ export default function ChatArea({
               ? "Type an encrypted message (Press Enter to send)..." 
               : status === 'connecting'
               ? "Connecting to peer..."
-              : sessionEnded 
-              ? "Chat has ended. Click 'Start New Chat' above." 
+              : status === 'reconnecting'
+              ? "Reconnecting to peer..."
               : "Waiting for peer to connect..."
           } 
           value={inputText}

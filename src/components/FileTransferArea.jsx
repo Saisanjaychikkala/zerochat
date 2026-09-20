@@ -8,7 +8,6 @@ import {
   Film, 
   Music, 
   Archive, 
-  File, 
   CheckCircle, 
   HardDriveDownload,
   Zap,
@@ -94,7 +93,7 @@ export default function FileTransferArea({
 
   return (
     <aside className="sidebar-container">
-      {/* P2P AirDrop Card */}
+      {/* AirDrop Card */}
       <div className="glass-panel file-drop-card">
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -106,7 +105,7 @@ export default function FileTransferArea({
             color: 'var(--text-dim)', 
             fontFamily: 'var(--font-mono)' 
           }}>
-            Memory P2P
+            Zero Server Upload
           </span>
         </div>
 
@@ -138,10 +137,10 @@ export default function FileTransferArea({
           </div>
           <div>
             <p style={{ fontSize: '0.85rem', fontWeight: 600 }}>
-              {isConnected ? 'Drop files here or tap to browse' : 'Connect peer to transfer files'}
+              {isConnected ? 'Drop files here or tap to select' : 'Connect peer to drop files'}
             </p>
             <p style={{ fontSize: '0.72rem', color: 'var(--text-dim)', marginTop: '2px' }}>
-              Streaming directly over encrypted WebRTC channel
+              Transferred directly memory-to-memory via WebRTC
             </p>
           </div>
         </div>
@@ -150,9 +149,9 @@ export default function FileTransferArea({
       {/* Transfers Activity Feed */}
       <div className="glass-panel" style={{ flex: 1, padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px', minHeight: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <h4 style={{ fontSize: '0.88rem', fontWeight: 700 }}>Transfers ({transfers.length})</h4>
+          <h4 style={{ fontSize: '0.88rem', fontWeight: 700 }}>File Transfers ({transfers.length})</h4>
           <span style={{ fontSize: '0.72rem', color: 'var(--accent-cyan)', fontFamily: 'var(--font-mono)' }}>
-            100% Encrypted
+            16KB Buffered Stream
           </span>
         </div>
 
@@ -166,8 +165,8 @@ export default function FileTransferArea({
               fontSize: '0.8rem'
             }}>
               <HardDriveDownload size={32} style={{ margin: '0 auto 8px', opacity: 0.3 }} />
-              <p>No active file transfers</p>
-              <p style={{ fontSize: '0.72rem', marginTop: '4px' }}>Files sent or received in this session appear here.</p>
+              <p>No active or past transfers</p>
+              <p style={{ fontSize: '0.72rem', marginTop: '4px' }}>Files you send or receive will appear here.</p>
             </div>
           ) : (
             transfers.map((item) => (
@@ -244,7 +243,7 @@ export default function FileTransferArea({
                     fontFamily: 'var(--font-mono)' 
                   }}>
                     <span>{formatSpeed(item.speedBps)}</span>
-                    <span>Streaming chunks...</span>
+                    <span>Direct WebRTC chunking...</span>
                   </div>
                 )}
               </div>

@@ -8,9 +8,7 @@ import {
   VolumeX, 
   Flame, 
   Info, 
-  User, 
   PhoneOff, 
-  Users,
   Activity
 } from 'lucide-react';
 
@@ -23,13 +21,11 @@ export default function Header({
   latency, 
   soundEnabled, 
   setSoundEnabled, 
-  onEndSession,
+  onDisconnect,
   onBurnSession,
   onShowRoomModal,
   onShowNicknameModal,
-  onShowSessionsModal,
-  onShowInfoModal,
-  sessionsCount = 1
+  onShowInfoModal
 }) {
   const [copied, setCopied] = useState(false);
 
@@ -43,31 +39,31 @@ export default function Header({
 
   return (
     <header className="header-bar glass-panel">
-      {/* Brand & Identity */}
+      {/* Brand & User Profile */}
       <div className="logo-group">
         <div className="logo-badge">
-          <Sparkles size={20} />
+          <Sparkles size={19} />
         </div>
         <div className="logo-text">
           <h1>ZeroChat</h1>
-          <p>E2EE Direct P2P</p>
+          <p>Direct P2P DataChannel</p>
         </div>
 
-        {/* Current User Nickname Pill */}
+        {/* User Nickname Button */}
         <button 
           onClick={onShowNicknameModal}
           className="user-nickname-btn"
-          title="Change your display nickname"
+          title="Change display nickname"
         >
           <div 
             style={{ 
-              width: '20px', 
-              height: '20px', 
+              width: '22px', 
+              height: '22px', 
               borderRadius: '50%', 
               background: myAvatarBg || 'linear-gradient(135deg, #00f2fe, #4facfe)',
               color: '#000',
               fontWeight: 800,
-              fontSize: '0.65rem',
+              fontSize: '0.7rem',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center'
@@ -79,9 +75,9 @@ export default function Header({
         </button>
       </div>
 
-      {/* Header Actions & Telemetry */}
+      {/* Header Actions */}
       <div className="header-actions">
-        {/* Room Code & Invite Quick Copy */}
+        {/* Room Invite Button */}
         {roomId && (
           <div className="room-link-group">
             <button 
@@ -96,30 +92,24 @@ export default function Header({
             <button 
               onClick={onShowRoomModal}
               className="btn btn-icon" 
-              title="Show QR Code & Invite Options"
+              title="Open QR Code & Mobile Invite"
             >
               <QrCode size={16} />
             </button>
           </div>
         )}
 
-        {/* Multi-Chat Sessions Indicator */}
-        <button 
-          onClick={onShowSessionsModal}
-          className="btn btn-secondary text-xs sessions-indicator-btn"
-          title="View active peer conversations"
-        >
-          <Users size={14} color="var(--accent-purple)" />
-          <span className="sessions-text">{sessionsCount} {sessionsCount === 1 ? 'Chat' : 'Chats'}</span>
-        </button>
-
-        {/* Prominent Ping Latency Badge (Fixed for laptops & desktops) */}
+        {/* Live Latency / Ping Monitor */}
         <div className="ping-monitor-badge" title="Live WebRTC round-trip latency">
           <Activity size={14} color={status === 'connected' ? 'var(--accent-cyan)' : 'var(--text-dim)'} />
           <span className="ping-val">
             {status === 'connected' 
               ? (latency !== null ? `${latency}ms` : '<10ms') 
-              : status === 'connecting' ? 'Pinging...' : 'Offline'}
+              : status === 'connecting' 
+              ? 'Connecting' 
+              : status === 'reconnecting'
+              ? 'Reconnecting'
+              : 'Standby'}
           </span>
           <span className={`status-dot ${status}`} />
         </div>
@@ -133,32 +123,32 @@ export default function Header({
           {soundEnabled ? <Volume2 size={16} /> : <VolumeX size={16} className="text-rose-400" />}
         </button>
 
-        {/* Info */}
+        {/* Info Modal */}
         <button 
           onClick={onShowInfoModal}
           className="btn btn-icon info-btn"
-          title="Architecture & Zero-Knowledge details"
+          title="Security & Architecture"
         >
           <Info size={16} />
         </button>
 
-        {/* End Session button (if connected) */}
+        {/* Disconnect Action */}
         {status === 'connected' && (
           <button 
-            onClick={onEndSession}
+            onClick={onDisconnect}
             className="btn btn-secondary text-xs text-rose-400 border-rose-500/30"
-            title="Disconnect current peer gracefully"
+            title="Disconnect from current peer"
           >
             <PhoneOff size={14} />
-            <span className="end-chat-text">End Chat</span>
+            <span className="end-chat-text">Disconnect</span>
           </button>
         )}
 
-        {/* Burn All Panic Button */}
+        {/* Panic / Burn Button */}
         <button 
           onClick={onBurnSession} 
           className="btn btn-danger text-xs font-semibold"
-          title="Immediately sever all connections and wipe all memory"
+          title="Immediately wipe all messages, files, and disconnect"
         >
           <Flame size={14} />
           <span className="burn-text">Burn</span>

@@ -1,12 +1,11 @@
 import React from 'react';
-import { MessageSquare, Zap, Users } from 'lucide-react';
+import { MessageSquare, Zap } from 'lucide-react';
 
 export default function MobileNav({ 
   activeTab, 
   setActiveTab, 
   unreadCount = 0, 
-  activeTransfersCount = 0,
-  sessionsCount = 1 
+  activeTransfersCount = 0
 }) {
   return (
     <nav className="mobile-nav-bar">
@@ -15,12 +14,12 @@ export default function MobileNav({
         className={`mobile-nav-item ${activeTab === 'chat' ? 'active' : ''}`}
       >
         <div style={{ position: 'relative' }}>
-          <MessageSquare size={18} />
+          <MessageSquare size={19} />
           {unreadCount > 0 && activeTab !== 'chat' && (
             <span className="nav-badge">{unreadCount}</span>
           )}
         </div>
-        <span>Chat</span>
+        <span>Messages</span>
       </button>
 
       <button 
@@ -28,29 +27,14 @@ export default function MobileNav({
         className={`mobile-nav-item ${activeTab === 'files' ? 'active' : ''}`}
       >
         <div style={{ position: 'relative' }}>
-          <Zap size={18} />
+          <Zap size={19} />
           {activeTransfersCount > 0 && (
             <span className="nav-badge" style={{ background: 'var(--accent-cyan)', color: '#000' }}>
               {activeTransfersCount}
             </span>
           )}
         </div>
-        <span>AirDrop</span>
-      </button>
-
-      <button 
-        onClick={() => setActiveTab('sessions')} 
-        className={`mobile-nav-item ${activeTab === 'sessions' ? 'active' : ''}`}
-      >
-        <div style={{ position: 'relative' }}>
-          <Users size={18} />
-          {sessionsCount > 1 && (
-            <span className="nav-badge" style={{ background: 'var(--accent-purple)' }}>
-              {sessionsCount}
-            </span>
-          )}
-        </div>
-        <span>Rooms</span>
+        <span>AirDrop Files</span>
       </button>
     </nav>
   );
