@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, ShieldCheck, Zap, Globe, Cpu, Radio, Lock } from 'lucide-react';
+import { X, ShieldCheck, Zap, Globe, Cpu } from 'lucide-react';
 
 export default function InfoModal({ isOpen, onClose }) {
   if (!isOpen) return null;

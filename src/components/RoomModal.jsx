@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
-import { Copy, Check, X, ArrowRight, ShieldCheck, Users, Radio } from 'lucide-react';
+import { Copy, Check, X, ArrowRight, ShieldCheck, Radio } from 'lucide-react';
 
 export default function RoomModal({ 
   isOpen, 

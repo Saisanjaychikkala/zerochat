@@ -9,6 +9,7 @@ import RoomModal from './components/RoomModal';
 import NicknameModal from './components/NicknameModal';
 import InfoModal from './components/InfoModal';
 import MobileNav from './components/MobileNav';
+import ImageLightboxModal from './components/ImageLightboxModal';
 
 export default function App() {
   // Identity & Preferences
@@ -49,6 +50,7 @@ export default function App() {
   const [isRoomModalOpen, setIsRoomModalOpen] = useState(false);
   const [isNicknameModalOpen, setIsNicknameModalOpen] = useState(false);
   const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
+  const [lightboxImage, setLightboxImage] = useState(null);
 
   // Persistent refs to avoid effect teardown
   const soundEnabledRef = useRef(soundEnabled);
@@ -183,6 +185,33 @@ export default function App() {
       );
       playSound('file', soundEnabledRef.current);
       showToast(`Transfer complete: ${completedInfo.fileName}!`, 'success');
+
+      // Post to interactive Chat Stream
+      const downloadUrl = completedInfo.downloadUrl;
+      if (downloadUrl) {
+        const isImage = completedInfo.fileType?.startsWith('image/') || /\.(jpg|jpeg|png|webp|gif|svg)$/i.test(completedInfo.fileName);
+        const isVoice = completedInfo.isVoiceNote || (completedInfo.fileType?.startsWith('audio/') && completedInfo.fileName?.includes('voice_note'));
+
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: 'file_msg_' + completedInfo.fileId,
+            type: isVoice ? 'voice' : (isImage ? 'image' : 'file'),
+            sender: completedInfo.isSender ? 'local' : 'remote',
+            senderNickname: completedInfo.isSender ? (localStorage.getItem('zerochat_nickname') || 'You') : (completedInfo.senderNickname || 'Peer'),
+            timestamp: Date.now(),
+            delivered: true,
+            isVoiceNote: isVoice,
+            durationSec: completedInfo.durationSec || 0,
+            audioUrl: isVoice ? downloadUrl : null,
+            imageUrl: isImage ? downloadUrl : null,
+            fileName: completedInfo.fileName,
+            fileSize: completedInfo.fileSize,
+            downloadUrl: downloadUrl,
+            text: isVoice ? null : (isImage ? null : `📎 ${completedInfo.fileName}`)
+          }
+        ]);
+      }
     });
 
     const unsubFileCancelled = peerService.on('file_cancelled', ({ fileId }) => {
@@ -347,6 +376,7 @@ export default function App() {
         <ChatArea 
           messages={messages}
           onSendMessage={handleSendMessage}
+          onSendFile={handleSendFile}
           status={status}
           remotePeerId={remotePeerId}
           remotePeerNickname={remoteNickname}
@@ -355,6 +385,7 @@ export default function App() {
           peerTypingNickname={peerTypingNickname}
           onTyping={handleTyping}
           onOpenRoomModal={() => setIsRoomModalOpen(true)}
+          onOpenLightbox={(url, name) => setLightboxImage({ url, name })}
           roomId={myRoomId}
         />
 
@@ -362,6 +393,7 @@ export default function App() {
           transfers={transfers}
           onSendFile={handleSendFile}
           onCancelTransfer={handleCancelTransfer}
+          onOpenLightbox={(url, name) => setLightboxImage({ url, name })}
           status={status}
           remotePeerNickname={remoteNickname}
         />
@@ -386,6 +418,14 @@ export default function App() {
       <InfoModal 
         isOpen={isInfoModalOpen}
         onClose={() => setIsInfoModalOpen(false)}
+      />
+
+      {/* Lightbox Modal */}
+      <ImageLightboxModal 
+        isOpen={!!lightboxImage}
+        onClose={() => setLightboxImage(null)}
+        imageUrl={lightboxImage?.url}
+        imageName={lightboxImage?.name}
       />
     </div>
   );

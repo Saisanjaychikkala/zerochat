@@ -6,18 +6,23 @@ import {
   Check, 
   CheckCheck, 
   Lock, 
-  Copy,
-  Radio, 
-  RefreshCw,
-  Sparkles,
-  ArrowRight
+  Copy, 
+  RefreshCw, 
+  ArrowRight,
+  Mic,
+  X,
+  CopyCheck,
+  HardDriveUpload
 } from 'lucide-react';
+import { voiceRecorder } from '../utils/voiceRecorder';
+import AudioPlayerBubble from './AudioPlayerBubble';
 
 const QUICK_EMOJIS = ['👍', '🔥', '🚀', '❤️', '⚡', '🎉', '👀'];
 
 export default function ChatArea({ 
   messages, 
   onSendMessage, 
+  onSendFile,
   status, 
   remotePeerId, 
   remotePeerNickname,
@@ -26,17 +31,24 @@ export default function ChatArea({
   peerTypingNickname,
   onTyping,
   onOpenRoomModal,
+  onOpenLightbox,
   roomId
 }) {
   const [inputText, setInputText] = useState('');
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [copiedCodeId, setCopiedCodeId] = useState(null);
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordSeconds, setRecordSeconds] = useState(0);
+  const [isDragOverChat, setIsDragOverChat] = useState(false);
+
   const messagesEndRef = useRef(null);
   const typingTimeoutRef = useRef(null);
+  const recordIntervalRef = useRef(null);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, isPeerTyping, status]);
+  }, [messages, isPeerTyping, status, isRecording]);
 
   const handleTextChange = (e) => {
     setInputText(e.target.value);
@@ -65,6 +77,76 @@ export default function ChatArea({
     }
   };
 
+  // Clipboard Paste (Screenshots & Images directly from clipboard)
+  const handlePaste = (e) => {
+    if (e.clipboardData && e.clipboardData.files && e.clipboardData.files.length > 0) {
+      const file = e.clipboardData.files[0];
+      if (file && onSendFile) {
+        e.preventDefault();
+        onSendFile(file);
+      }
+    }
+  };
+
+  // Drag-and-Drop over chat area
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    if (status === 'connected') {
+      setIsDragOverChat(true);
+    }
+  };
+
+  const handleDragLeave = () => {
+    setIsDragOverChat(false);
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    setIsDragOverChat(false);
+    if (status === 'connected' && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      Array.from(e.dataTransfer.files).forEach((file) => {
+        onSendFile(file);
+      });
+    }
+  };
+
+  // Voice Note Handlers
+  const startRecording = async () => {
+    try {
+      await voiceRecorder.start();
+      setIsRecording(true);
+      setRecordSeconds(0);
+      recordIntervalRef.current = setInterval(() => {
+        setRecordSeconds((s) => s + 1);
+      }, 1000);
+    } catch (err) {
+      console.error('[ZeroChat] Mic permission error:', err);
+      alert('Could not access microphone: ' + err.message);
+    }
+  };
+
+  const stopAndSendRecording = async () => {
+    clearInterval(recordIntervalRef.current);
+    setIsRecording(false);
+    try {
+      const { file, durationSec, url } = await voiceRecorder.stop();
+      if (onSendFile) {
+        // Tag as voice note
+        file.isVoiceNote = true;
+        file.durationSec = durationSec;
+        onSendFile(file);
+      }
+    } catch (err) {
+      console.error('[ZeroChat] Recording error:', err);
+    }
+  };
+
+  const cancelRecording = () => {
+    clearInterval(recordIntervalRef.current);
+    setIsRecording(false);
+    voiceRecorder.cancel();
+  };
+
   const handleAddEmoji = (emoji) => {
     setInputText((prev) => prev + emoji);
     setShowEmojiPicker(false);
@@ -78,6 +160,12 @@ export default function ChatArea({
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const copyCodeToClipboard = (text, id) => {
+    navigator.clipboard.writeText(text);
+    setCopiedCodeId(id);
+    setTimeout(() => setCopiedCodeId(null), 2000);
+  };
+
   const formatTime = (timestamp) => {
     return new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
@@ -85,8 +173,75 @@ export default function ChatArea({
   const isConnected = status === 'connected';
   const inviteUrl = typeof window !== 'undefined' ? `${window.location.origin}${window.location.pathname}#${roomId}` : '';
 
+  // Render text with code blocks or formatted links
+  const renderMessageContent = (msg) => {
+    // If it's a voice note
+    if (msg.isVoiceNote && msg.audioUrl) {
+      return (
+        <AudioPlayerBubble 
+          audioUrl={msg.audioUrl} 
+          durationSec={msg.durationSec} 
+          fileName={msg.fileName} 
+        />
+      );
+    }
+
+    // If it has image URL
+    if (msg.imageUrl) {
+      return (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+          <img 
+            src={msg.imageUrl} 
+            alt="Preview" 
+            className="chat-image-preview" 
+            onClick={() => onOpenLightbox(msg.imageUrl, msg.fileName)}
+          />
+          {msg.text && <span>{msg.text}</span>}
+        </div>
+      );
+    }
+
+    // Check for code blocks ```
+    const text = msg.text || '';
+    if (text.startsWith('```') && text.endsWith('```')) {
+      const codeContent = text.slice(3, -3).trim();
+      return (
+        <div className="code-block-wrapper">
+          <div className="code-block-header">
+            <span>Code Snippet</span>
+            <button 
+              onClick={() => copyCodeToClipboard(codeContent, msg.id)}
+              className="copy-code-btn"
+            >
+              {copiedCodeId === msg.id ? <CopyCheck size={13} color="var(--accent-emerald)" /> : <Copy size={13} />}
+              <span>{copiedCodeId === msg.id ? 'Copied' : 'Copy'}</span>
+            </button>
+          </div>
+          <pre className="code-block-content">
+            <code>{codeContent}</code>
+          </pre>
+        </div>
+      );
+    }
+
+    return <span>{text}</span>;
+  };
+
   return (
-    <section className="chat-container glass-panel">
+    <section 
+      className={`chat-container glass-panel ${isDragOverChat ? 'drag-active' : ''}`}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+    >
+      {/* Drag overlay feedback */}
+      {isDragOverChat && (
+        <div className="chat-drop-overlay">
+          <HardDriveUpload size={48} color="var(--accent-cyan)" className="animate-bounce" />
+          <p>Drop file here to send to {remotePeerNickname || 'Peer'}</p>
+        </div>
+      )}
+
       {/* Chat Header */}
       <div className="chat-header">
         <div className="peer-info">
@@ -109,12 +264,12 @@ export default function ChatArea({
             </div>
             <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
               {isConnected 
-                ? 'Encrypted peer data channel active' 
+                ? 'Encrypted memory channel active' 
                 : status === 'connecting'
                 ? 'Negotiating peer handshake...'
                 : status === 'reconnecting'
                 ? 'Reconnecting in background...'
-                : 'Share room link or scan QR code to connect'}
+                : 'Scan QR or share link to connect'}
             </p>
           </div>
         </div>
@@ -122,7 +277,7 @@ export default function ChatArea({
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           {!isConnected && (
             <button onClick={onOpenRoomModal} className="btn btn-secondary" style={{ fontSize: '0.78rem', padding: '6px 12px' }}>
-              <span>Join Other Room</span>
+              <span>Join Room</span>
               <ArrowRight size={13} />
             </button>
           )}
@@ -133,7 +288,7 @@ export default function ChatArea({
       {status === 'reconnecting' && (
         <div className="reconnecting-bar">
           <RefreshCw size={14} className="animate-spin" />
-          <span>Connection paused. Reconnecting in background... Messages are preserved.</span>
+          <span>Connection temporarily interrupted. Re-syncing in background... Messages are preserved.</span>
         </div>
       )}
 
@@ -212,7 +367,7 @@ export default function ChatArea({
               {msg.sender === 'local' ? (myNickname || 'You') : (msg.senderNickname || remotePeerNickname || 'Peer')}
             </span>
             <div className="message-bubble">
-              {msg.text}
+              {renderMessageContent(msg)}
             </div>
             <div className="message-meta">
               <span>{formatTime(msg.timestamp)}</span>
@@ -263,44 +418,79 @@ export default function ChatArea({
         </div>
       )}
 
-      {/* Chat Input Bar */}
-      <form onSubmit={handleSend} className="chat-input-bar">
-        <button 
-          type="button" 
-          onClick={() => setShowEmojiPicker(!showEmojiPicker)} 
-          disabled={!isConnected}
-          className="btn btn-icon"
-          title="Insert Emoji"
-        >
-          <Smile size={18} />
-        </button>
+      {/* Voice Recording Control Bar */}
+      {isRecording ? (
+        <div className="recording-bar">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span className="record-dot animate-ping" />
+            <span style={{ fontSize: '0.82rem', fontWeight: 600, color: '#f43f5e' }}>
+              Recording ({recordSeconds}s)
+            </span>
+          </div>
 
-        <input 
-          type="text" 
-          placeholder={
-            isConnected 
-              ? "Type an encrypted message (Press Enter to send)..." 
-              : status === 'connecting'
-              ? "Connecting to peer..."
-              : status === 'reconnecting'
-              ? "Reconnecting to peer..."
-              : "Scan QR or invite peer to start chatting..."
-          } 
-          value={inputText}
-          onChange={handleTextChange}
-          onKeyDown={handleKeyDown}
-          disabled={!isConnected}
-          className="chat-input"
-        />
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button onClick={cancelRecording} className="btn btn-secondary text-xs">
+              <X size={14} />
+              <span>Cancel</span>
+            </button>
+            <button onClick={stopAndSendRecording} className="btn btn-primary text-xs">
+              <Send size={14} />
+              <span>Send Voice</span>
+            </button>
+          </div>
+        </div>
+      ) : (
+        /* Standard Chat Input Bar */
+        <form onSubmit={handleSend} className="chat-input-bar">
+          <button 
+            type="button" 
+            onClick={() => setShowEmojiPicker(!showEmojiPicker)} 
+            disabled={!isConnected}
+            className="btn btn-icon"
+            title="Insert Emoji"
+          >
+            <Smile size={18} />
+          </button>
 
-        <button 
-          type="submit" 
-          disabled={!isConnected || !inputText.trim()} 
-          className="btn btn-primary send-btn"
-        >
-          <Send size={16} />
-        </button>
-      </form>
+          <input 
+            type="text" 
+            placeholder={
+              isConnected 
+                ? "Type message, paste image (Ctrl+V), or record audio..." 
+                : status === 'connecting'
+                ? "Connecting to peer..."
+                : status === 'reconnecting'
+                ? "Reconnecting to peer..."
+                : "Scan QR or invite peer to start chatting..."
+            } 
+            value={inputText}
+            onChange={handleTextChange}
+            onKeyDown={handleKeyDown}
+            onPaste={handlePaste}
+            disabled={!isConnected}
+            className="chat-input"
+          />
+
+          {/* Voice Record Mic Button */}
+          <button
+            type="button"
+            onClick={startRecording}
+            disabled={!isConnected}
+            className="btn btn-icon mic-btn"
+            title="Record Voice Note"
+          >
+            <Mic size={18} />
+          </button>
+
+          <button 
+            type="submit" 
+            disabled={!isConnected || !inputText.trim()} 
+            className="btn btn-primary send-btn"
+          >
+            <Send size={16} />
+          </button>
+        </form>
+      )}
     </section>
   );
 }

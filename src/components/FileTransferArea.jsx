@@ -8,16 +8,18 @@ import {
   Film, 
   Music, 
   Archive, 
-  CheckCircle, 
   HardDriveDownload,
   Zap,
-  XCircle
+  XCircle,
+  Eye
 } from 'lucide-react';
+import AudioPlayerBubble from './AudioPlayerBubble';
 
 export default function FileTransferArea({ 
   transfers, 
   onSendFile, 
   onCancelTransfer,
+  onOpenLightbox,
   status,
   remotePeerNickname 
 }) {
@@ -193,19 +195,31 @@ export default function FileTransferArea({
 
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                     {item.completed ? (
-                      item.downloadUrl ? (
-                        <a 
-                          href={item.downloadUrl} 
-                          download={item.fileName} 
-                          className="btn btn-primary"
-                          style={{ padding: '5px 10px', fontSize: '0.75rem' }}
-                        >
-                          <Download size={13} />
-                          <span>Save</span>
-                        </a>
-                      ) : (
-                        <CheckCircle size={17} color="var(--accent-emerald)" />
-                      )
+                      <div style={{ display: 'flex', gap: '6px' }}>
+                        {item.downloadUrl && item.fileType?.startsWith('image/') && (
+                          <button
+                            type="button"
+                            onClick={() => onOpenLightbox && onOpenLightbox(item.downloadUrl, item.fileName)}
+                            className="btn btn-secondary"
+                            style={{ padding: '5px 8px', fontSize: '0.75rem' }}
+                            title="Preview Image"
+                          >
+                            <Eye size={13} />
+                          </button>
+                        )}
+
+                        {item.downloadUrl && (
+                          <a 
+                            href={item.downloadUrl} 
+                            download={item.fileName} 
+                            className="btn btn-primary"
+                            style={{ padding: '5px 10px', fontSize: '0.75rem' }}
+                          >
+                            <Download size={13} />
+                            <span>Save</span>
+                          </a>
+                        )}
+                      </div>
                     ) : (
                       <>
                         <span style={{ fontSize: '0.75rem', fontFamily: 'var(--font-mono)', color: 'var(--accent-cyan)' }}>
@@ -225,6 +239,15 @@ export default function FileTransferArea({
                   </div>
                 </div>
 
+                {/* Voice Note Audio preview if completed */}
+                {item.completed && item.isVoiceNote && item.downloadUrl && (
+                  <AudioPlayerBubble 
+                    audioUrl={item.downloadUrl}
+                    durationSec={item.durationSec}
+                    fileName={item.fileName}
+                  />
+                )}
+
                 {/* Progress bar */}
                 <div className="progress-bar-bg">
                   <div 
@@ -243,7 +266,7 @@ export default function FileTransferArea({
                     fontFamily: 'var(--font-mono)' 
                   }}>
                     <span>{formatSpeed(item.speedBps)}</span>
-                    <span>Direct WebRTC chunking...</span>
+                    <span>Streaming...</span>
                   </div>
                 )}
               </div>

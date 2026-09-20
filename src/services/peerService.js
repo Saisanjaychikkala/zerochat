@@ -324,6 +324,8 @@ class PeerService {
           fileType: data.fileType,
           senderNickname: data.senderNickname || this.remoteNickname,
           isSender: false,
+          isVoiceNote: !!data.isVoiceNote,
+          durationSec: data.durationSec || 0,
         });
         break;
 
@@ -374,16 +376,18 @@ class PeerService {
       const blob = new Blob(record.chunks, { type: record.meta.fileType });
       const downloadUrl = URL.createObjectURL(blob);
 
-      this.emit('file_complete', {
-        fileId,
-        fileName: record.meta.fileName,
-        fileSize: record.meta.fileSize,
-        fileType: record.meta.fileType,
-        senderNickname: record.meta.senderNickname,
-        downloadUrl,
-        blob,
-        isSender: false,
-      });
+        this.emit('file_complete', {
+          fileId,
+          fileName: record.meta.fileName,
+          fileSize: record.meta.fileSize,
+          fileType: record.meta.fileType,
+          senderNickname: record.meta.senderNickname,
+          downloadUrl,
+          blob,
+          isSender: false,
+          isVoiceNote: !!record.meta.isVoiceNote,
+          durationSec: record.meta.durationSec || 0,
+        });
 
       this.incomingFiles.delete(fileId);
       this.currentReceivingChunk = null;
@@ -437,6 +441,8 @@ class PeerService {
       fileType: file.type || 'application/octet-stream',
       totalChunks,
       senderNickname: this.myNickname,
+      isVoiceNote: !!file.isVoiceNote,
+      durationSec: file.durationSec || 0,
     });
 
     this.emit('file_start', {
@@ -445,6 +451,8 @@ class PeerService {
       fileSize: file.size,
       fileType: file.type,
       isSender: true,
+      isVoiceNote: !!file.isVoiceNote,
+      durationSec: file.durationSec || 0,
     });
 
     let offset = 0;
@@ -507,12 +515,18 @@ class PeerService {
 
     this.activeSenders.delete(fileId);
 
+    const downloadUrl = URL.createObjectURL(file);
+
     this.emit('file_complete', {
       fileId,
       fileName: file.name,
       fileSize: file.size,
       fileType: file.type,
       isSender: true,
+      downloadUrl,
+      blob: file,
+      isVoiceNote: !!file.isVoiceNote,
+      durationSec: file.durationSec || 0,
     });
 
     return fileId;

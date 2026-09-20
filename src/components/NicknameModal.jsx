@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { User, Check, X, Sparkles } from 'lucide-react';
+import { User, Check, X } from 'lucide-react';
 
 const AVATAR_COLORS = [
   'linear-gradient(135deg, #00f2fe, #4facfe)',
