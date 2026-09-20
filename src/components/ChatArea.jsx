@@ -5,11 +5,12 @@ import {
   Check, 
   CheckCheck, 
   Lock, 
-  UserCheck, 
-  Radio, 
   Share2, 
-  Sparkles,
-  MessageSquare
+  Radio, 
+  RotateCcw,
+  AlertCircle,
+  PhoneOff,
+  Sparkles
 } from 'lucide-react';
 
 const QUICK_EMOJIS = ['👍', '🔥', '🚀', '❤️', '⚡', '🎉', '👀'];
@@ -19,9 +20,15 @@ export default function ChatArea({
   onSendMessage, 
   status, 
   remotePeerId, 
+  remotePeerNickname,
+  myNickname,
   isPeerTyping, 
+  peerTypingNickname,
   onTyping,
   onOpenRoomModal,
+  onStartNewRoom,
+  sessionEnded,
+  sessionEndReason,
   roomId
 }) {
   const [inputText, setInputText] = useState('');
@@ -29,20 +36,18 @@ export default function ChatArea({
   const messagesEndRef = useRef(null);
   const typingTimeoutRef = useRef(null);
 
-  // Auto-scroll to bottom on new messages
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, isPeerTyping]);
+  }, [messages, isPeerTyping, sessionEnded]);
 
   const handleTextChange = (e) => {
     setInputText(e.target.value);
 
-    // Typing indicator throttle
     onTyping(true);
     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
     typingTimeoutRef.current = setTimeout(() => {
       onTyping(false);
-    }, 1500);
+    }, 1400);
   };
 
   const handleSend = (e) => {
@@ -64,43 +69,39 @@ export default function ChatArea({
     return new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
+  const isConnected = status === 'connected' && !sessionEnded;
+
   return (
     <section className="chat-container glass-panel">
       {/* Chat Header */}
       <div className="chat-header">
         <div className="peer-info">
           <div className="peer-avatar">
-            {remotePeerId ? remotePeerId.substring(0, 2).toUpperCase() : '??'}
+            {(remotePeerNickname || remotePeerId || '??').substring(0, 2).toUpperCase()}
           </div>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <span style={{ fontWeight: 700, fontSize: '0.95rem' }}>
-                {remotePeerId ? `Peer: ${remotePeerId}` : 'Waiting for Peer'}
+                {remotePeerNickname || (remotePeerId ? `Peer: ${remotePeerId.substring(0, 10)}...` : 'Waiting for Peer')}
               </span>
-              <span style={{ 
-                fontSize: '0.7rem', 
-                padding: '2px 6px', 
-                borderRadius: '999px',
-                background: 'rgba(16, 185, 129, 0.1)',
-                color: 'var(--accent-emerald)',
-                border: '1px solid rgba(16, 185, 129, 0.2)',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px'
-              }}>
+              <span className="e2ee-tag">
                 <Lock size={10} />
-                <span>WebRTC E2EE</span>
+                <span>AES-GCM + DTLS</span>
               </span>
             </div>
             <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-              {status === 'connected' ? 'Secure direct DataChannel active' : 'Direct link ready. Share with peer to connect.'}
+              {isConnected 
+                ? 'Encrypted peer memory channel active' 
+                : sessionEnded 
+                ? 'Session terminated' 
+                : 'Share room link or QR code to connect'}
             </p>
           </div>
         </div>
 
-        {status !== 'connected' && (
-          <button onClick={onOpenRoomModal} className="btn btn-primary" style={{ fontSize: '0.8rem', padding: '6px 14px' }}>
-            <Share2 size={14} />
+        {!isConnected && !sessionEnded && (
+          <button onClick={onOpenRoomModal} className="btn btn-primary" style={{ fontSize: '0.78rem', padding: '6px 14px' }}>
+            <Share2 size={13} />
             <span>Invite Peer</span>
           </button>
         )}
@@ -108,80 +109,91 @@ export default function ChatArea({
 
       {/* Messages Scroll Feed */}
       <div className="messages-list">
-        {status !== 'connected' && messages.length === 0 ? (
-          /* Empty Waiting State */
-          <div style={{ 
-            margin: 'auto', 
-            display: 'flex', 
-            flexDirection: 'column', 
-            alignItems: 'center', 
-            textAlign: 'center',
-            maxWidth: '380px',
-            gap: '16px',
-            padding: '20px'
-          }}>
+        {/* Waiting State if not connected and no messages */}
+        {status !== 'connected' && !sessionEnded && messages.length === 0 && (
+          <div className="waiting-hero-card">
             <div className="radar-pulse">
               <div className="radar-circle" />
               <div className="radar-circle" />
               <div className="radar-circle" />
-              <div style={{ 
-                position: 'absolute', 
-                inset: '25px', 
-                borderRadius: '50%', 
-                background: 'linear-gradient(135deg, var(--accent-cyan), var(--accent-purple))',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                boxShadow: '0 0 20px var(--accent-cyan-glow)'
-              }}>
+              <div className="radar-center-icon">
                 <Radio size={28} color="#000" />
               </div>
             </div>
 
             <div>
-              <h3 style={{ fontSize: '1.15rem', fontWeight: 700, marginBottom: '6px' }}>
-                Your Serverless Room is Live
+              <h3 style={{ fontSize: '1.2rem', fontWeight: 700, marginBottom: '6px' }}>
+                Room Ready for Connection
               </h3>
-              <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>
-                Share your invite link or let your peer scan the QR code. Once connected, enjoy unlimited end-to-end encrypted messaging and direct file drops.
+              <p style={{ fontSize: '0.84rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>
+                Share your invite link with your contact. Once they open it, you are instantly connected memory-to-memory.
               </p>
             </div>
 
-            <button onClick={onOpenRoomModal} className="btn btn-primary" style={{ padding: '10px 20px' }}>
+            <button onClick={onOpenRoomModal} className="btn btn-primary" style={{ padding: '10px 22px' }}>
               <Share2 size={16} />
-              <span>Share Room Invite</span>
+              <span>Share Invite Link & QR</span>
             </button>
           </div>
-        ) : (
-          messages.map((msg) => (
-            <div key={msg.id} className={`message-row ${msg.sender === 'local' ? 'sent' : 'received'}`}>
-              <div className="message-bubble">
-                {msg.text}
-              </div>
-              <div className="message-meta">
-                <span>{formatTime(msg.timestamp)}</span>
-                {msg.sender === 'local' && (
-                  <span>
-                    {msg.delivered ? (
-                      <CheckCheck size={14} color="var(--accent-cyan)" />
-                    ) : (
-                      <Check size={14} />
-                    )}
-                  </span>
-                )}
-              </div>
-            </div>
-          ))
         )}
 
-        {/* Remote Peer Typing Indicator */}
-        {isPeerTyping && (
+        {/* Message Items */}
+        {messages.map((msg) => (
+          <div key={msg.id} className={`message-row ${msg.sender === 'local' ? 'sent' : 'received'}`}>
+            <span className="message-sender-name">
+              {msg.sender === 'local' ? (myNickname || 'You') : (msg.senderNickname || remotePeerNickname || 'Peer')}
+            </span>
+            <div className="message-bubble">
+              {msg.text}
+            </div>
+            <div className="message-meta">
+              <span>{formatTime(msg.timestamp)}</span>
+              {msg.sender === 'local' && (
+                <span>
+                  {msg.delivered ? (
+                    <CheckCheck size={14} color="var(--accent-cyan)" />
+                  ) : (
+                    <Check size={14} />
+                  )}
+                </span>
+              )}
+            </div>
+          </div>
+        ))}
+
+        {/* Peer Typing Indicator */}
+        {isPeerTyping && isConnected && (
           <div className="message-row received">
-            <div className="message-bubble" style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '10px 14px' }}>
-              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginRight: '4px' }}>Peer typing</span>
-              <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-bounce" style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'var(--accent-cyan)', display: 'inline-block' }} />
-              <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-bounce" style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'var(--accent-cyan)', display: 'inline-block', animationDelay: '0.2s' }} />
-              <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-bounce" style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'var(--accent-cyan)', display: 'inline-block', animationDelay: '0.4s' }} />
+            <div className="message-bubble typing-bubble">
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginRight: '6px' }}>
+                {peerTypingNickname || remotePeerNickname || 'Peer'} is typing
+              </span>
+              <span className="typing-dot" />
+              <span className="typing-dot" style={{ animationDelay: '0.2s' }} />
+              <span className="typing-dot" style={{ animationDelay: '0.4s' }} />
+            </div>
+          </div>
+        )}
+
+        {/* Session Ended Banner */}
+        {sessionEnded && (
+          <div className="session-ended-card">
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#fb7185', fontWeight: 700 }}>
+              <AlertCircle size={18} />
+              <span>Chat has ended</span>
+            </div>
+            <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: '4px 0 12px' }}>
+              {sessionEndReason || 'The remote peer disconnected or ended the session.'}
+            </p>
+            <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+              <button onClick={onStartNewRoom} className="btn btn-primary text-xs" style={{ padding: '8px 16px' }}>
+                <RotateCcw size={14} />
+                <span>Start New Chat</span>
+              </button>
+              <button onClick={onOpenRoomModal} className="btn btn-secondary text-xs" style={{ padding: '8px 16px' }}>
+                <Share2 size={14} />
+                <span>Re-Invite to Room</span>
+              </button>
             </div>
           </div>
         )}
@@ -190,32 +202,15 @@ export default function ChatArea({
       </div>
 
       {/* Quick Emoji Bar */}
-      {showEmojiPicker && (
-        <div style={{ 
-          padding: '8px 18px', 
-          display: 'flex', 
-          gap: '8px', 
-          background: 'rgba(16, 22, 36, 0.95)',
-          borderTop: '1px solid var(--border-subtle)',
-          alignItems: 'center'
-        }}>
-          <span style={{ fontSize: '0.75rem', color: 'var(--text-dim)', marginRight: '6px' }}>Quick Reaction:</span>
+      {showEmojiPicker && isConnected && (
+        <div className="quick-emoji-bar">
+          <span style={{ fontSize: '0.72rem', color: 'var(--text-dim)', marginRight: '6px' }}>Quick Reaction:</span>
           {QUICK_EMOJIS.map((emoji) => (
             <button 
               key={emoji} 
               type="button"
               onClick={() => handleAddEmoji(emoji)} 
-              style={{ 
-                background: 'transparent', 
-                border: 'none', 
-                fontSize: '1.2rem', 
-                cursor: 'pointer',
-                padding: '2px 6px',
-                borderRadius: '6px',
-                transition: 'transform 0.15s'
-              }}
-              onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.3)'}
-              onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+              className="emoji-btn"
             >
               {emoji}
             </button>
@@ -223,11 +218,12 @@ export default function ChatArea({
         </div>
       )}
 
-      {/* Input Form Bar */}
+      {/* Chat Input Bar */}
       <form onSubmit={handleSend} className="chat-input-bar">
         <button 
           type="button" 
           onClick={() => setShowEmojiPicker(!showEmojiPicker)} 
+          disabled={!isConnected}
           className="btn btn-icon"
           title="Insert Emoji"
         >
@@ -236,18 +232,23 @@ export default function ChatArea({
 
         <input 
           type="text" 
-          placeholder={status === 'connected' ? "Type an encrypted message..." : "Waiting for peer to connect..."} 
+          placeholder={
+            isConnected 
+              ? "Type an encrypted message..." 
+              : sessionEnded 
+              ? "Chat has ended. Start a new chat to continue." 
+              : "Waiting for peer to connect..."
+          } 
           value={inputText}
           onChange={handleTextChange}
-          disabled={status !== 'connected'}
+          disabled={!isConnected}
           className="chat-input"
         />
 
         <button 
           type="submit" 
-          disabled={status !== 'connected' || !inputText.trim()} 
-          className="btn btn-primary"
-          style={{ padding: '10px 18px', borderRadius: 'var(--radius-full)' }}
+          disabled={!isConnected || !inputText.trim()} 
+          className="btn btn-primary send-btn"
         >
           <Send size={16} />
         </button>

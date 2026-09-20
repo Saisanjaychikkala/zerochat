@@ -1,28 +1,35 @@
 import React, { useState } from 'react';
 import { 
-  ShieldCheck, 
-  Wifi, 
-  WifiOff, 
+  Sparkles, 
+  Copy, 
+  Check, 
+  QrCode, 
   Volume2, 
   VolumeX, 
   Flame, 
-  Copy, 
-  Check, 
-  QrCode,
-  Sparkles,
-  Info
+  Info, 
+  User, 
+  PhoneOff, 
+  Users,
+  Activity
 } from 'lucide-react';
 
 export default function Header({ 
   status, 
   roomId, 
-  remotePeerId, 
+  remotePeerNickname, 
+  myNickname,
+  myAvatarBg,
   latency, 
   soundEnabled, 
   setSoundEnabled, 
+  onEndSession,
   onBurnSession,
   onShowRoomModal,
-  onShowInfoModal
+  onShowNicknameModal,
+  onShowSessionsModal,
+  onShowInfoModal,
+  sessionsCount = 1
 }) {
   const [copied, setCopied] = useState(false);
 
@@ -36,28 +43,54 @@ export default function Header({
 
   return (
     <header className="header-bar glass-panel">
-      {/* Brand & Logo */}
+      {/* Brand & Identity */}
       <div className="logo-group">
         <div className="logo-badge">
-          <Sparkles size={20} className="animate-spin-slow" />
+          <Sparkles size={20} />
         </div>
         <div className="logo-text">
           <h1>ZeroChat</h1>
-          <p>Direct P2P DataChannel</p>
+          <p>E2EE Direct P2P</p>
         </div>
+
+        {/* Current User Nickname Pill */}
+        <button 
+          onClick={onShowNicknameModal}
+          className="user-nickname-btn"
+          title="Change your display nickname"
+        >
+          <div 
+            style={{ 
+              width: '20px', 
+              height: '20px', 
+              borderRadius: '50%', 
+              background: myAvatarBg || 'linear-gradient(135deg, #00f2fe, #4facfe)',
+              color: '#000',
+              fontWeight: 800,
+              fontSize: '0.65rem',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}
+          >
+            {myNickname ? myNickname.substring(0, 1).toUpperCase() : 'U'}
+          </div>
+          <span className="nickname-label">{myNickname || 'Set Name'}</span>
+        </button>
       </div>
 
-      {/* Room and Status Badges */}
+      {/* Header Actions & Telemetry */}
       <div className="header-actions">
+        {/* Room Code & Invite Quick Copy */}
         {roomId && (
-          <div className="flex items-center gap-2">
+          <div className="room-link-group">
             <button 
               onClick={copyRoomLink} 
-              className="btn btn-secondary text-xs flex items-center gap-1.5"
+              className="btn btn-secondary text-xs"
               title="Click to copy invite link"
             >
               <span className="font-mono text-cyan-400">#{roomId}</span>
-              {copied ? <Check size={14} className="text-emerald-400" /> : <Copy size={14} />}
+              {copied ? <Check size={13} className="text-emerald-400" /> : <Copy size={13} />}
             </button>
 
             <button 
@@ -70,17 +103,25 @@ export default function Header({
           </div>
         )}
 
-        {/* Connection Status Pill */}
-        <div className="status-pill">
-          <span className={`status-dot ${status}`} />
-          <span className="capitalize">
-            {status === 'connected' ? 'P2P Active' : status === 'connecting' ? 'Connecting...' : 'Standby'}
+        {/* Multi-Chat Sessions Indicator */}
+        <button 
+          onClick={onShowSessionsModal}
+          className="btn btn-secondary text-xs sessions-indicator-btn"
+          title="View active peer conversations"
+        >
+          <Users size={14} color="var(--accent-purple)" />
+          <span className="sessions-text">{sessionsCount} {sessionsCount === 1 ? 'Chat' : 'Chats'}</span>
+        </button>
+
+        {/* Prominent Ping Latency Badge (Fixed for laptops & desktops) */}
+        <div className="ping-monitor-badge" title="Live WebRTC round-trip latency">
+          <Activity size={14} color={status === 'connected' ? 'var(--accent-cyan)' : 'var(--text-dim)'} />
+          <span className="ping-val">
+            {status === 'connected' 
+              ? (latency !== null ? `${latency}ms` : '<10ms') 
+              : status === 'connecting' ? 'Pinging...' : 'Offline'}
           </span>
-          {status === 'connected' && latency !== null && (
-            <span className="text-cyan-400 font-mono text-xs pl-1 border-l border-white/10">
-              {latency}ms
-            </span>
-          )}
+          <span className={`status-dot ${status}`} />
         </div>
 
         {/* Sound Toggle */}
@@ -89,26 +130,38 @@ export default function Header({
           className="btn btn-icon"
           title={soundEnabled ? 'Mute Sounds' : 'Unmute Sounds'}
         >
-          {soundEnabled ? <Volume2 size={17} /> : <VolumeX size={17} className="text-rose-400" />}
+          {soundEnabled ? <Volume2 size={16} /> : <VolumeX size={16} className="text-rose-400" />}
         </button>
 
-        {/* Privacy / Architecture Info */}
+        {/* Info */}
         <button 
           onClick={onShowInfoModal}
-          className="btn btn-icon"
-          title="How it works (Zero Knowledge Info)"
+          className="btn btn-icon info-btn"
+          title="Architecture & Zero-Knowledge details"
         >
-          <Info size={17} />
+          <Info size={16} />
         </button>
 
-        {/* Burn Session */}
+        {/* End Session button (if connected) */}
+        {status === 'connected' && (
+          <button 
+            onClick={onEndSession}
+            className="btn btn-secondary text-xs text-rose-400 border-rose-500/30"
+            title="Disconnect current peer gracefully"
+          >
+            <PhoneOff size={14} />
+            <span className="end-chat-text">End Chat</span>
+          </button>
+        )}
+
+        {/* Burn All Panic Button */}
         <button 
           onClick={onBurnSession} 
           className="btn btn-danger text-xs font-semibold"
-          title="Disconnect & wipe all ephemeral data"
+          title="Immediately sever all connections and wipe all memory"
         >
-          <Flame size={15} />
-          <span>Burn</span>
+          <Flame size={14} />
+          <span className="burn-text">Burn</span>
         </button>
       </div>
     </header>

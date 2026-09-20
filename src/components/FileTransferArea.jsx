@@ -11,13 +11,16 @@ import {
   File, 
   CheckCircle, 
   HardDriveDownload,
-  Zap
+  Zap,
+  XCircle
 } from 'lucide-react';
 
 export default function FileTransferArea({ 
   transfers, 
   onSendFile, 
-  status 
+  onCancelTransfer,
+  status,
+  remotePeerNickname 
 }) {
   const [isDragOver, setIsDragOver] = useState(false);
   const fileInputRef = useRef(null);
@@ -87,21 +90,23 @@ export default function FileTransferArea({
     return <FileText size={20} color="var(--text-muted)" />;
   };
 
+  const isConnected = status === 'connected';
+
   return (
     <aside className="sidebar-container">
-      {/* P2P File Drop Zone */}
+      {/* P2P AirDrop Card */}
       <div className="glass-panel file-drop-card">
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <Zap size={18} color="var(--accent-cyan)" />
-            <h3 style={{ fontSize: '1rem', fontWeight: 700 }}>P2P AirDrop</h3>
+            <h3 style={{ fontSize: '1rem', fontWeight: 700 }}>Direct AirDrop</h3>
           </div>
           <span style={{ 
             fontSize: '0.7rem', 
             color: 'var(--text-dim)', 
             fontFamily: 'var(--font-mono)' 
           }}>
-            No size limit
+            Memory P2P
           </span>
         </div>
 
@@ -110,8 +115,8 @@ export default function FileTransferArea({
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
-          onClick={() => status === 'connected' && fileInputRef.current?.click()}
-          style={{ opacity: status === 'connected' ? 1 : 0.6, cursor: status === 'connected' ? 'pointer' : 'not-allowed' }}
+          onClick={() => isConnected && fileInputRef.current?.click()}
+          style={{ opacity: isConnected ? 1 : 0.6, cursor: isConnected ? 'pointer' : 'not-allowed' }}
         >
           <input 
             type="file" 
@@ -133,21 +138,21 @@ export default function FileTransferArea({
           </div>
           <div>
             <p style={{ fontSize: '0.85rem', fontWeight: 600 }}>
-              {status === 'connected' ? 'Drop files here to send' : 'Connect peer to drop files'}
+              {isConnected ? 'Drop files here or tap to browse' : 'Connect peer to transfer files'}
             </p>
             <p style={{ fontSize: '0.72rem', color: 'var(--text-dim)', marginTop: '2px' }}>
-              Transferred directly memory-to-memory via WebRTC
+              Streaming directly over encrypted WebRTC channel
             </p>
           </div>
         </div>
       </div>
 
-      {/* Transfers Feed */}
+      {/* Transfers Activity Feed */}
       <div className="glass-panel" style={{ flex: 1, padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px', minHeight: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <h4 style={{ fontSize: '0.88rem', fontWeight: 700 }}>Active Transfers</h4>
+          <h4 style={{ fontSize: '0.88rem', fontWeight: 700 }}>Transfers ({transfers.length})</h4>
           <span style={{ fontSize: '0.72rem', color: 'var(--accent-cyan)', fontFamily: 'var(--font-mono)' }}>
-            {transfers.length} Total
+            100% Encrypted
           </span>
         </div>
 
@@ -156,13 +161,13 @@ export default function FileTransferArea({
             <div style={{ 
               margin: 'auto', 
               textAlign: 'center', 
-              padding: '24px 12px',
+              padding: '28px 12px',
               color: 'var(--text-dim)',
               fontSize: '0.8rem'
             }}>
               <HardDriveDownload size={32} style={{ margin: '0 auto 8px', opacity: 0.3 }} />
-              <p>No active or past transfers</p>
-              <p style={{ fontSize: '0.72rem', marginTop: '4px' }}>Files you send or receive will appear here.</p>
+              <p>No active file transfers</p>
+              <p style={{ fontSize: '0.72rem', marginTop: '4px' }}>Files sent or received in this session appear here.</p>
             </div>
           ) : (
             transfers.map((item) => (
@@ -177,35 +182,48 @@ export default function FileTransferArea({
                         whiteSpace: 'nowrap', 
                         overflow: 'hidden', 
                         textOverflow: 'ellipsis',
-                        maxWidth: '160px'
+                        maxWidth: '150px'
                       }}>
                         {item.fileName}
                       </p>
                       <span style={{ fontSize: '0.7rem', color: 'var(--text-dim)' }}>
-                        {formatBytes(item.fileSize)} • {item.isSender ? 'Outgoing' : 'Incoming'}
+                        {formatBytes(item.fileSize)} • {item.isSender ? 'Outgoing' : `From ${item.senderNickname || remotePeerNickname || 'Peer'}`}
                       </span>
                     </div>
                   </div>
 
-                  {item.completed ? (
-                    item.downloadUrl ? (
-                      <a 
-                        href={item.downloadUrl} 
-                        download={item.fileName} 
-                        className="btn btn-primary"
-                        style={{ padding: '6px 10px', fontSize: '0.75rem' }}
-                      >
-                        <Download size={13} />
-                        <span>Save</span>
-                      </a>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    {item.completed ? (
+                      item.downloadUrl ? (
+                        <a 
+                          href={item.downloadUrl} 
+                          download={item.fileName} 
+                          className="btn btn-primary"
+                          style={{ padding: '5px 10px', fontSize: '0.75rem' }}
+                        >
+                          <Download size={13} />
+                          <span>Save</span>
+                        </a>
+                      ) : (
+                        <CheckCircle size={17} color="var(--accent-emerald)" />
+                      )
                     ) : (
-                      <CheckCircle size={18} color="var(--accent-emerald)" />
-                    )
-                  ) : (
-                    <span style={{ fontSize: '0.75rem', fontFamily: 'var(--font-mono)', color: 'var(--accent-cyan)' }}>
-                      {item.progress}%
-                    </span>
-                  )}
+                      <>
+                        <span style={{ fontSize: '0.75rem', fontFamily: 'var(--font-mono)', color: 'var(--accent-cyan)' }}>
+                          {item.progress}%
+                        </span>
+                        {item.isSender && onCancelTransfer && (
+                          <button 
+                            onClick={() => onCancelTransfer(item.fileId)}
+                            style={{ background: 'transparent', border: 'none', color: '#fb7185', cursor: 'pointer' }}
+                            title="Cancel Transfer"
+                          >
+                            <XCircle size={15} />
+                          </button>
+                        )}
+                      </>
+                    )}
+                  </div>
                 </div>
 
                 {/* Progress bar */}
@@ -216,7 +234,7 @@ export default function FileTransferArea({
                   />
                 </div>
 
-                {/* Speed & ETA */}
+                {/* Speed indicator */}
                 {!item.completed && item.speedBps > 0 && (
                   <div style={{ 
                     display: 'flex', 
