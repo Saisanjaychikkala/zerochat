@@ -12,7 +12,8 @@ import {
   Mic,
   X,
   CopyCheck,
-  HardDriveUpload
+  HardDriveUpload,
+  Share2
 } from 'lucide-react';
 import { voiceRecorder } from '../utils/voiceRecorder';
 import AudioPlayerBubble from './AudioPlayerBubble';
@@ -158,6 +159,26 @@ export default function ChatArea({
     navigator.clipboard.writeText(url);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleShare = async () => {
+    if (!roomId) return;
+    const url = `${window.location.origin}${window.location.pathname}#${roomId}`;
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: 'Join my ZeroChat Room',
+          text: 'Connect to my private, encrypted ZeroChat peer room:',
+          url,
+        });
+      } catch (err) {
+        if (err.name !== 'AbortError') {
+          handleCopyLink();
+        }
+      }
+    } else {
+      handleCopyLink();
+    }
   };
 
   const copyCodeToClipboard = (text, id) => {
@@ -323,7 +344,28 @@ export default function ChatArea({
               </p>
             </div>
 
-            {/* Room Link Quick Copy */}
+            {/* Quick Action Buttons (Mobile & Laptop) */}
+            <div style={{ display: 'flex', gap: '8px', width: '100%', justifyContent: 'center' }}>
+              <button 
+                onClick={handleShare}
+                className="btn btn-primary"
+                style={{ flex: 1, padding: '10px 14px', fontSize: '0.82rem' }}
+              >
+                <Share2 size={15} />
+                <span>{copied ? 'Link Copied!' : 'Share Room Link'}</span>
+              </button>
+
+              <button 
+                onClick={onOpenRoomModal}
+                className="btn btn-secondary"
+                style={{ padding: '10px 14px', fontSize: '0.82rem' }}
+              >
+                <span>Join Other</span>
+                <ArrowRight size={14} />
+              </button>
+            </div>
+
+            {/* Room Link Quick Copy Input */}
             <div style={{ 
               width: '100%', 
               display: 'flex', 
@@ -350,11 +392,11 @@ export default function ChatArea({
               />
               <button 
                 onClick={handleCopyLink} 
-                className="btn btn-primary" 
-                style={{ padding: '6px 12px', fontSize: '0.75rem' }}
+                className="btn btn-secondary text-xs" 
+                style={{ padding: '4px 10px' }}
+                title="Copy link"
               >
-                {copied ? <Check size={13} /> : <Copy size={13} />}
-                <span>{copied ? 'Copied!' : 'Copy'}</span>
+                {copied ? <Check size={12} color="var(--accent-emerald)" /> : <Copy size={12} />}
               </button>
             </div>
           </div>
