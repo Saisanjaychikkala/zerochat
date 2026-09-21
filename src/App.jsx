@@ -417,9 +417,9 @@ export default function App() {
   }, [showToast]);
 
   // Actions
-  const handleSendMessage = useCallback((text) => {
+  const handleSendMessage = useCallback((text, replyTo = null) => {
     try {
-      const sentMsg = peerService.sendTextMessage(text);
+      const sentMsg = peerService.sendTextMessage(text, replyTo);
       setMessages((prev) => [
         ...prev, 
         { ...sentMsg, sender: 'local', delivered: false, pending: !!sentMsg.pending }

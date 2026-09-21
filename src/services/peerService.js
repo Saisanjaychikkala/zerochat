@@ -523,6 +523,7 @@ class PeerService {
           senderNickname: packet.senderNickname || this.remoteNickname || 'Peer',
           sender: 'remote',
           timestamp: packet.timestamp || Date.now(),
+          replyTo: packet.replyTo || null,
         });
         // Send delivery ACK
         this.sendJson({ type: 'ack', id: packet.id });
@@ -692,7 +693,7 @@ class PeerService {
     }
   }
 
-  sendTextMessage(text) {
+  sendTextMessage(text, replyTo = null) {
     if (!text || !text.trim()) {
       throw new Error('Message cannot be empty');
     }
@@ -703,6 +704,7 @@ class PeerService {
       text: text.trim(),
       senderNickname: this.myNickname,
       timestamp: Date.now(),
+      ...(replyTo ? { replyTo } : {}),
     };
 
     // If channel is open and ready, send immediately

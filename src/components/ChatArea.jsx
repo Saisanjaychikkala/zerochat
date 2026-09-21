@@ -19,7 +19,8 @@ import {
   AlertCircle,
   Clock,
   Phone,
-  Video
+  Video,
+  CornerUpLeft
 } from 'lucide-react';
 import { voiceRecorder } from '../utils/voiceRecorder';
 import AudioPlayerBubble from './AudioPlayerBubble';
@@ -55,6 +56,7 @@ export default function ChatArea({
   const [isRecording, setIsRecording] = useState(false);
   const [recordSeconds, setRecordSeconds] = useState(0);
   const [isDragOverChat, setIsDragOverChat] = useState(false);
+  const [replyingTo, setReplyingTo] = useState(null);
 
   const messagesEndRef = useRef(null);
   const typingTimeoutRef = useRef(null);
@@ -74,12 +76,58 @@ export default function ChatArea({
     }, 1200);
   };
 
+  const extractSnippet = (msg) => {
+    if (!msg) return '';
+    if (msg.isVoiceNote) {
+      const dur = msg.durationSec ? ` (${msg.durationSec}s)` : '';
+      return `🎤 Voice Note${dur}`;
+    }
+    if (msg.imageUrl || msg.type === 'image') {
+      return `📷 Photo ${msg.fileName ? `(${msg.fileName})` : ''}`.trim();
+    }
+    if (msg.downloadUrl || msg.type === 'file') {
+      return `📎 File: ${msg.fileName || 'Attachment'}`;
+    }
+    const text = msg.text || '';
+    if (text.startsWith('```') && text.endsWith('```')) {
+      return '💻 Code Snippet';
+    }
+    return text.length > 70 ? text.substring(0, 67) + '...' : text;
+  };
+
+  const handleScrollToMessage = (targetId) => {
+    if (!targetId) return;
+    const el = document.getElementById('msg_' + targetId);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      el.classList.remove('message-pulse-highlight');
+      void el.offsetWidth; // trigger reflow
+      el.classList.add('message-pulse-highlight');
+      setTimeout(() => {
+        el.classList.remove('message-pulse-highlight');
+      }, 1600);
+    }
+  };
+
   const handleSend = (e) => {
     if (e) e.preventDefault();
     if (!inputText.trim()) return;
 
-    onSendMessage(inputText.trim());
+    let replyPayload = null;
+    if (replyingTo) {
+      replyPayload = {
+        id: replyingTo.id,
+        senderNickname: replyingTo.sender === 'local' 
+          ? (myNickname || 'You') 
+          : (replyingTo.senderNickname || remotePeerNickname || 'Peer'),
+        snippet: extractSnippet(replyingTo),
+        type: replyingTo.isVoiceNote ? 'voice' : replyingTo.imageUrl ? 'image' : replyingTo.downloadUrl ? 'file' : 'text',
+      };
+    }
+
+    onSendMessage(inputText.trim(), replyPayload);
     setInputText('');
+    setReplyingTo(null);
     onTyping(false);
     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
   };
@@ -563,12 +611,43 @@ export default function ChatArea({
 
         {/* Message Bubbles */}
         {messages.map((msg) => (
-          <div key={msg.id} className={`message-row ${msg.sender === 'local' ? 'sent' : 'received'}`}>
+          <div 
+            key={msg.id} 
+            id={'msg_' + msg.id}
+            className={`message-row ${msg.sender === 'local' ? 'sent' : 'received'}`}
+          >
             <span className="message-sender-name">
               {msg.sender === 'local' ? (myNickname || 'You') : (msg.senderNickname || remotePeerNickname || 'Peer')}
             </span>
-            <div className="message-bubble">
-              {renderMessageContent(msg)}
+            <div className="message-bubble-wrapper">
+              <div className="message-bubble">
+                {msg.replyTo && (
+                  <div 
+                    className="message-reply-quote"
+                    onClick={() => handleScrollToMessage(msg.replyTo.id)}
+                    title="Click to jump to original message"
+                  >
+                    <div className="reply-quote-author">
+                      <CornerUpLeft size={10} color="var(--accent-cyan)" />
+                      <span>{msg.replyTo.senderNickname || 'Peer'}</span>
+                    </div>
+                    <div className="reply-quote-snippet">
+                      {msg.replyTo.snippet}
+                    </div>
+                  </div>
+                )}
+                {renderMessageContent(msg)}
+              </div>
+
+              {/* Reply Action Button */}
+              <button
+                type="button"
+                onClick={() => setReplyingTo(msg)}
+                className="message-reply-action-btn"
+                title="Reply to message"
+              >
+                <CornerUpLeft size={13} />
+              </button>
             </div>
             <div className="message-meta">
               <span>{formatTime(msg.timestamp)}</span>
@@ -618,6 +697,30 @@ export default function ChatArea({
               {emoji}
             </button>
           ))}
+        </div>
+      )}
+
+      {/* Reply Preview Dock */}
+      {replyingTo && (
+        <div className="reply-preview-dock">
+          <div className="reply-preview-accent" />
+          <div className="reply-preview-content">
+            <div className="reply-preview-author">
+              <CornerUpLeft size={11} color="var(--accent-cyan)" />
+              <span>Replying to {replyingTo.sender === 'local' ? (myNickname || 'You') : (replyingTo.senderNickname || remotePeerNickname || 'Peer')}</span>
+            </div>
+            <p className="reply-preview-snippet">
+              {extractSnippet(replyingTo)}
+            </p>
+          </div>
+          <button 
+            type="button" 
+            onClick={() => setReplyingTo(null)}
+            className="reply-preview-close"
+            title="Cancel reply"
+          >
+            <X size={14} />
+          </button>
         </div>
       )}
 
