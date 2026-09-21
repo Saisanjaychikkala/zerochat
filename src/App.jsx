@@ -1,7 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
-import confetti from 'canvas-confetti';
-import { peerService } from './services/peerService';
-import { playSound, startRingtone, startOutgoingRingtone } from './utils/soundEffects';
+import React, { useState, useCallback } from 'react';
 import Header from './components/Header';
 import ChatArea from './components/ChatArea';
 import FileTransferArea from './components/FileTransferArea';
@@ -12,41 +9,21 @@ import MobileNav from './components/MobileNav';
 import ImageLightboxModal from './components/ImageLightboxModal';
 import CallModal from './components/CallModal';
 
+import { usePreferences } from './hooks/usePreferences';
+import { usePeerSession } from './hooks/usePeerSession';
+import { useCallSession } from './hooks/useCallSession';
+import { useChatTransfers } from './hooks/useChatTransfers';
+
 export default function App() {
-  // Identity & Preferences
-  const [myNickname, setMyNickname] = useState(() => {
-    return localStorage.getItem('zerochat_nickname') || 'User-' + Math.floor(100 + Math.random() * 900);
-  });
-  const [myAvatarBg, setMyAvatarBg] = useState(() => {
-    return localStorage.getItem('zerochat_avatar_bg') || 'linear-gradient(135deg, #00f2fe, #4facfe)';
-  });
-  const [soundEnabled, setSoundEnabled] = useState(() => {
-    const saved = localStorage.getItem('zerochat_sound');
-    return saved !== null ? JSON.parse(saved) : true;
-  });
-
-  // Room & Peer Networking State
-  const [myRoomId, setMyRoomId] = useState('');
-  const [remotePeerId, setRemotePeerId] = useState(null);
-  const [remoteNickname, setRemoteNickname] = useState('Peer');
-  const [status, setStatus] = useState('disconnected'); // 'disconnected' | 'connecting' | 'connected' | 'reconnecting'
-  const [latency, setLatency] = useState(null);
-
-  // Messages & Transfers State
-  const [messages, setMessages] = useState([]);
-  const [transfers, setTransfers] = useState([]);
-  const [roomFullError, setRoomFullError] = useState(null);
-
-  // Typing state
-  const [isPeerTyping, setIsPeerTyping] = useState(false);
-  const [peerTypingNickname, setPeerTypingNickname] = useState('');
-
-  // Mobile layout tab ('chat' | 'files') - PURELY VISUAL TOGGLE
-  const [mobileTab, setMobileTab] = useState('chat');
-  const [unreadChatCount, setUnreadChatCount] = useState(0);
-
   // Toast notifications
   const [toast, setToast] = useState(null);
+  const showToast = useCallback((message, type = 'info') => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 3200);
+  }, []);
+
+  // Visual layout state (desktop vs mobile tab switcher)
+  const [mobileTab, setMobileTab] = useState('chat'); // 'chat' | 'files'
 
   // Modals state
   const [isRoomModalOpen, setIsRoomModalOpen] = useState(false);
@@ -54,652 +31,136 @@ export default function App() {
   const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
   const [lightboxImage, setLightboxImage] = useState(null);
 
-  // WebRTC Calling State
-  const [callState, setCallState] = useState({
-    status: 'idle', // 'idle' | 'incoming' | 'calling' | 'connected'
-    role: null, // 'caller' | 'receiver'
-    isVideo: true,
-    remoteNickname: 'Peer',
-    localStream: null,
-    remoteStream: null,
-    isScreenSharing: false,
-    isAudioMuted: false,
-    isVideoMuted: false,
-    durationSec: 0,
+  // Hook 1: LocalStorage User Preferences & Sound
+  const {
+    myNickname,
+    myAvatarBg,
+    soundEnabled,
+    setSoundEnabled,
+    handleSaveNickname,
+  } = usePreferences(showToast);
+
+  // Hook 2: Ephemeral Chat & 16KB File Transfers
+  const {
+    messages,
+    transfers,
+    unreadChatCount,
+    setUnreadChatCount,
+    handleSendMessage,
+    handleSendFile,
+    handleCancelTransfer,
+    resetHistory,
+    handleBurnSession,
+  } = useChatTransfers({
+    soundEnabled,
+    mobileTab,
+    showToast,
   });
-  const ringtoneStopRef = useRef(null);
-  const callTimerRef = useRef(null);
 
-  // Call duration timer
-  useEffect(() => {
-    if (callState.status === 'connected') {
-      callTimerRef.current = setInterval(() => {
-        setCallState((prev) => ({ ...prev, durationSec: prev.durationSec + 1 }));
-      }, 1000);
-    } else {
-      if (callTimerRef.current) {
-        clearInterval(callTimerRef.current);
-        callTimerRef.current = null;
-      }
-    }
-    return () => {
-      if (callTimerRef.current) clearInterval(callTimerRef.current);
-    };
-  }, [callState.status]);
+  // Hook 3: PeerJS Session & Direct 1-on-1 Room Guard
+  const {
+    myRoomId,
+    remotePeerId,
+    remoteNickname,
+    status,
+    latency,
+    roomFullError,
+    isPeerTyping,
+    peerTypingNickname,
+    handleJoinRoom,
+    handleDisconnect,
+    handleCreateNewRoom,
+    handleTyping,
+  } = usePeerSession({
+    soundEnabled,
+    showToast,
+    onNewPeerConnection: resetHistory,
+  });
 
-  // Persistent refs to avoid effect teardown
-  const soundEnabledRef = useRef(soundEnabled);
-  soundEnabledRef.current = soundEnabled;
+  // Hook 4: WebRTC Voice & Video Media Calling
+  const {
+    callState,
+    handleStartCall,
+    handleAnswerCall,
+    handleRejectCall,
+    handleEndCall,
+    handleToggleAudio,
+    handleToggleVideo,
+    handleToggleScreenShare,
+    handleSwitchCamera,
+    stopActiveRingtones,
+  } = useCallSession({
+    status,
+    remoteNickname,
+    soundEnabled,
+    showToast,
+  });
 
-  useEffect(() => {
-    localStorage.setItem('zerochat_sound', JSON.stringify(soundEnabled));
-    if (!soundEnabled && ringtoneStopRef.current) {
-      ringtoneStopRef.current();
-      ringtoneStopRef.current = null;
-    }
-  }, [soundEnabled]);
-
-  const mobileTabRef = useRef(mobileTab);
-  mobileTabRef.current = mobileTab;
-
-  const currentConnectedPeerRef = useRef(null);
-
-  const showToast = useCallback((message, type = 'info') => {
-    setToast({ message, type });
-    setTimeout(() => setToast(null), 3200);
-  }, []);
-
-  // Update nickname in PeerService
-  useEffect(() => {
-    peerService.setNickname(myNickname);
-  }, [myNickname]);
-
-  // INITIALIZE PEER ONCE ON MOUNT
-  useEffect(() => {
-    const unsubReady = peerService.on('ready', (id) => {
-      setMyRoomId(id);
-
-      // Check if URL has hash to auto-join
-      const rawHash = window.location.hash.replace(/^#/, '').trim();
-      const hash = rawHash ? rawHash.replace(/\/+$/, '').trim() : '';
-
-      if (hash && hash !== id) {
-        console.log('[ZeroChat] Joining room from URL hash:', hash);
-        showToast(`Connecting to room ${hash}...`, 'info');
-        peerService.connectToPeer(hash);
-      } else if (!rawHash) {
-        // Set hash for host so address bar URL can be copied/shared directly
-        window.history.replaceState(null, '', '#' + id);
-      }
-    });
-
-    const unsubStatus = peerService.on('status', (newStatus) => {
-      setStatus(newStatus);
-      if (newStatus === 'connected') {
-        playSound('connect', soundEnabledRef.current);
-        showToast('P2P channel active!', 'success');
-        try {
-          confetti({
-            particleCount: 50,
-            spread: 60,
-            origin: { y: 0.8 },
-            colors: ['#00f2fe', '#4facfe', '#9d4edd', '#10b981']
-          });
-        } catch (e) {}
-      } else if (newStatus === 'reconnecting') {
-        showToast('Connection interrupted. Reconnecting...', 'warning');
-      } else if (newStatus === 'disconnected') {
-        setLatency(null);
-      }
-    });
-
-    const unsubPeerConnected = peerService.on('peer_connected', ({ peerId, nickname }) => {
-      // RESET CHAT HISTORY IF A DIFFERENT PEER CONNECTS
-      if (currentConnectedPeerRef.current && currentConnectedPeerRef.current !== peerId) {
-        console.log('[ZeroChat] New peer connected. Starting fresh conversation.');
-        setMessages([]);
-        setTransfers([]);
-      }
-      currentConnectedPeerRef.current = peerId;
-
-      setRemotePeerId(peerId);
-      if (nickname) setRemoteNickname(nickname);
-      setRoomFullError(null);
-      setStatus('connected');
-      setIsRoomModalOpen(false);
-    });
-
-    const unsubPeerInfo = peerService.on('peer_info', ({ peerId, nickname }) => {
-      setRemotePeerId(peerId);
-      setRemoteNickname(nickname || 'Peer');
-      showToast(`${nickname || 'Peer'} is online`, 'info');
-    });
-
-    const unsubPeerDisconnected = peerService.on('peer_disconnected', () => {
-      setLatency(null);
-    });
-
-    const unsubPeerNotFound = peerService.on('peer_not_found', () => {
-      showToast('Room not found or peer is offline.', 'error');
-      setStatus('disconnected');
-    });
-
-    const unsubRoomFull = peerService.on('room_full', ({ reason }) => {
-      const msg = reason || 'Room is full (2/2 peers connected)';
-      setRoomFullError(msg);
-      setStatus('disconnected');
-      showToast(msg, 'error');
-      // Clear hash from address bar so refreshing doesn't loop into the full room
-      window.history.replaceState(null, '', window.location.pathname);
-    });
-
-    const unsubError = peerService.on('error', (err) => {
-      console.warn('[ZeroChat] Peer error event:', err);
-      if (err?.type === 'peer-unavailable') {
-        showToast('Peer unavailable. Retrying...', 'warning');
-      }
-    });
-
-    const unsubLatency = peerService.on('latency', (ms) => {
-      setLatency(ms);
-    });
-
-    const unsubMessage = peerService.on('message', (msg) => {
-      setMessages((prev) => [...prev, msg]);
-      if (mobileTabRef.current !== 'chat') {
-        setUnreadChatCount((c) => c + 1);
-      }
-      playSound('message', soundEnabledRef.current);
-    });
-
-    const unsubAck = peerService.on('message_ack', (ackId) => {
-      setMessages((prev) =>
-        prev.map((m) => (m.id === ackId ? { ...m, pending: false, delivered: true } : m))
-      );
-    });
-
-    const unsubFlushed = peerService.on('message_flushed', ({ id }) => {
-      setMessages((prev) =>
-        prev.map((m) => (m.id === id ? { ...m, pending: false } : m))
-      );
-      playSound('message', soundEnabledRef.current);
-    });
-
-    const unsubTyping = peerService.on('typing', ({ isTyping, nickname }) => {
-      setIsPeerTyping(isTyping);
-      setPeerTypingNickname(nickname);
-    });
-
-    // File transfer events
-    const unsubFileStart = peerService.on('file_start', (fileInfo) => {
-      setTransfers((prev) => [
-        { ...fileInfo, progress: 0, speedBps: 0, completed: false },
-        ...prev,
-      ]);
-      if (!fileInfo.isSender) {
-        showToast(`Receiving ${fileInfo.fileName}...`, 'info');
-      }
-    });
-
-    const unsubFileProgress = peerService.on('file_progress', ({ fileId, progress, speedBps }) => {
-      setTransfers((prev) =>
-        prev.map((t) => (t.fileId === fileId ? { ...t, progress, speedBps } : t))
-      );
-    });
-
-    const unsubFileComplete = peerService.on('file_complete', (completedInfo) => {
-      setTransfers((prev) =>
-        prev.map((t) =>
-          t.fileId === completedInfo.fileId
-            ? { ...t, ...completedInfo, completed: true, progress: 100 }
-            : t
-        )
-      );
-      playSound('file', soundEnabledRef.current);
-      showToast(`Transfer complete: ${completedInfo.fileName}!`, 'success');
-
-      // Post to interactive Chat Stream
-      const downloadUrl = completedInfo.downloadUrl;
-      if (downloadUrl) {
-        const isImage = completedInfo.fileType?.startsWith('image/') || /\.(jpg|jpeg|png|webp|gif|svg)$/i.test(completedInfo.fileName);
-        const isVoice = completedInfo.isVoiceNote || (completedInfo.fileType?.startsWith('audio/') && completedInfo.fileName?.includes('voice_note'));
-
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: 'file_msg_' + completedInfo.fileId,
-            type: isVoice ? 'voice' : (isImage ? 'image' : 'file'),
-            sender: completedInfo.isSender ? 'local' : 'remote',
-            senderNickname: completedInfo.isSender ? (localStorage.getItem('zerochat_nickname') || 'You') : (completedInfo.senderNickname || 'Peer'),
-            timestamp: Date.now(),
-            delivered: true,
-            isVoiceNote: isVoice,
-            durationSec: completedInfo.durationSec || 0,
-            audioUrl: isVoice ? downloadUrl : null,
-            imageUrl: isImage ? downloadUrl : null,
-            fileName: completedInfo.fileName,
-            fileSize: completedInfo.fileSize,
-            downloadUrl: downloadUrl,
-            text: isVoice ? null : (isImage ? null : `📎 ${completedInfo.fileName}`)
-          }
-        ]);
-      }
-    });
-
-    const unsubFileCancelled = peerService.on('file_cancelled', ({ fileId }) => {
-      setTransfers((prev) => prev.filter((t) => t.fileId !== fileId));
-      showToast('File transfer cancelled', 'warning');
-    });
-
-    // Call Event Listeners
-    const stopActiveRingtones = () => {
-      if (ringtoneStopRef.current) {
-        ringtoneStopRef.current();
-        ringtoneStopRef.current = null;
-      }
-    };
-
-    const unsubCallIncoming = peerService.on('call_incoming', ({ callerNickname, isVideo }) => {
+  const onBurnSession = () => {
+    handleBurnSession(() => {
       stopActiveRingtones();
-      ringtoneStopRef.current = startRingtone(soundEnabledRef.current);
-      setCallState({
-        status: 'incoming',
-        role: 'receiver',
-        isVideo,
-        remoteNickname: callerNickname || 'Peer',
-        localStream: null,
-        remoteStream: null,
-        isScreenSharing: false,
-        isAudioMuted: false,
-        isVideoMuted: false,
-        durationSec: 0,
-      });
     });
-
-    const unsubLocalStream = peerService.on('local_stream', (stream) => {
-      setCallState((prev) => ({ ...prev, localStream: stream }));
-    });
-
-    const unsubRemoteStream = peerService.on('remote_stream', (stream) => {
-      stopActiveRingtones();
-      playSound('call_start', soundEnabledRef.current);
-      setCallState((prev) => ({
-        ...prev,
-        status: 'connected',
-        remoteStream: stream,
-      }));
-    });
-
-    const unsubCallEnded = peerService.on('call_ended', ({ reason }) => {
-      stopActiveRingtones();
-      playSound('call_end', soundEnabledRef.current);
-      if (reason === 'rejected') {
-        showToast('Call declined', 'info');
-      } else {
-        showToast('Call ended', 'info');
-      }
-      setCallState({
-        status: 'idle',
-        role: null,
-        isVideo: true,
-        remoteNickname: 'Peer',
-        localStream: null,
-        remoteStream: null,
-        isScreenSharing: false,
-        isAudioMuted: false,
-        isVideoMuted: false,
-        durationSec: 0,
-      });
-    });
-
-    const unsubCallAudioToggle = peerService.on('call_audio_toggle', ({ isMuted }) => {
-      setCallState((prev) => ({ ...prev, isAudioMuted: isMuted }));
-    });
-
-    const unsubCallVideoToggle = peerService.on('call_video_toggle', ({ isMuted }) => {
-      setCallState((prev) => ({ ...prev, isVideoMuted: isMuted }));
-    });
-
-    const unsubScreenShareStatus = peerService.on('screen_share_status', ({ isSharing }) => {
-      setCallState((prev) => ({ ...prev, isScreenSharing: isSharing }));
-    });
-
-    const unsubCallBusy = peerService.on('call_signal_busy', () => {
-      stopActiveRingtones();
-      showToast('Peer is currently busy on another call', 'warning');
-    });
-
-    const unsubRemoteCameraToggle = peerService.on('remote_camera_toggle', ({ isVideoActive }) => {
-      setCallState((prev) => ({
-        ...prev,
-        isRemoteCameraActive: isVideoActive,
-      }));
-      if (isVideoActive) {
-        showToast('Peer enabled their camera', 'info');
-      }
-    });
-
-    // Initialize peer
-    peerService.init().catch((err) => {
-      console.error('[ZeroChat] Init error:', err);
-    });
-
-    return () => {
-      stopActiveRingtones();
-      unsubReady();
-      unsubStatus();
-      unsubPeerConnected();
-      unsubPeerInfo();
-      unsubPeerDisconnected();
-      unsubPeerNotFound();
-      unsubRoomFull();
-      unsubError();
-      unsubLatency();
-      unsubMessage();
-      unsubAck();
-      unsubFlushed();
-      unsubTyping();
-      unsubFileStart();
-      unsubFileProgress();
-      unsubFileComplete();
-      unsubFileCancelled();
-      unsubCallIncoming();
-      unsubLocalStream();
-      unsubRemoteStream();
-      unsubCallEnded();
-      unsubCallAudioToggle();
-      unsubCallVideoToggle();
-      unsubScreenShareStatus();
-      unsubCallBusy();
-      unsubRemoteCameraToggle();
-      peerService.cleanup();
-    };
-  }, [showToast]);
-
-  // Actions
-  const handleSendMessage = useCallback((text, replyTo = null) => {
-    try {
-      const sentMsg = peerService.sendTextMessage(text, replyTo);
-      setMessages((prev) => [
-        ...prev, 
-        { ...sentMsg, sender: 'local', delivered: false, pending: !!sentMsg.pending }
-      ]);
-      if (sentMsg.pending) {
-        showToast('Message queued — will send when reconnected', 'info');
-      } else {
-        playSound('message', soundEnabledRef.current);
-      }
-    } catch (err) {
-      console.error('[ZeroChat] Send message failed:', err);
-      showToast(err.message || 'Could not send message', 'error');
-    }
-  }, [showToast]);
-
-  const handleSendFile = useCallback(async (file) => {
-    if (!peerService.isConnected()) {
-      showToast('Connect a peer before sending files', 'warning');
-      return;
-    }
-    try {
-      await peerService.sendFile(file);
-    } catch (err) {
-      console.error('[ZeroChat] Send file failed:', err);
-      showToast('File transfer error', 'error');
-    }
-  }, [showToast]);
-
-  const handleCancelTransfer = useCallback((fileId) => {
-    peerService.cancelFileTransfer(fileId);
-  }, []);
-
-  const handleTyping = useCallback((typing) => {
-    peerService.sendTypingStatus(typing);
-  }, []);
-
-  const handleJoinRoom = useCallback((targetId) => {
-    if (!targetId) return;
-    let cleanId = targetId.trim();
-    if (cleanId.includes('#')) {
-      cleanId = cleanId.split('#').pop();
-    }
-    cleanId = cleanId.split('?')[0].replace(/\/+$/, '').trim().toLowerCase();
-
-    if (cleanId) {
-      if (cleanId === myRoomId) {
-        showToast('You are already in this room', 'warning');
-        return;
-      }
-      // Clear previous conversation when joining another room
-      setRoomFullError(null);
-      setMessages([]);
-      setTransfers([]);
-      currentConnectedPeerRef.current = null;
-      window.location.hash = cleanId;
-      showToast(`Connecting to room ${cleanId}...`, 'info');
-      peerService.connectToPeer(cleanId);
-    }
-  }, [myRoomId, showToast]);
-
-  const handleDisconnect = useCallback(() => {
-    peerService.disconnect();
-    currentConnectedPeerRef.current = null;
-    setRemotePeerId(null);
-    setLatency(null);
-    setRoomFullError(null);
-    setStatus('disconnected');
-    setMessages([]);
-    setTransfers([]);
-    showToast('Disconnected. Session history cleared.', 'info');
-  }, [showToast]);
-
-  const handleBurnSession = useCallback(() => {
-    if (window.confirm('Burn session? This immediately wipes all messages and files from memory and resets the room.')) {
-      if (ringtoneStopRef.current) {
-        ringtoneStopRef.current();
-        ringtoneStopRef.current = null;
-      }
-      peerService.cleanup();
-      currentConnectedPeerRef.current = null;
-
-      // Revoke all Blob URLs to completely free memory
-      transfers.forEach((t) => {
-        if (t.downloadUrl) {
-          try { URL.revokeObjectURL(t.downloadUrl); } catch (e) {}
-        }
-      });
-      messages.forEach((m) => {
-        if (m.downloadUrl) {
-          try { URL.revokeObjectURL(m.downloadUrl); } catch (e) {}
-        }
-        if (m.imageUrl) {
-          try { URL.revokeObjectURL(m.imageUrl); } catch (e) {}
-        }
-        if (m.audioUrl) {
-          try { URL.revokeObjectURL(m.audioUrl); } catch (e) {}
-        }
-      });
-
-      setMessages([]);
-      setTransfers([]);
-      setRemotePeerId(null);
-      setLatency(null);
-      setRoomFullError(null);
-      setStatus('disconnected');
-      setCallState({
-        status: 'idle',
-        role: null,
-        isVideo: true,
-        remoteNickname: 'Peer',
-        localStream: null,
-        remoteStream: null,
-        isScreenSharing: false,
-        isAudioMuted: false,
-        isVideoMuted: false,
-        durationSec: 0,
-      });
-      window.history.replaceState(null, '', window.location.pathname);
-      peerService.init().catch(console.error);
-      showToast('Session burned. Fresh room ready.', 'success');
-    }
-  }, [transfers, messages, showToast]);
-
-  const handleCreateNewRoom = useCallback(() => {
-    setRoomFullError(null);
-    setMessages([]);
-    setTransfers([]);
-    setRemotePeerId(null);
-    setLatency(null);
-    setStatus('disconnected');
-    window.history.replaceState(null, '', window.location.pathname);
-    peerService.cleanup();
-    peerService.init().then((newId) => {
-      window.history.replaceState(null, '', '#' + newId);
-      showToast('Fresh private room ready!', 'success');
-    }).catch(console.error);
-  }, [showToast]);
-
-  const handleSaveNickname = (name, color) => {
-    setMyNickname(name);
-    setMyAvatarBg(color);
-    localStorage.setItem('zerochat_nickname', name);
-    localStorage.setItem('zerochat_avatar_bg', color);
-    peerService.setNickname(name);
-    showToast(`Name updated to ${name}`, 'success');
   };
-
-  const handleStartCall = useCallback(async (isVideo = true) => {
-    if (status !== 'connected') {
-      showToast('Please wait until connected to peer', 'warning');
-      return;
-    }
-    if (ringtoneStopRef.current) ringtoneStopRef.current();
-    ringtoneStopRef.current = startOutgoingRingtone(soundEnabledRef.current);
-
-    setCallState({
-      status: 'calling',
-      role: 'caller',
-      isVideo,
-      remoteNickname: remoteNickname || 'Peer',
-      localStream: null,
-      remoteStream: null,
-      isScreenSharing: false,
-      isAudioMuted: false,
-      isVideoMuted: false,
-      durationSec: 0,
-    });
-
-    try {
-      await peerService.startCall(isVideo);
-    } catch (err) {
-      if (ringtoneStopRef.current) {
-        ringtoneStopRef.current();
-        ringtoneStopRef.current = null;
-      }
-      setCallState((prev) => ({ ...prev, status: 'idle' }));
-      showToast(err.message || 'Could not start call (check mic/camera permissions)', 'error');
-    }
-  }, [status, remoteNickname, showToast]);
-
-  const handleAcceptCall = useCallback(async (isVideo = true) => {
-    if (ringtoneStopRef.current) {
-      ringtoneStopRef.current();
-      ringtoneStopRef.current = null;
-    }
-    try {
-      await peerService.answerCall(isVideo);
-    } catch (err) {
-      setCallState((prev) => ({ ...prev, status: 'idle' }));
-      showToast('Failed to access camera/mic: ' + err.message, 'error');
-    }
-  }, [showToast]);
-
-  const handleRejectCall = useCallback(() => {
-    if (ringtoneStopRef.current) {
-      ringtoneStopRef.current();
-      ringtoneStopRef.current = null;
-    }
-    peerService.rejectCall();
-    setCallState((prev) => ({ ...prev, status: 'idle' }));
-  }, []);
-
-  const handleEndCall = useCallback(() => {
-    if (ringtoneStopRef.current) {
-      ringtoneStopRef.current();
-      ringtoneStopRef.current = null;
-    }
-    peerService.endCall();
-    setCallState((prev) => ({ ...prev, status: 'idle' }));
-  }, []);
-
-  const handleToggleAudio = useCallback(() => {
-    peerService.toggleAudio();
-  }, []);
-
-  const handleToggleVideo = useCallback(() => {
-    peerService.toggleVideo();
-  }, []);
-
-  const handleToggleScreenShare = useCallback(async () => {
-    if (callState.isScreenSharing) {
-      peerService.stopScreenShare();
-    } else {
-      try {
-        await peerService.startScreenShare();
-      } catch (err) {
-        if (err.name !== 'NotAllowedError') {
-          showToast('Screen sharing error: ' + err.message, 'error');
-        }
-      }
-    }
-  }, [callState.isScreenSharing, showToast]);
-
-  const handleSwitchCamera = useCallback(async () => {
-    const success = await peerService.switchCamera();
-    if (success) {
-      showToast('Switched camera', 'info');
-    }
-  }, [showToast]);
-
-  const activeTransfersCount = transfers.filter((t) => !t.completed).length;
 
   return (
     <div className="app-container">
-      {/* Toast Alert */}
+      {/* Dynamic Toast Feedback */}
       {toast && (
         <div className={`toast-notification toast-${toast.type}`}>
           <span>{toast.message}</span>
         </div>
       )}
 
-      {/* Header */}
+      {/* WebRTC Video/Voice Call Modal Overlay */}
+      <CallModal
+        callState={callState}
+        myNickname={myNickname}
+        onAnswer={handleAnswerCall}
+        onReject={handleRejectCall}
+        onEndCall={handleEndCall}
+        onToggleAudio={handleToggleAudio}
+        onToggleVideo={handleToggleVideo}
+        onToggleScreenShare={handleToggleScreenShare}
+        onSwitchCamera={handleSwitchCamera}
+      />
+
+      {/* Image Lightbox Preview Modal */}
+      {lightboxImage && (
+        <ImageLightboxModal 
+          imageUrl={lightboxImage.url} 
+          fileName={lightboxImage.name} 
+          onClose={() => setLightboxImage(null)} 
+        />
+      )}
+
+      {/* App Header */}
       <Header 
         status={status}
-        roomId={myRoomId}
-        remotePeerNickname={remoteNickname}
+        myRoomId={myRoomId}
         myNickname={myNickname}
         myAvatarBg={myAvatarBg}
         latency={latency}
         soundEnabled={soundEnabled}
-        setSoundEnabled={setSoundEnabled}
+        onToggleSound={() => setSoundEnabled(!soundEnabled)}
+        onOpenRoomModal={() => setIsRoomModalOpen(true)}
+        onOpenNicknameModal={() => setIsNicknameModalOpen(true)}
+        onOpenInfoModal={() => setIsInfoModalOpen(true)}
+        onBurnSession={onBurnSession}
         onDisconnect={handleDisconnect}
-        onBurnSession={handleBurnSession}
-        onShowRoomModal={() => setIsRoomModalOpen(true)}
-        onShowNicknameModal={() => setIsNicknameModalOpen(true)}
-        onShowInfoModal={() => setIsInfoModalOpen(true)}
       />
 
-      {/* Mobile Top Segmented Tab Switcher (Visible on Mobile only) */}
+      {/* Mobile Top Segmented Tab Pill */}
       <MobileNav 
-        activeTab={mobileTab}
-        setActiveTab={(tab) => {
+        activeTab={mobileTab} 
+        onTabChange={(tab) => {
           setMobileTab(tab);
           if (tab === 'chat') setUnreadChatCount(0);
         }}
-        unreadCount={unreadChatCount}
-        activeTransfersCount={activeTransfersCount}
+        transfersCount={transfers.length}
+        unreadChatCount={unreadChatCount}
       />
 
-      {/* Main Workspace (Desktop: 2-column side-by-side, Mobile: tab-controlled) */}
+      {/* Main Grid Workspace */}
       <main className={`main-workspace tab-${mobileTab}`}>
         <ChatArea 
           messages={messages}
@@ -732,7 +193,7 @@ export default function App() {
         />
       </main>
 
-      {/* Modals */}
+      {/* Room Share & Join Dialog */}
       <RoomModal 
         isOpen={isRoomModalOpen}
         onClose={() => setIsRoomModalOpen(false)}
@@ -742,36 +203,20 @@ export default function App() {
         onOpenGuide={() => setIsInfoModalOpen(true)}
       />
 
+      {/* Nickname & Avatar Dialog */}
       <NicknameModal 
         isOpen={isNicknameModalOpen}
         onClose={() => setIsNicknameModalOpen(false)}
         currentNickname={myNickname}
-        onSaveNickname={handleSaveNickname}
+        currentAvatarBg={myAvatarBg}
+        onSave={handleSaveNickname}
       />
 
+      {/* Security & 30s Quick Guide Dialog */}
       <InfoModal 
         isOpen={isInfoModalOpen}
         onClose={() => setIsInfoModalOpen(false)}
-      />
-
-      {/* Lightbox Modal */}
-      <ImageLightboxModal 
-        isOpen={!!lightboxImage}
-        onClose={() => setLightboxImage(null)}
-        imageUrl={lightboxImage?.url}
-        imageName={lightboxImage?.name}
-      />
-
-      {/* P2P Video & Voice Call Modal */}
-      <CallModal 
-        callState={callState}
-        onAccept={handleAcceptCall}
-        onReject={handleRejectCall}
-        onEndCall={handleEndCall}
-        onToggleAudio={handleToggleAudio}
-        onToggleVideo={handleToggleVideo}
-        onToggleScreenShare={handleToggleScreenShare}
-        onSwitchCamera={handleSwitchCamera}
+        myRoomId={myRoomId}
       />
     </div>
   );
