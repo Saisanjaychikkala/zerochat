@@ -369,6 +369,16 @@ export default function App() {
       showToast('Peer is currently busy on another call', 'warning');
     });
 
+    const unsubRemoteCameraToggle = peerService.on('remote_camera_toggle', ({ isVideoActive }) => {
+      setCallState((prev) => ({
+        ...prev,
+        isRemoteCameraActive: isVideoActive,
+      }));
+      if (isVideoActive) {
+        showToast('Peer enabled their camera', 'info');
+      }
+    });
+
     // Initialize peer
     peerService.init().catch((err) => {
       console.error('[ZeroChat] Init error:', err);
@@ -401,6 +411,7 @@ export default function App() {
       unsubCallVideoToggle();
       unsubScreenShareStatus();
       unsubCallBusy();
+      unsubRemoteCameraToggle();
       peerService.cleanup();
     };
   }, [showToast]);

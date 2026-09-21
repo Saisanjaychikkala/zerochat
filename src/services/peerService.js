@@ -572,6 +572,8 @@ class PeerService {
         } else if (packet.signal === 'busy') {
           this.emit('call_signal_busy');
           this.cleanupCall();
+        } else if (packet.signal === 'camera_toggle') {
+          this.emit('remote_camera_toggle', { isVideoActive: !!packet.isVideoActive });
         } else if (packet.signal === 'ended') {
           this.emit('call_signal_ended');
           this.cleanupCall();
@@ -960,6 +962,30 @@ class PeerService {
   // WebRTC Media Calling & Screen Sharing
   // ==========================================
 
+  createDummyVideoTrack() {
+    try {
+      const canvas = document.createElement('canvas');
+      canvas.width = 2;
+      canvas.height = 2;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.fillStyle = '#000000';
+        ctx.fillRect(0, 0, 2, 2);
+      }
+      if (typeof canvas.captureStream === 'function') {
+        const stream = canvas.captureStream(1);
+        const track = stream.getVideoTracks()[0];
+        if (track) {
+          track.enabled = false;
+          return track;
+        }
+      }
+    } catch (e) {
+      console.warn('[ZeroChat] Canvas captureStream fallback not supported:', e);
+    }
+    return null;
+  }
+
   async startCall(isVideo = true) {
     if (!this.remotePeerId || !this.peer) {
       throw new Error('No active peer connected');
@@ -993,6 +1019,12 @@ class PeerService {
         } else {
           throw mediaErr;
         }
+      }
+
+      // If audio-only call, attach a disabled dummy track so the WebRTC video sender pipeline is established
+      if (!activeIsVideo) {
+        const dummyTrack = this.createDummyVideoTrack();
+        if (dummyTrack) this.localStream.addTrack(dummyTrack);
       }
 
       this.emit('local_stream', this.localStream);
@@ -1079,6 +1111,12 @@ class PeerService {
         } else {
           throw mediaErr;
         }
+      }
+
+      // If answering as audio-only, attach dummy track so WebRTC video sender is established
+      if (!activeUseVideo) {
+        const dummyTrack = this.createDummyVideoTrack();
+        if (dummyTrack) this.localStream.addTrack(dummyTrack);
       }
 
       this.emit('local_stream', this.localStream);
@@ -1181,16 +1219,73 @@ class PeerService {
     return false;
   }
 
-  toggleVideo() {
+  async toggleVideo() {
     if (!this.localStream) return false;
-    const videoTrack = this.localStream.getVideoTracks()[0];
-    if (videoTrack) {
+    let videoTrack = this.localStream.getVideoTracks().find(
+      (t) => t.label && !t.label.includes('canvas') && t.readyState === 'live'
+    );
+
+    // If no real camera video track exists yet (e.g. upgraded from audio call), acquire camera!
+    if (!videoTrack) {
+      try {
+        const cameraStream = await navigator.mediaDevices.getUserMedia({
+          video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: this.facingMode },
+          audio: false,
+        });
+        const realTrack = cameraStream.getVideoTracks()[0];
+        realTrack.enabled = true;
+
+        // Swap track on WebRTC peer connection
+        if (this.currentCall && this.currentCall.peerConnection) {
+          const pc = this.currentCall.peerConnection;
+          const senders = pc.getSenders();
+          const videoSender = senders.find(
+            (s) => (s.track && s.track.kind === 'video') || (s.track === null && s.kind === 'video')
+          );
+          if (videoSender) {
+            await videoSender.replaceTrack(realTrack);
+          } else {
+            pc.addTrack(realTrack, this.localStream);
+          }
+        }
+
+        // Clean up dummy tracks from localStream
+        const oldTracks = this.localStream.getVideoTracks();
+        oldTracks.forEach((t) => {
+          try { t.stop(); } catch (e) {}
+          this.localStream.removeTrack(t);
+        });
+        this.localStream.addTrack(realTrack);
+
+        this.isVideoMuted = false;
+        this.isVideo = true;
+        this.emit('local_stream', this.localStream);
+        this.emit('call_video_toggle', { isMuted: false, isVideoActive: true });
+
+        // Signal remote peer that our camera is now transmitting
+        this.sendJson({
+          type: 'call_signal',
+          signal: 'camera_toggle',
+          isVideoActive: true,
+        });
+
+        return false;
+      } catch (err) {
+        console.error('[ZeroChat] Failed to acquire camera on call upgrade:', err);
+        return true;
+      }
+    } else {
+      // Toggle enable/disable on existing real video track
       videoTrack.enabled = !videoTrack.enabled;
       this.isVideoMuted = !videoTrack.enabled;
-      this.emit('call_video_toggle', { isMuted: this.isVideoMuted });
+      this.emit('call_video_toggle', { isMuted: this.isVideoMuted, isVideoActive: videoTrack.enabled });
+      this.sendJson({
+        type: 'call_signal',
+        signal: 'camera_toggle',
+        isVideoActive: videoTrack.enabled,
+      });
       return this.isVideoMuted;
     }
-    return false;
   }
 
   async startScreenShare() {

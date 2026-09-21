@@ -42,7 +42,39 @@ export default function CallModal({
     isScreenSharing,
     isAudioMuted,
     isVideoMuted,
+    isRemoteCameraActive = false,
   } = callState;
+
+  const hasActiveLocalVideo = !!(
+    localStream &&
+    localStream.getVideoTracks().some(
+      (t) => t.enabled && t.label && !t.label.includes('canvas') && t.readyState === 'live'
+    )
+  );
+
+  const hasActiveRemoteVideo = !!(
+    (remoteStream &&
+      remoteStream.getVideoTracks().some(
+        (t) => t.enabled && t.label && !t.label.includes('canvas') && t.readyState === 'live'
+      )) ||
+    isRemoteCameraActive
+  );
+
+  // Escape key exits fullscreen or closes call
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        const isFull = !!(document.fullscreenElement || document.webkitFullscreenElement);
+        if (isFull) {
+          if (document.exitFullscreen) document.exitFullscreen().catch(() => {});
+          else if (document.webkitExitFullscreen) document.webkitExitFullscreen().catch(() => {});
+          setIsFullscreen(false);
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   // Active call duration timer (ticks second-by-second when connected)
   useEffect(() => {
@@ -266,6 +298,14 @@ export default function CallModal({
           >
             {isFullscreen ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
           </button>
+
+          <button 
+            onClick={onEndCall} 
+            className="call-icon-btn end-call-header-btn" 
+            title="End Call Immediately"
+          >
+            <PhoneOff size={16} />
+          </button>
         </div>
       </div>
 
@@ -279,7 +319,7 @@ export default function CallModal({
       {/* Main Viewport */}
       <div className="call-viewport">
         {/* Remote Video Stream or Screen Share */}
-        {remoteStream && remoteStream.getVideoTracks().length > 0 && remoteStream.getVideoTracks()[0].enabled ? (
+        {hasActiveRemoteVideo ? (
           <video
             ref={remoteVideoRef}
             autoPlay
@@ -309,7 +349,7 @@ export default function CallModal({
         {/* Local Camera Picture-in-Picture */}
         {localStream && (
           <div className="call-local-pip">
-            {isVideo && !isVideoMuted && !isScreenSharing ? (
+            {hasActiveLocalVideo && !isVideoMuted && !isScreenSharing ? (
               <video
                 ref={localVideoRef}
                 autoPlay
@@ -349,15 +389,15 @@ export default function CallModal({
         {/* Video Camera Toggle */}
         <button
           onClick={onToggleVideo}
-          className={`call-dock-btn ${isVideoMuted ? 'muted' : ''}`}
-          title={isVideoMuted ? 'Turn Camera On' : 'Turn Camera Off'}
+          className={`call-dock-btn ${(!hasActiveLocalVideo || isVideoMuted) ? 'muted' : ''}`}
+          title={(!hasActiveLocalVideo || isVideoMuted) ? 'Turn Camera On' : 'Turn Camera Off'}
         >
-          {isVideoMuted ? <VideoOff size={20} /> : <Video size={20} />}
-          <span className="dock-btn-label">{isVideoMuted ? 'Cam Off' : 'Camera'}</span>
+          {(!hasActiveLocalVideo || isVideoMuted) ? <VideoOff size={20} /> : <Video size={20} />}
+          <span className="dock-btn-label">{(!hasActiveLocalVideo || isVideoMuted) ? 'Camera On' : 'Cam Off'}</span>
         </button>
 
         {/* Flip Camera (Front / Rear on mobile) */}
-        {isVideo && !isVideoMuted && onSwitchCamera && (
+        {hasActiveLocalVideo && !isVideoMuted && onSwitchCamera && (
           <button
             onClick={onSwitchCamera}
             className="call-dock-btn"
