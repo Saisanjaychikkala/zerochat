@@ -44,6 +44,7 @@ class PeerService {
     this.connectAttempts = 0;
     this.maxConnectAttempts = 4;
     this.isIntentionalDisconnect = false;
+    this.isRoomFull = false;
 
     // File transfer state
     this.incomingFiles = new Map(); // fileId -> { meta, chunks: [], receivedBytes, totalChunks }
@@ -147,6 +148,41 @@ class PeerService {
       // Handle incoming connection (Receiver side)
       this.peer.on('connection', (connection) => {
         console.log('[ZeroChat] Incoming peer connection from:', connection.peer);
+
+        // Check if room is already occupied by an active peer (1-to-1 limit)
+        if (this.conn && this.conn.open && this.conn.peer !== connection.peer) {
+          console.warn(`[ZeroChat] Room full (2/2 peers connected). Rejecting 3rd peer: ${connection.peer}`);
+
+          const sendRoomFullAndClose = () => {
+            try {
+              connection.send({
+                type: 'room_occupied',
+                reason: 'Room is full (2/2 peers connected)',
+              });
+            } catch (e) {
+              console.warn('[ZeroChat] Error sending room_occupied packet:', e);
+            }
+            // Allow packet buffer to flush before closing
+            setTimeout(() => {
+              try {
+                connection.close();
+              } catch (e) {}
+            }, 350);
+          };
+
+          if (connection.open) {
+            sendRoomFullAndClose();
+          } else {
+            connection.on('open', sendRoomFullAndClose);
+            setTimeout(() => {
+              try {
+                connection.close();
+              } catch (e) {}
+            }, 3000);
+          }
+          return;
+        }
+
         this.handleConnection(connection);
       });
 
@@ -213,6 +249,7 @@ class PeerService {
     this.targetPeerId = cleanId;
     this.connectAttempts = 0;
     this.isIntentionalDisconnect = false;
+    this.isRoomFull = false;
 
     if (!this.peer || this.peer.destroyed) {
       console.warn('[ZeroChat] Peer not ready, initializing first...');
@@ -343,6 +380,11 @@ class PeerService {
       console.log('[ZeroChat] DataChannel closed with peer:', this.remotePeerId);
       this.stopPingMonitor();
 
+      if (this.isRoomFull) {
+        this.emit('status', 'disconnected');
+        return;
+      }
+
       if (this.isIntentionalDisconnect) {
         this.emit('status', 'disconnected');
         this.emit('peer_disconnected', { peerId: this.remotePeerId });
@@ -361,12 +403,12 @@ class PeerService {
   }
 
   schedulePeerReconnect() {
-    if (this.isIntentionalDisconnect || !this.remotePeerId) return;
+    if (this.isIntentionalDisconnect || this.isRoomFull || !this.remotePeerId) return;
     if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
 
     console.log('[ZeroChat] Scheduling auto-reconnect to peer:', this.remotePeerId);
     this.reconnectTimer = setTimeout(() => {
-      if (!this.isConnected() && !this.isIntentionalDisconnect && this.remotePeerId) {
+      if (!this.isConnected() && !this.isIntentionalDisconnect && !this.isRoomFull && this.remotePeerId) {
         console.log('[ZeroChat] Executing auto-reconnect to peer:', this.remotePeerId);
         this.executeConnect(this.remotePeerId);
       }
@@ -464,6 +506,29 @@ class PeerService {
         console.log('[ZeroChat] Remote peer ended session');
         this.isIntentionalDisconnect = true;
         this.disconnect();
+        this.emit('status', 'disconnected');
+        break;
+
+      case 'room_occupied':
+        console.warn('[ZeroChat] Room is full/occupied:', packet.reason);
+        this.isIntentionalDisconnect = true;
+        this.isRoomFull = true;
+        this.targetPeerId = null;
+        if (this.reconnectTimer) {
+          clearTimeout(this.reconnectTimer);
+          this.reconnectTimer = null;
+        }
+        if (this.connectRetryTimer) {
+          clearTimeout(this.connectRetryTimer);
+          this.connectRetryTimer = null;
+        }
+        if (this.connectionTimeout) {
+          clearTimeout(this.connectionTimeout);
+          this.connectionTimeout = null;
+        }
+        this.emit('room_full', {
+          reason: packet.reason || 'Room is full (2/2 peers connected)',
+        });
         this.emit('status', 'disconnected');
         break;
 
@@ -738,6 +803,7 @@ class PeerService {
 
   disconnect() {
     this.isIntentionalDisconnect = true;
+    this.isRoomFull = false;
     this.stopPingMonitor();
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer);

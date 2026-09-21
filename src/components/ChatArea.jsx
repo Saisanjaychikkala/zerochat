@@ -13,7 +13,10 @@ import {
   X,
   CopyCheck,
   HardDriveUpload,
-  Share2
+  Share2,
+  Users,
+  PlusCircle,
+  AlertCircle
 } from 'lucide-react';
 import { voiceRecorder } from '../utils/voiceRecorder';
 import AudioPlayerBubble from './AudioPlayerBubble';
@@ -33,7 +36,9 @@ export default function ChatArea({
   onTyping,
   onOpenRoomModal,
   onOpenLightbox,
-  roomId
+  roomId,
+  roomFullError,
+  onCreateNewRoom
 }) {
   const [inputText, setInputText] = useState('');
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
@@ -272,19 +277,23 @@ export default function ChatArea({
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <span style={{ fontWeight: 700, fontSize: '0.95rem' }}>
-                {isConnected 
+                {roomFullError && !isConnected
+                  ? 'Room is Full (2/2)'
+                  : isConnected 
                   ? remotePeerNickname || `Peer (${remotePeerId?.substring(0, 8)})` 
                   : status === 'connecting'
                   ? 'Connecting...'
                   : 'Ready for Connection'}
               </span>
-              <span className="e2ee-tag">
-                <Lock size={10} />
-                <span>WebRTC E2EE</span>
+              <span className="e2ee-tag" style={roomFullError && !isConnected ? { borderColor: 'rgba(239, 68, 68, 0.3)', color: '#f87171' } : {}}>
+                {roomFullError && !isConnected ? <AlertCircle size={10} /> : <Lock size={10} />}
+                <span>{roomFullError && !isConnected ? 'Occupied' : 'WebRTC E2EE'}</span>
               </span>
             </div>
-            <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-              {isConnected 
+            <p style={{ fontSize: '0.72rem', color: roomFullError && !isConnected ? '#f87171' : 'var(--text-muted)' }}>
+              {roomFullError && !isConnected
+                ? 'Session is occupied by 2 peers. Direct 1-to-1 tunnel.'
+                : isConnected 
                 ? 'Encrypted memory channel active' 
                 : status === 'connecting'
                 ? 'Negotiating peer handshake...'
@@ -315,13 +324,59 @@ export default function ChatArea({
 
       {/* Messages Scroll Feed */}
       <div className="messages-list">
-        {/* Waiting State Hero (Shown when no messages and not connected) */}
-        {messages.length === 0 && !isConnected && (
+        {/* Room Full Notification Hero (Shown when 3rd peer attempts to join an occupied room) */}
+        {roomFullError && !isConnected ? (
+          <div className="waiting-hero-card" style={{ borderColor: 'rgba(239, 68, 68, 0.35)', background: 'rgba(239, 68, 68, 0.04)' }}>
+            <div style={{ 
+              width: '64px', 
+              height: '64px', 
+              borderRadius: '50%', 
+              background: 'rgba(239, 68, 68, 0.12)', 
+              border: '1px solid rgba(239, 68, 68, 0.3)',
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'center',
+              margin: '0 auto'
+            }}>
+              <Users size={32} color="#f87171" />
+            </div>
+
+            <div>
+              <h3 style={{ fontSize: '1.2rem', fontWeight: 700, color: '#f87171', marginBottom: '6px' }}>
+                Room is Full (2/2 Peers Connected)
+              </h3>
+              <p style={{ fontSize: '0.84rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>
+                ZeroChat rooms are strictly private 1-to-1 direct tunnels. This room already has two peers actively communicating. Third-party connections are blocked for privacy.
+              </p>
+            </div>
+
+            {/* Actions for the 3rd user */}
+            <div style={{ display: 'flex', gap: '8px', width: '100%', justifyContent: 'center' }}>
+              <button 
+                onClick={onCreateNewRoom}
+                className="btn btn-primary"
+                style={{ flex: 1, padding: '10px 14px', fontSize: '0.84rem' }}
+              >
+                <PlusCircle size={15} />
+                <span>Create My Own Room</span>
+              </button>
+
+              <button 
+                onClick={onOpenRoomModal}
+                className="btn btn-secondary"
+                style={{ padding: '10px 14px', fontSize: '0.84rem' }}
+              >
+                <span>Join Another Room</span>
+                <ArrowRight size={14} />
+              </button>
+            </div>
+          </div>
+        ) : messages.length === 0 && !isConnected && (
           <div className="waiting-hero-card">
             <div style={{ 
               background: '#ffffff', 
               padding: '12px', 
-              borderRadius: '16px',
+              borderRadius: '16px', 
               boxShadow: '0 8px 30px rgba(0,0,0,0.5)',
               margin: '0 auto'
             }}>
@@ -497,7 +552,9 @@ export default function ChatArea({
           <input 
             type="text" 
             placeholder={
-              isConnected 
+              roomFullError && !isConnected
+                ? "Room is full (2/2 peers connected). Create your own room above."
+                : isConnected 
                 ? "Type message, paste image (Ctrl+V), or record audio..." 
                 : status === 'connecting'
                 ? "Connecting to peer... (type message to prepare)"
@@ -509,7 +566,7 @@ export default function ChatArea({
             onChange={handleTextChange}
             onKeyDown={handleKeyDown}
             onPaste={handlePaste}
-            disabled={status === 'disconnected'}
+            disabled={status === 'disconnected' || (roomFullError && !isConnected)}
             className="chat-input"
           />
 

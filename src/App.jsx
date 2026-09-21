@@ -34,6 +34,7 @@ export default function App() {
   // Messages & Transfers State
   const [messages, setMessages] = useState([]);
   const [transfers, setTransfers] = useState([]);
+  const [roomFullError, setRoomFullError] = useState(null);
 
   // Typing state
   const [isPeerTyping, setIsPeerTyping] = useState(false);
@@ -121,6 +122,7 @@ export default function App() {
 
       setRemotePeerId(peerId);
       if (nickname) setRemoteNickname(nickname);
+      setRoomFullError(null);
       setStatus('connected');
       setIsRoomModalOpen(false);
     });
@@ -132,12 +134,21 @@ export default function App() {
     });
 
     const unsubPeerDisconnected = peerService.on('peer_disconnected', () => {
-      setStatus('reconnecting');
+      setLatency(null);
     });
 
     const unsubPeerNotFound = peerService.on('peer_not_found', () => {
       showToast('Room not found or peer is offline.', 'error');
       setStatus('disconnected');
+    });
+
+    const unsubRoomFull = peerService.on('room_full', ({ reason }) => {
+      const msg = reason || 'Room is full (2/2 peers connected)';
+      setRoomFullError(msg);
+      setStatus('disconnected');
+      showToast(msg, 'error');
+      // Clear hash from address bar so refreshing doesn't loop into the full room
+      window.history.replaceState(null, '', window.location.pathname);
     });
 
     const unsubError = peerService.on('error', (err) => {
@@ -243,6 +254,7 @@ export default function App() {
       unsubPeerInfo();
       unsubPeerDisconnected();
       unsubPeerNotFound();
+      unsubRoomFull();
       unsubError();
       unsubLatency();
       unsubMessage();
@@ -302,6 +314,7 @@ export default function App() {
         return;
       }
       // Clear previous conversation when joining another room
+      setRoomFullError(null);
       setMessages([]);
       setTransfers([]);
       currentConnectedPeerRef.current = null;
@@ -316,6 +329,7 @@ export default function App() {
     currentConnectedPeerRef.current = null;
     setRemotePeerId(null);
     setLatency(null);
+    setRoomFullError(null);
     setStatus('disconnected');
     setMessages([]);
     setTransfers([]);
@@ -330,11 +344,27 @@ export default function App() {
       setTransfers([]);
       setRemotePeerId(null);
       setLatency(null);
+      setRoomFullError(null);
       setStatus('disconnected');
       window.history.replaceState(null, '', window.location.pathname);
       peerService.init().catch(console.error);
       showToast('Session burned. Fresh room ready.', 'success');
     }
+  }, [showToast]);
+
+  const handleCreateNewRoom = useCallback(() => {
+    setRoomFullError(null);
+    setMessages([]);
+    setTransfers([]);
+    setRemotePeerId(null);
+    setLatency(null);
+    setStatus('disconnected');
+    window.history.replaceState(null, '', window.location.pathname);
+    peerService.cleanup();
+    peerService.init().then((newId) => {
+      window.history.replaceState(null, '', '#' + newId);
+      showToast('Fresh private room ready!', 'success');
+    }).catch(console.error);
   }, [showToast]);
 
   const handleSaveNickname = (name, color) => {
@@ -401,6 +431,8 @@ export default function App() {
           onOpenRoomModal={() => setIsRoomModalOpen(true)}
           onOpenLightbox={(url, name) => setLightboxImage({ url, name })}
           roomId={myRoomId}
+          roomFullError={roomFullError}
+          onCreateNewRoom={handleCreateNewRoom}
         />
 
         <FileTransferArea 
