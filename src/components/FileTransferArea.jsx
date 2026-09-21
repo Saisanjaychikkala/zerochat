@@ -182,8 +182,8 @@ export default function FileTransferArea({
                         fontWeight: 600, 
                         whiteSpace: 'nowrap', 
                         overflow: 'hidden', 
-                        textOverflow: 'ellipsis',
-                        maxWidth: '150px'
+                        textOverflow: 'ellipsis', 
+                        maxWidth: '210px'
                       }}>
                         {item.fileName}
                       </p>
@@ -225,10 +225,10 @@ export default function FileTransferArea({
                         <span style={{ fontSize: '0.75rem', fontFamily: 'var(--font-mono)', color: 'var(--accent-cyan)' }}>
                           {item.progress}%
                         </span>
-                        {item.isSender && onCancelTransfer && (
+                        {onCancelTransfer && (
                           <button 
                             onClick={() => onCancelTransfer(item.fileId)}
-                            style={{ background: 'transparent', border: 'none', color: '#fb7185', cursor: 'pointer' }}
+                            style={{ background: 'transparent', border: 'none', color: '#fb7185', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
                             title="Cancel Transfer"
                           >
                             <XCircle size={15} />

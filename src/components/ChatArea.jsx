@@ -242,6 +242,7 @@ export default function ChatArea({
             alt="Preview" 
             className="chat-image-preview" 
             onClick={() => onOpenLightbox(msg.imageUrl, msg.fileName)}
+            onLoad={() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })}
           />
           {msg.text && <span>{msg.text}</span>}
         </div>

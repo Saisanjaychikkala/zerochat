@@ -11,7 +11,10 @@ export default function AudioPlayerBubble({ audioUrl, durationSec, fileName }) {
     if (isPlaying) {
       audioRef.current.pause();
     } else {
-      audioRef.current.play();
+      audioRef.current.play().catch((err) => {
+        console.warn('[ZeroChat] Audio play failed:', err);
+        setIsPlaying(false);
+      });
     }
   };
 
@@ -24,6 +27,17 @@ export default function AudioPlayerBubble({ audioUrl, durationSec, fileName }) {
   const handleEnded = () => {
     setIsPlaying(false);
     setCurrentTime(0);
+  };
+
+  const handleWaveformClick = (e) => {
+    if (!audioRef.current) return;
+    const totalDuration = durationSec || audioRef.current.duration || 1;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const clickX = e.clientX - rect.left;
+    const ratio = Math.max(0, Math.min(1, clickX / rect.width));
+    const newTime = ratio * totalDuration;
+    audioRef.current.currentTime = newTime;
+    setCurrentTime(newTime);
   };
 
   const formatSeconds = (sec) => {
@@ -52,8 +66,13 @@ export default function AudioPlayerBubble({ audioUrl, durationSec, fileName }) {
         {isPlaying ? <Pause size={15} /> : <Play size={15} style={{ marginLeft: '2px' }} />}
       </button>
 
-      {/* Simulated Audio Waveform Bars */}
-      <div className="audio-waveform">
+      {/* Interactive Audio Waveform Bars */}
+      <div 
+        className="audio-waveform" 
+        onClick={handleWaveformClick}
+        title="Click to seek"
+        style={{ cursor: 'pointer' }}
+      >
         {[40, 75, 55, 90, 60, 100, 45, 80, 65, 95, 50, 70, 85, 45, 60].map((height, idx) => {
           const isActive = (currentTime / (durationSec || 1)) >= (idx / 15);
           return (

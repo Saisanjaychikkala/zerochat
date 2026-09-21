@@ -203,6 +203,20 @@ class PeerService {
       // Handle incoming WebRTC media call
       this.peer.on('call', (mediaConn) => {
         console.log('[ZeroChat] Incoming WebRTC media call from:', mediaConn.peer);
+
+        // Guard: If already on call or an incoming call prompt is pending, reject with busy
+        if (this.currentCall || this.incomingCallData) {
+          console.warn('[ZeroChat] Already in call or incoming call pending. Rejecting call from:', mediaConn.peer);
+          try {
+            mediaConn.close();
+          } catch (e) {}
+          this.sendJson({
+            type: 'call_signal',
+            signal: 'busy',
+          });
+          return;
+        }
+
         const metadata = mediaConn.metadata || {};
         const isVideo = metadata.isVideo !== undefined ? metadata.isVideo : true;
         const callerNickname = metadata.callerNickname || this.remoteNickname || 'Peer';
@@ -555,6 +569,9 @@ class PeerService {
         } else if (packet.signal === 'rejected') {
           this.emit('call_signal_rejected');
           this.cleanupCall();
+        } else if (packet.signal === 'busy') {
+          this.emit('call_signal_busy');
+          this.cleanupCall();
         } else if (packet.signal === 'ended') {
           this.emit('call_signal_ended');
           this.cleanupCall();
@@ -613,6 +630,10 @@ class PeerService {
         break;
 
       case 'file_cancel':
+        if (this.activeSenders.has(packet.fileId)) {
+          this.activeSenders.get(packet.fileId).cancel = true;
+          this.activeSenders.delete(packet.fileId);
+        }
         this.incomingFiles.delete(packet.fileId);
         this.emit('file_cancelled', { fileId: packet.fileId });
         break;
@@ -843,8 +864,13 @@ class PeerService {
   cancelFileTransfer(fileId) {
     if (this.activeSenders.has(fileId)) {
       this.activeSenders.get(fileId).cancel = true;
+      this.activeSenders.delete(fileId);
+    }
+    if (this.incomingFiles.has(fileId)) {
+      this.incomingFiles.delete(fileId);
     }
     this.sendJson({ type: 'file_cancel', fileId });
+    this.emit('file_cancelled', { fileId });
   }
 
   sendJson(data) {

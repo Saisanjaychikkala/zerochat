@@ -13,6 +13,12 @@ export default function NicknameModal({ isOpen, onClose, currentNickname, onSave
   const [nickname, setNickname] = useState(currentNickname || '');
   const [selectedColor, setSelectedColor] = useState(AVATAR_COLORS[0]);
 
+  React.useEffect(() => {
+    if (isOpen) {
+      setNickname(currentNickname || '');
+    }
+  }, [isOpen, currentNickname]);
+
   if (!isOpen) return null;
 
   const handleSubmit = (e) => {

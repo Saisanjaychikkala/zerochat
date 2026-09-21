@@ -364,6 +364,11 @@ export default function App() {
       setCallState((prev) => ({ ...prev, isScreenSharing: isSharing }));
     });
 
+    const unsubCallBusy = peerService.on('call_signal_busy', () => {
+      stopActiveRingtones();
+      showToast('Peer is currently busy on another call', 'warning');
+    });
+
     // Initialize peer
     peerService.init().catch((err) => {
       console.error('[ZeroChat] Init error:', err);
@@ -395,6 +400,7 @@ export default function App() {
       unsubCallAudioToggle();
       unsubCallVideoToggle();
       unsubScreenShareStatus();
+      unsubCallBusy();
       peerService.cleanup();
     };
   }, [showToast]);
@@ -477,19 +483,54 @@ export default function App() {
 
   const handleBurnSession = useCallback(() => {
     if (window.confirm('Burn session? This immediately wipes all messages and files from memory and resets the room.')) {
+      if (ringtoneStopRef.current) {
+        ringtoneStopRef.current();
+        ringtoneStopRef.current = null;
+      }
       peerService.cleanup();
       currentConnectedPeerRef.current = null;
+
+      // Revoke all Blob URLs to completely free memory
+      transfers.forEach((t) => {
+        if (t.downloadUrl) {
+          try { URL.revokeObjectURL(t.downloadUrl); } catch (e) {}
+        }
+      });
+      messages.forEach((m) => {
+        if (m.downloadUrl) {
+          try { URL.revokeObjectURL(m.downloadUrl); } catch (e) {}
+        }
+        if (m.imageUrl) {
+          try { URL.revokeObjectURL(m.imageUrl); } catch (e) {}
+        }
+        if (m.audioUrl) {
+          try { URL.revokeObjectURL(m.audioUrl); } catch (e) {}
+        }
+      });
+
       setMessages([]);
       setTransfers([]);
       setRemotePeerId(null);
       setLatency(null);
       setRoomFullError(null);
       setStatus('disconnected');
+      setCallState({
+        status: 'idle',
+        role: null,
+        isVideo: true,
+        remoteNickname: 'Peer',
+        localStream: null,
+        remoteStream: null,
+        isScreenSharing: false,
+        isAudioMuted: false,
+        isVideoMuted: false,
+        durationSec: 0,
+      });
       window.history.replaceState(null, '', window.location.pathname);
       peerService.init().catch(console.error);
       showToast('Session burned. Fresh room ready.', 'success');
     }
-  }, [showToast]);
+  }, [transfers, messages, showToast]);
 
   const handleCreateNewRoom = useCallback(() => {
     setRoomFullError(null);

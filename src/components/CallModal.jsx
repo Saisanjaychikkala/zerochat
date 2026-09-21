@@ -29,6 +29,7 @@ export default function CallModal({
   const remoteVideoRef = useRef(null);
   const remoteAudioRef = useRef(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [durationSec, setDurationSec] = useState(0);
   const overlayRef = useRef(null);
 
   const {
@@ -41,8 +42,34 @@ export default function CallModal({
     isScreenSharing,
     isAudioMuted,
     isVideoMuted,
-    durationSec = 0,
   } = callState;
+
+  // Active call duration timer (ticks second-by-second when connected)
+  useEffect(() => {
+    if (status === 'connected') {
+      setDurationSec(0);
+      const interval = setInterval(() => {
+        setDurationSec((prev) => prev + 1);
+      }, 1000);
+      return () => clearInterval(interval);
+    } else {
+      setDurationSec(0);
+    }
+  }, [status]);
+
+  // Fullscreen state listener
+  useEffect(() => {
+    const onFsChange = () => {
+      const isFull = !!(document.fullscreenElement || document.webkitFullscreenElement);
+      setIsFullscreen(isFull);
+    };
+    document.addEventListener('fullscreenchange', onFsChange);
+    document.addEventListener('webkitfullscreenchange', onFsChange);
+    return () => {
+      document.removeEventListener('fullscreenchange', onFsChange);
+      document.removeEventListener('webkitfullscreenchange', onFsChange);
+    };
+  }, []);
 
   // Bind local stream to local video element
   useEffect(() => {
@@ -71,6 +98,9 @@ export default function CallModal({
     if (remoteAudioRef.current) {
       if (remoteStream) {
         remoteAudioRef.current.srcObject = remoteStream;
+        remoteAudioRef.current.play().catch((err) => {
+          console.warn('[ZeroChat] Remote audio play caught:', err);
+        });
       } else {
         remoteAudioRef.current.srcObject = null;
       }
@@ -85,13 +115,22 @@ export default function CallModal({
   };
 
   const toggleFullscreen = () => {
-    if (!overlayRef.current) return;
-    if (!document.fullscreenElement) {
-      overlayRef.current.requestFullscreen().catch(() => {});
-      setIsFullscreen(true);
+    const el = overlayRef.current;
+    if (!el) return;
+    const reqFullscreen = el.requestFullscreen || el.webkitRequestFullscreen;
+    const exitFullscreen = document.exitFullscreen || document.webkitExitFullscreen;
+    const isFull = !!(document.fullscreenElement || document.webkitFullscreenElement);
+
+    if (!isFull) {
+      if (reqFullscreen) {
+        reqFullscreen.call(el).catch(() => {});
+        setIsFullscreen(true);
+      }
     } else {
-      document.exitFullscreen().catch(() => {});
-      setIsFullscreen(false);
+      if (exitFullscreen) {
+        exitFullscreen.call(document).catch(() => {});
+        setIsFullscreen(false);
+      }
     }
   };
 
