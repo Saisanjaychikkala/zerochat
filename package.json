@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "node scripts/verify-all.js"
+    "test": "node scripts/verify-all.js",
+    "team:audit": "node scripts/team-dispatch.js"
   },
   "dependencies": {
     "canvas-confetti": "^1.9.4",
