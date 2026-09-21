@@ -1,32 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { QRCodeSVG } from 'qrcode.react';
-import { 
-  Send, 
-  Smile, 
-  Check, 
-  CheckCheck, 
-  Lock, 
-  Copy, 
-  RefreshCw, 
-  ArrowRight,
-  Mic,
-  X,
-  CopyCheck,
-  HardDriveUpload,
-  Share2,
-  Users,
-  PlusCircle,
-  AlertCircle,
-  Clock,
-  Phone,
-  Video,
-  CornerUpLeft
-} from 'lucide-react';
-import { voiceRecorder } from '../utils/voiceRecorder';
-import AudioPlayerBubble from './AudioPlayerBubble';
+import { RefreshCw, HardDriveUpload } from 'lucide-react';
+import ChatHeader from './chat/ChatHeader';
+import RoomHeroCard from './chat/RoomHeroCard';
+import MessageItem from './chat/MessageItem';
+import ReplyPreviewDock from './chat/ReplyPreviewDock';
+import ChatInputBar from './chat/ChatInputBar';
 import { copyToClipboard } from '../utils/clipboard';
-
-const QUICK_EMOJIS = ['👍', '🔥', '🚀', '❤️', '⚡', '🎉', '👀'];
 
 export default function ChatArea({ 
   messages, 
@@ -49,22 +28,20 @@ export default function ChatArea({
   callStatus
 }) {
   const [inputText, setInputText] = useState('');
-  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [copied, setCopied] = useState(false);
   const [copiedCode, setCopiedCode] = useState(false);
-  const [copiedCodeId, setCopiedCodeId] = useState(null);
-  const [isRecording, setIsRecording] = useState(false);
-  const [recordSeconds, setRecordSeconds] = useState(0);
   const [isDragOverChat, setIsDragOverChat] = useState(false);
   const [replyingTo, setReplyingTo] = useState(null);
 
   const messagesEndRef = useRef(null);
   const typingTimeoutRef = useRef(null);
-  const recordIntervalRef = useRef(null);
+
+  const isConnected = status === 'connected';
+  const inviteUrl = typeof window !== 'undefined' ? `${window.location.origin}${window.location.pathname}#${roomId}` : '';
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, isPeerTyping, status, isRecording]);
+  }, [messages, isPeerTyping, status]);
 
   const handleTextChange = (e) => {
     setInputText(e.target.value);
@@ -132,88 +109,6 @@ export default function ChatArea({
     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
   };
 
-  const handleKeyDown = (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSend(e);
-    }
-  };
-
-  // Clipboard Paste (Screenshots & Images directly from clipboard)
-  const handlePaste = (e) => {
-    if (e.clipboardData && e.clipboardData.files && e.clipboardData.files.length > 0) {
-      const file = e.clipboardData.files[0];
-      if (file && onSendFile) {
-        e.preventDefault();
-        onSendFile(file);
-      }
-    }
-  };
-
-  // Drag-and-Drop over chat area
-  const handleDragOver = (e) => {
-    e.preventDefault();
-    if (status === 'connected') {
-      setIsDragOverChat(true);
-    }
-  };
-
-  const handleDragLeave = () => {
-    setIsDragOverChat(false);
-  };
-
-  const handleDrop = (e) => {
-    e.preventDefault();
-    setIsDragOverChat(false);
-    if (status === 'connected' && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      Array.from(e.dataTransfer.files).forEach((file) => {
-        onSendFile(file);
-      });
-    }
-  };
-
-  // Voice Note Handlers
-  const startRecording = async () => {
-    try {
-      await voiceRecorder.start();
-      setIsRecording(true);
-      setRecordSeconds(0);
-      recordIntervalRef.current = setInterval(() => {
-        setRecordSeconds((s) => s + 1);
-      }, 1000);
-    } catch (err) {
-      console.error('[ZeroChat] Mic permission error:', err);
-      alert('Could not access microphone: ' + err.message);
-    }
-  };
-
-  const stopAndSendRecording = async () => {
-    clearInterval(recordIntervalRef.current);
-    setIsRecording(false);
-    try {
-      const { file, durationSec, url } = await voiceRecorder.stop();
-      if (onSendFile) {
-        // Tag as voice note
-        file.isVoiceNote = true;
-        file.durationSec = durationSec;
-        onSendFile(file);
-      }
-    } catch (err) {
-      console.error('[ZeroChat] Recording error:', err);
-    }
-  };
-
-  const cancelRecording = () => {
-    clearInterval(recordIntervalRef.current);
-    setIsRecording(false);
-    voiceRecorder.cancel();
-  };
-
-  const handleAddEmoji = (emoji) => {
-    setInputText((prev) => prev + emoji);
-    setShowEmojiPicker(false);
-  };
-
   const handleCopyLink = async () => {
     if (!roomId) return;
     const url = `${window.location.origin}${window.location.pathname}#${roomId}`;
@@ -253,74 +148,26 @@ export default function ChatArea({
     }
   };
 
-  const copyCodeToClipboard = async (text, id) => {
-    const success = await copyToClipboard(text);
-    if (success) {
-      setCopiedCodeId(id);
-      setTimeout(() => setCopiedCodeId(null), 2000);
+  // Drag-and-Drop over chat area
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    if (status === 'connected') {
+      setIsDragOverChat(true);
     }
   };
 
-  const formatTime = (timestamp) => {
-    return new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const handleDragLeave = () => {
+    setIsDragOverChat(false);
   };
 
-  const isConnected = status === 'connected';
-  const inviteUrl = typeof window !== 'undefined' ? `${window.location.origin}${window.location.pathname}#${roomId}` : '';
-
-  // Render text with code blocks or formatted links
-  const renderMessageContent = (msg) => {
-    // If it's a voice note
-    if (msg.isVoiceNote && msg.audioUrl) {
-      return (
-        <AudioPlayerBubble 
-          audioUrl={msg.audioUrl} 
-          durationSec={msg.durationSec} 
-          fileName={msg.fileName} 
-        />
-      );
+  const handleDrop = (e) => {
+    e.preventDefault();
+    setIsDragOverChat(false);
+    if (status === 'connected' && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      Array.from(e.dataTransfer.files).forEach((file) => {
+        onSendFile(file);
+      });
     }
-
-    // If it has image URL
-    if (msg.imageUrl) {
-      return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-          <img 
-            src={msg.imageUrl} 
-            alt="Preview" 
-            className="chat-image-preview" 
-            onClick={() => onOpenLightbox(msg.imageUrl, msg.fileName)}
-            onLoad={() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })}
-          />
-          {msg.text && <span>{msg.text}</span>}
-        </div>
-      );
-    }
-
-    // Check for code blocks ```
-    const text = msg.text || '';
-    if (text.startsWith('```') && text.endsWith('```')) {
-      const codeContent = text.slice(3, -3).trim();
-      return (
-        <div className="code-block-wrapper">
-          <div className="code-block-header">
-            <span>Code Snippet</span>
-            <button 
-              onClick={() => copyCodeToClipboard(codeContent, msg.id)}
-              className="copy-code-btn"
-            >
-              {copiedCodeId === msg.id ? <CopyCheck size={13} color="var(--accent-emerald)" /> : <Copy size={13} />}
-              <span>{copiedCodeId === msg.id ? 'Copied' : 'Copy'}</span>
-            </button>
-          </div>
-          <pre className="code-block-content">
-            <code>{codeContent}</code>
-          </pre>
-        </div>
-      );
-    }
-
-    return <span>{text}</span>;
   };
 
   return (
@@ -338,85 +185,17 @@ export default function ChatArea({
         </div>
       )}
 
-      {/* Chat Header */}
-      <div className="chat-header">
-        <div className="peer-info">
-          <div className="peer-avatar">
-            {(remotePeerNickname || remotePeerId || '??').substring(0, 2).toUpperCase()}
-          </div>
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span style={{ fontWeight: 700, fontSize: '0.95rem' }}>
-                {roomFullError && !isConnected
-                  ? 'Room is Full (2/2)'
-                  : isConnected 
-                  ? remotePeerNickname || `Peer (${remotePeerId?.substring(0, 8)})` 
-                  : status === 'connecting'
-                  ? 'Connecting...'
-                  : 'Ready for Connection'}
-              </span>
-              <span className="e2ee-tag" style={roomFullError && !isConnected ? { borderColor: 'rgba(239, 68, 68, 0.3)', color: '#f87171' } : {}}>
-                {roomFullError && !isConnected ? <AlertCircle size={10} /> : <Lock size={10} />}
-                <span>{roomFullError && !isConnected ? 'Occupied' : 'WebRTC E2EE'}</span>
-              </span>
-            </div>
-            <p style={{ fontSize: '0.72rem', color: roomFullError && !isConnected ? '#f87171' : 'var(--text-muted)' }}>
-              {roomFullError && !isConnected
-                ? 'Session is occupied by 2 peers. Direct 1-to-1 tunnel.'
-                : isConnected 
-                ? 'Encrypted memory channel active' 
-                : status === 'connecting'
-                ? 'Negotiating peer handshake...'
-                : status === 'reconnecting'
-                ? 'Reconnecting in background...'
-                : 'Scan QR or share link to connect'}
-            </p>
-          </div>
-        </div>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          {isConnected && onStartCall && (
-            <>
-              <button 
-                onClick={() => onStartCall(false)} 
-                className="btn btn-icon call-trigger-btn"
-                title={callStatus && callStatus !== 'idle' ? "Call in progress" : "Start Encrypted Voice Call"}
-                disabled={callStatus && callStatus !== 'idle'}
-                style={{ 
-                  width: '34px', 
-                  height: '34px', 
-                  opacity: (callStatus && callStatus !== 'idle') ? 0.45 : 1,
-                  cursor: (callStatus && callStatus !== 'idle') ? 'not-allowed' : 'pointer'
-                }}
-              >
-                <Phone size={15} color="var(--accent-cyan)" />
-              </button>
-
-              <button 
-                onClick={() => onStartCall(true)} 
-                className="btn btn-icon call-trigger-btn"
-                title={callStatus && callStatus !== 'idle' ? "Call in progress" : "Start Encrypted Video Call"}
-                disabled={callStatus && callStatus !== 'idle'}
-                style={{ 
-                  width: '34px', 
-                  height: '34px', 
-                  opacity: (callStatus && callStatus !== 'idle') ? 0.45 : 1,
-                  cursor: (callStatus && callStatus !== 'idle') ? 'not-allowed' : 'pointer'
-                }}
-              >
-                <Video size={16} color="var(--accent-emerald)" />
-              </button>
-            </>
-          )}
-
-          {!isConnected && (
-            <button onClick={onOpenRoomModal} className="btn btn-secondary" style={{ fontSize: '0.78rem', padding: '6px 12px' }}>
-              <span>Join Room</span>
-              <ArrowRight size={13} />
-            </button>
-          )}
-        </div>
-      </div>
+      {/* Header Bar */}
+      <ChatHeader 
+        isConnected={isConnected}
+        status={status}
+        remotePeerId={remotePeerId}
+        remotePeerNickname={remotePeerNickname}
+        roomFullError={roomFullError}
+        onStartCall={onStartCall}
+        callStatus={callStatus}
+        onOpenRoomModal={onOpenRoomModal}
+      />
 
       {/* Reconnecting Alert Bar */}
       {status === 'reconnecting' && (
@@ -428,242 +207,37 @@ export default function ChatArea({
 
       {/* Messages Scroll Feed */}
       <div className="messages-list">
-        {/* Room Full Notification Hero (Shown when 3rd peer attempts to join an occupied room) */}
-        {roomFullError && !isConnected ? (
-          <div className="waiting-hero-card" style={{ borderColor: 'rgba(239, 68, 68, 0.35)', background: 'rgba(239, 68, 68, 0.04)' }}>
-            <div style={{ 
-              width: '64px', 
-              height: '64px', 
-              borderRadius: '50%', 
-              background: 'rgba(239, 68, 68, 0.12)', 
-              border: '1px solid rgba(239, 68, 68, 0.3)',
-              display: 'flex', 
-              alignItems: 'center', 
-              justifyContent: 'center',
-              margin: '0 auto'
-            }}>
-              <Users size={32} color="#f87171" />
-            </div>
-
-            <div>
-              <h3 style={{ fontSize: '1.2rem', fontWeight: 700, color: '#f87171', marginBottom: '6px' }}>
-                Room is Full (2/2 Peers Connected)
-              </h3>
-              <p style={{ fontSize: '0.84rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>
-                ZeroChat rooms are strictly private 1-to-1 direct tunnels. This room already has two peers actively communicating. Third-party connections are blocked for privacy.
-              </p>
-            </div>
-
-            {/* Actions for the 3rd user */}
-            <div style={{ display: 'flex', gap: '8px', width: '100%', justifyContent: 'center' }}>
-              <button 
-                onClick={onCreateNewRoom}
-                className="btn btn-primary"
-                style={{ flex: 1, padding: '10px 14px', fontSize: '0.84rem' }}
-              >
-                <PlusCircle size={15} />
-                <span>Create My Own Room</span>
-              </button>
-
-              <button 
-                onClick={onOpenRoomModal}
-                className="btn btn-secondary"
-                style={{ padding: '10px 14px', fontSize: '0.84rem' }}
-              >
-                <span>Join Another Room</span>
-                <ArrowRight size={14} />
-              </button>
-            </div>
-          </div>
-        ) : messages.length === 0 && !isConnected && (
-          <div className="waiting-hero-card">
-            {/* QR Code */}
-            <div style={{ 
-              background: '#ffffff', 
-              padding: '12px', 
-              borderRadius: '16px', 
-              boxShadow: '0 8px 30px rgba(0,0,0,0.5)',
-              margin: '0 auto'
-            }}>
-              {roomId && (
-                <QRCodeSVG 
-                  value={inviteUrl} 
-                  size={145} 
-                  level="M"
-                  includeMargin={false}
-                />
-              )}
-            </div>
-
-            <div>
-              <h3 style={{ fontSize: '1.12rem', fontWeight: 700, marginBottom: '3px' }}>
-                {status === 'connecting' ? 'Connecting to Peer...' : 'Private 1-on-1 Peer Room'}
-              </h3>
-              <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', lineHeight: 1.45 }}>
-                Share your invite link or code with 1 friend. Direct browser-to-browser encrypted pipe.
-              </p>
-            </div>
-
-            {/* Prominent 3-Word Room Code Box */}
-            <div className="room-code-display">
-              <div className="room-code-box" style={{ padding: '6px 12px' }}>
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
-                  <span style={{ fontSize: '0.62rem', color: 'var(--text-dim)', fontWeight: 700, textTransform: 'uppercase' }}>Your Room Code</span>
-                  <span className="room-code-text" style={{ fontSize: '0.96rem' }}>{roomId}</span>
-                </div>
-                <button onClick={handleCopyCode} className="btn btn-secondary text-xs" style={{ padding: '5px 10px' }} title="Copy 3-word code">
-                  {copiedCode ? <Check size={12} color="var(--accent-emerald)" /> : <Copy size={12} />}
-                  <span>{copiedCode ? 'Copied' : 'Copy Code'}</span>
-                </button>
-              </div>
-            </div>
-
-            {/* Quick Action Buttons */}
-            <div style={{ display: 'flex', gap: '8px', width: '100%', justifyContent: 'center' }}>
-              <button 
-                onClick={handleShare}
-                className="btn btn-primary"
-                style={{ flex: 1, padding: '10px 14px', fontSize: '0.84rem' }}
-              >
-                <Share2 size={15} />
-                <span>{copied ? 'Link Copied!' : 'Share Room Link'}</span>
-              </button>
-
-              <button 
-                onClick={onOpenRoomModal}
-                className="btn btn-secondary"
-                style={{ padding: '10px 14px', fontSize: '0.84rem' }}
-              >
-                <span>Join a Friend</span>
-                <ArrowRight size={14} />
-              </button>
-            </div>
-
-            {/* Micro Guide Card */}
-            <div className="connection-guide-card" style={{ textAlign: 'left' }}>
-              <div className="guide-step">
-                <span className="guide-step-num">1</span>
-                <span>Send 3-word code or link to 1 friend (rooms are strictly 1-to-1).</span>
-              </div>
-              <div className="guide-step">
-                <span className="guide-step-num">2</span>
-                <span>When opened, your encrypted chat activates instantly!</span>
-              </div>
-              {onOpenInfoModal && (
-                <div style={{ marginTop: '8px', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '6px', textAlign: 'center' }}>
-                  <button
-                    type="button"
-                    onClick={onOpenInfoModal}
-                    style={{
-                      background: 'none',
-                      border: 'none',
-                      color: 'var(--accent-cyan)',
-                      fontSize: '0.76rem',
-                      cursor: 'pointer',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '5px'
-                    }}
-                  >
-                    <span>Confused? Read 30s Quick Start Guide</span>
-                    <ArrowRight size={12} />
-                  </button>
-                </div>
-              )}
-            </div>
-
-            {/* Room Link Quick Copy Input */}
-            <div style={{ 
-              width: '100%', 
-              display: 'flex', 
-              alignItems: 'center', 
-              background: 'var(--bg-input)', 
-              border: '1px solid var(--border-subtle)', 
-              borderRadius: 'var(--radius-md)',
-              padding: '6px 10px',
-              gap: '6px'
-            }}>
-              <input 
-                type="text" 
-                readOnly 
-                value={inviteUrl} 
-                style={{ 
-                  flex: 1, 
-                  background: 'transparent', 
-                  border: 'none', 
-                  color: 'var(--text-muted)', 
-                  fontSize: '0.75rem',
-                  fontFamily: 'var(--font-mono)',
-                  outline: 'none'
-                }} 
-              />
-              <button 
-                onClick={handleCopyLink} 
-                className="btn btn-secondary text-xs" 
-                style={{ padding: '4px 8px' }}
-                title="Copy full invite link"
-              >
-                {copied ? <Check size={12} color="var(--accent-emerald)" /> : <Copy size={12} />}
-              </button>
-            </div>
-          </div>
+        {/* Waiting Room Hero Card */}
+        {((roomFullError && !isConnected) || (messages.length === 0 && !isConnected)) && (
+          <RoomHeroCard 
+            roomId={roomId}
+            inviteUrl={inviteUrl}
+            status={status}
+            isConnected={isConnected}
+            roomFullError={roomFullError}
+            copied={copied}
+            copiedCode={copiedCode}
+            onCopyLink={handleCopyLink}
+            onCopyCode={handleCopyCode}
+            onShare={handleShare}
+            onCreateNewRoom={onCreateNewRoom}
+            onOpenRoomModal={onOpenRoomModal}
+            onOpenInfoModal={onOpenInfoModal}
+          />
         )}
 
         {/* Message Bubbles */}
         {messages.map((msg) => (
-          <div 
-            key={msg.id} 
-            id={'msg_' + msg.id}
-            className={`message-row ${msg.sender === 'local' ? 'sent' : 'received'}`}
-          >
-            <span className="message-sender-name">
-              {msg.sender === 'local' ? (myNickname || 'You') : (msg.senderNickname || remotePeerNickname || 'Peer')}
-            </span>
-            <div className="message-bubble-wrapper">
-              <div className="message-bubble">
-                {msg.replyTo && (
-                  <div 
-                    className="message-reply-quote"
-                    onClick={() => handleScrollToMessage(msg.replyTo.id)}
-                    title="Click to jump to original message"
-                  >
-                    <div className="reply-quote-author">
-                      <CornerUpLeft size={10} color="var(--accent-cyan)" />
-                      <span>{msg.replyTo.senderNickname || 'Peer'}</span>
-                    </div>
-                    <div className="reply-quote-snippet">
-                      {msg.replyTo.snippet}
-                    </div>
-                  </div>
-                )}
-                {renderMessageContent(msg)}
-              </div>
-
-              {/* Reply Action Button */}
-              <button
-                type="button"
-                onClick={() => setReplyingTo(msg)}
-                className="message-reply-action-btn"
-                title="Reply to message"
-              >
-                <CornerUpLeft size={13} />
-              </button>
-            </div>
-            <div className="message-meta">
-              <span>{formatTime(msg.timestamp)}</span>
-              {msg.sender === 'local' && (
-                <span title={msg.pending ? 'Queued (sending on reconnect)' : msg.delivered ? 'Delivered' : 'Sent'}>
-                  {msg.pending ? (
-                    <Clock size={12} color="#f59e0b" className="animate-pulse" />
-                  ) : msg.delivered ? (
-                    <CheckCheck size={14} color="var(--accent-cyan)" />
-                  ) : (
-                    <Check size={14} />
-                  )}
-                </span>
-              )}
-            </div>
-          </div>
+          <MessageItem 
+            key={msg.id}
+            msg={msg}
+            myNickname={myNickname}
+            remotePeerNickname={remotePeerNickname}
+            onReply={setReplyingTo}
+            onScrollToMessage={handleScrollToMessage}
+            onOpenLightbox={onOpenLightbox}
+            onImageLoaded={() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })}
+          />
         ))}
 
         {/* Remote Typing Indicator */}
@@ -683,123 +257,27 @@ export default function ChatArea({
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Quick Emoji Bar */}
-      {showEmojiPicker && isConnected && (
-        <div className="quick-emoji-bar">
-          <span style={{ fontSize: '0.72rem', color: 'var(--text-dim)', marginRight: '6px' }}>Reaction:</span>
-          {QUICK_EMOJIS.map((emoji) => (
-            <button 
-              key={emoji} 
-              type="button"
-              onClick={() => handleAddEmoji(emoji)} 
-              className="emoji-btn"
-            >
-              {emoji}
-            </button>
-          ))}
-        </div>
-      )}
-
       {/* Reply Preview Dock */}
       {replyingTo && (
-        <div className="reply-preview-dock">
-          <div className="reply-preview-accent" />
-          <div className="reply-preview-content">
-            <div className="reply-preview-author">
-              <CornerUpLeft size={11} color="var(--accent-cyan)" />
-              <span>Replying to {replyingTo.sender === 'local' ? (myNickname || 'You') : (replyingTo.senderNickname || remotePeerNickname || 'Peer')}</span>
-            </div>
-            <p className="reply-preview-snippet">
-              {extractSnippet(replyingTo)}
-            </p>
-          </div>
-          <button 
-            type="button" 
-            onClick={() => setReplyingTo(null)}
-            className="reply-preview-close"
-            title="Cancel reply"
-          >
-            <X size={14} />
-          </button>
-        </div>
+        <ReplyPreviewDock 
+          replyingTo={replyingTo}
+          myNickname={myNickname}
+          remotePeerNickname={remotePeerNickname}
+          snippet={extractSnippet(replyingTo)}
+          onCancelReply={() => setReplyingTo(null)}
+        />
       )}
 
-      {/* Voice Recording Control Bar */}
-      {isRecording ? (
-        <div className="recording-bar">
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span className="record-dot animate-ping" />
-            <span style={{ fontSize: '0.82rem', fontWeight: 600, color: '#f43f5e' }}>
-              Recording ({recordSeconds}s)
-            </span>
-          </div>
-
-          <div style={{ display: 'flex', gap: '8px' }}>
-            <button onClick={cancelRecording} className="btn btn-secondary text-xs">
-              <X size={14} />
-              <span>Cancel</span>
-            </button>
-            <button onClick={stopAndSendRecording} className="btn btn-primary text-xs">
-              <Send size={14} />
-              <span>Send Voice</span>
-            </button>
-          </div>
-        </div>
-      ) : (
-        /* Standard Chat Input Bar */
-        <form onSubmit={handleSend} className="chat-input-bar">
-          <button 
-            type="button" 
-            onClick={() => setShowEmojiPicker(!showEmojiPicker)} 
-            disabled={!isConnected}
-            className="btn btn-icon"
-            title="Insert Emoji"
-          >
-            <Smile size={18} />
-          </button>
-
-          <input 
-            type="text" 
-            placeholder={
-              roomFullError && !isConnected
-                ? "Room is full (2/2 peers connected). Create your own room above."
-                : isConnected 
-                ? "Type message, paste image (Ctrl+V), or record audio..." 
-                : status === 'connecting'
-                ? "Connecting to peer... (type message to prepare)"
-                : status === 'reconnecting'
-                ? "Reconnecting to peer..."
-                : "Scan QR or invite peer to start chatting..."
-            } 
-            value={inputText}
-            onChange={handleTextChange}
-            onKeyDown={handleKeyDown}
-            onPaste={handlePaste}
-            disabled={status === 'disconnected' || (roomFullError && !isConnected)}
-            className="chat-input"
-          />
-
-          {/* Voice Record Mic Button */}
-          <button
-            type="button"
-            onClick={startRecording}
-            disabled={!isConnected}
-            className="btn btn-icon mic-btn"
-            title="Record Voice Note"
-          >
-            <Mic size={18} />
-          </button>
-
-          <button 
-            type="submit" 
-            disabled={status === 'disconnected' || !inputText.trim() || (roomFullError && !isConnected)} 
-            className="btn btn-primary send-btn"
-            title={!isConnected && (status === 'connecting' || status === 'reconnecting') ? "Queue message to send once connected" : "Send message"}
-          >
-            <Send size={16} />
-          </button>
-        </form>
-      )}
+      {/* Chat Input & Recording Controls Bar */}
+      <ChatInputBar 
+        isConnected={isConnected}
+        status={status}
+        roomFullError={roomFullError}
+        inputText={inputText}
+        onTextChange={handleTextChange}
+        onSend={handleSend}
+        onSendFile={onSendFile}
+      />
     </section>
   );
 }

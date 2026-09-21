@@ -1,0 +1,238 @@
+/* ==========================================================================
+   ZeroChat - Responsive Layouts: Tablets, Laptops & Mobile Optimization
+   ========================================================================== */
+
+/* Tablet & Medium Screen Breakpoint (769px to 1024px) */
+@media (max-width: 1024px) and (min-width: 769px) {
+  .main-workspace {
+    grid-template-columns: minmax(0, 1fr) 300px;
+    gap: 10px;
+  }
+}
+
+/* Mobile Devices (<= 768px) */
+@media (max-width: 768px) {
+  .app-container {
+    padding: 6px 8px;
+    gap: 6px;
+    height: 100dvh;
+  }
+
+  /* Header on Mobile: compact & zero overflow */
+  .header-bar {
+    padding: 6px 10px;
+    gap: 6px;
+    overflow: hidden;
+  }
+
+  .logo-group {
+    gap: 6px;
+  }
+
+  .logo-badge {
+    width: 30px;
+    height: 30px;
+  }
+
+  .logo-text h1 {
+    font-size: 0.98rem;
+  }
+
+  .logo-text p, 
+  .burn-text,
+  .end-chat-text,
+  .nickname-label {
+    display: none !important;
+  }
+
+  .user-nickname-btn {
+    padding: 3px;
+    border-radius: 50%;
+  }
+
+  .room-link-group .btn-secondary {
+    display: none !important; /* Hide long room ID string on mobile; QR button is right next to it */
+  }
+
+  .ping-monitor-badge {
+    padding: 3px 8px;
+    font-size: 0.68rem;
+    gap: 4px;
+  }
+
+  .ping-monitor-badge svg {
+    display: none !important;
+  }
+
+  .header-actions {
+    gap: 5px;
+  }
+
+  .btn-icon {
+    width: 36px;
+    height: 36px;
+    padding: 6px;
+  }
+
+  /* Mobile Top Segmented Bar (Thumb-friendly pill design) */
+  .mobile-segmented-bar {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    background: rgba(12, 17, 30, 0.95);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-full);
+    padding: 3px;
+    gap: 4px;
+    flex-shrink: 0;
+  }
+
+  .segment-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 8px 12px;
+    height: 38px;
+    border-radius: var(--radius-full);
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .segment-btn.active {
+    background: linear-gradient(135deg, rgba(0, 242, 254, 0.18), rgba(79, 172, 254, 0.18));
+    border: 1px solid var(--accent-cyan);
+    color: #fff;
+    box-shadow: 0 0 12px var(--accent-cyan-glow);
+  }
+
+  .segment-badge {
+    background: var(--accent-rose);
+    color: #fff;
+    font-size: 0.65rem;
+    font-weight: 800;
+    padding: 1px 6px;
+    border-radius: 999px;
+  }
+
+  .segment-badge.cyan {
+    background: var(--accent-cyan);
+    color: #000;
+  }
+
+  .main-workspace {
+    grid-template-columns: 1fr;
+    grid-template-rows: 1fr;
+    flex: 1;
+    min-height: 0;
+  }
+
+  /* Show only the active view on mobile */
+  .main-workspace.tab-chat .sidebar-container {
+    display: none !important;
+  }
+
+  .main-workspace.tab-files .chat-container {
+    display: none !important;
+  }
+
+  /* Chat Feed on Mobile */
+  .chat-header {
+    padding: 8px 12px;
+  }
+
+  .chat-header .peer-avatar {
+    width: 30px;
+    height: 30px;
+    font-size: 0.75rem;
+  }
+
+  .messages-list {
+    padding: 10px 12px;
+    gap: 10px;
+  }
+
+  .message-row {
+    max-width: 90%;
+  }
+
+  .message-bubble {
+    padding: 8px 13px;
+    font-size: 0.86rem;
+  }
+
+  /* Prevent iOS Safari auto-zoom on input focus (16px rule) */
+  .chat-input {
+    font-size: 16px !important;
+    padding: 8px 14px;
+    height: 40px;
+  }
+
+  /* Keyboard-safe padding with iOS/Android safe-area support */
+  .chat-input-bar {
+    padding: 6px 8px;
+    padding-bottom: max(8px, env(safe-area-inset-bottom, 8px));
+    gap: 6px;
+  }
+
+  .send-btn {
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  /* Waiting QR Hero card sizing for mobile */
+  .waiting-hero-card {
+    padding: 8px;
+    max-width: 320px;
+  }
+
+  .drop-zone {
+    padding: 18px 12px;
+  }
+
+  /* Mobile Call Overlay */
+  .call-header-bar {
+    padding: 10px 14px;
+  }
+
+  .call-security-badge {
+    display: none !important;
+  }
+
+  .call-local-pip {
+    bottom: 84px;
+    right: 12px;
+    width: 110px;
+    height: 75px;
+  }
+
+  .call-controls-dock {
+    bottom: 16px;
+    gap: 6px;
+    padding: 8px 12px;
+    max-width: 95vw;
+  }
+
+  .call-dock-btn {
+    min-width: 44px;
+    padding: 6px 6px;
+  }
+
+  .call-dock-btn.end-call {
+    min-width: 54px;
+  }
+
+  .dock-btn-label {
+    font-size: 0.6rem;
+  }
+}

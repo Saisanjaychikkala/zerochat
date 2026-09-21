@@ -1,30 +1,17 @@
-import Peer from 'peerjs';
+/**
+ * ZeroChat - WebRTC Peer Service Facade
+ * 
+ * Coordinates:
+ * - PeerJS Connection Lifecycle & 1-on-1 Room Guard
+ * - Background Auto-Reconnect Loop & Ephemeral RAM Queue
+ * - FileStreamEngine (16KB Chunk Streaming & Backpressure)
+ * - MediaCallEngine (E2EE Voice/Video Calls, In-Call Camera Upgrades & Screen Share)
+ */
 
-// High-reliability WebRTC ICE configuration with multiple STUN and free global TURN relays
-const ICE_SERVERS = [
-  { urls: 'stun:stun.l.google.com:19302' },
-  { urls: 'stun:stun1.l.google.com:19302' },
-  { urls: 'stun:stun2.l.google.com:19302' },
-  { urls: 'stun:stun3.l.google.com:19302' },
-  { urls: 'stun:stun4.l.google.com:19302' },
-  { urls: 'stun:stun.cloudflare.com:3478' },
-  { urls: 'stun:openrelay.metered.ca:80' },
-  {
-    urls: 'turn:openrelay.metered.ca:80',
-    username: 'openrelay',
-    credential: 'openrelay',
-  },
-  {
-    urls: 'turn:openrelay.metered.ca:443',
-    username: 'openrelay',
-    credential: 'openrelay',
-  },
-  {
-    urls: 'turn:openrelay.metered.ca:443?transport=tcp',
-    username: 'openrelay',
-    credential: 'openrelay',
-  },
-];
+import Peer from 'peerjs';
+import { ICE_SERVERS, generateRoomId } from './webrtc/constants';
+import { FileStreamEngine } from './webrtc/fileStreamEngine';
+import { MediaCallEngine } from './webrtc/mediaCallEngine';
 
 class PeerService {
   constructor() {
@@ -46,35 +33,17 @@ class PeerService {
     this.isIntentionalDisconnect = false;
     this.isRoomFull = false;
 
-    // Outgoing offline queue for network resilience
+    // Ephemeral RAM outgoing message queue for background reconnect resilience
     this.outgoingQueue = [];
 
-    // File transfer state
-    this.incomingFiles = new Map(); // fileId -> { meta, chunks: [], receivedBytes, totalChunks }
-    this.activeSenders = new Map(); // fileId -> { cancel: boolean }
-    this.currentReceivingChunk = null;
-
-    // Media Calling state
-    this.currentCall = null;
-    this.localStream = null;
-    this.remoteStream = null;
-    this.screenStream = null;
-    this.isScreenSharing = false;
-    this.isAudioMuted = false;
-    this.isVideoMuted = false;
-    this.facingMode = 'user';
-    this.incomingCallData = null; // { mediaConn, callerNickname, isVideo }
+    // Sub-Engines
+    this.fileStream = new FileStreamEngine();
+    this.mediaCall = new MediaCallEngine();
   }
 
-  setNickname(name) {
-    this.myNickname = name || 'Anonymous';
-    if (this.isConnected()) {
-      this.sendJson({
-        type: 'nickname_update',
-        nickname: this.myNickname,
-      });
-    }
-  }
+  // ==========================================
+  // Event Emitter Implementation
+  // ==========================================
 
   on(event, callback) {
     if (!this.listeners.has(event)) {
@@ -104,7 +73,28 @@ class PeerService {
     }
   }
 
-  // Initialize PeerJS
+  // ==========================================
+  // Nickname & Identity Management
+  // ==========================================
+
+  setNickname(name) {
+    this.myNickname = name || 'Anonymous';
+    if (this.isConnected()) {
+      this.sendJson({
+        type: 'nickname_update',
+        nickname: this.myNickname,
+      });
+    }
+  }
+
+  generateRoomId() {
+    return generateRoomId();
+  }
+
+  // ==========================================
+  // PeerJS Broker & Connection Initialization
+  // ==========================================
+
   async init(customId = null) {
     if (this.peer && !this.peer.destroyed && this.myPeerId) {
       return this.myPeerId;
@@ -150,7 +140,6 @@ class PeerService {
         console.log('[ZeroChat] Peer online:', id);
         this.emit('ready', id);
 
-        // If a connection was pending before initialization finished, trigger it
         if (this.targetPeerId && this.targetPeerId !== id && !this.isConnected()) {
           console.log('[ZeroChat] Executing queued connection to:', this.targetPeerId);
           this.executeConnect(this.targetPeerId);
@@ -163,7 +152,7 @@ class PeerService {
       this.peer.on('connection', (connection) => {
         console.log('[ZeroChat] Incoming peer connection from:', connection.peer);
 
-        // Check if room is already occupied by an active peer (1-to-1 limit)
+        // Strict 1-on-1 Guard: If room already occupied by another peer, reject 3rd peer
         if (this.conn && this.conn.open && this.conn.peer !== connection.peer) {
           console.warn(`[ZeroChat] Room full (2/2 peers connected). Rejecting 3rd peer: ${connection.peer}`);
 
@@ -176,7 +165,6 @@ class PeerService {
             } catch (e) {
               console.warn('[ZeroChat] Error sending room_occupied packet:', e);
             }
-            // Allow packet buffer to flush before closing
             setTimeout(() => {
               try {
                 connection.close();
@@ -204,9 +192,8 @@ class PeerService {
       this.peer.on('call', (mediaConn) => {
         console.log('[ZeroChat] Incoming WebRTC media call from:', mediaConn.peer);
 
-        // Guard: If already on call or an incoming call prompt is pending, reject with busy
-        if (this.currentCall || this.incomingCallData) {
-          console.warn('[ZeroChat] Already in call or incoming call pending. Rejecting call from:', mediaConn.peer);
+        if (this.mediaCall.currentCall || this.mediaCall.incomingCallData) {
+          console.warn('[ZeroChat] Already on call or call pending. Rejecting call from:', mediaConn.peer);
           try {
             mediaConn.close();
           } catch (e) {}
@@ -221,7 +208,7 @@ class PeerService {
         const isVideo = metadata.isVideo !== undefined ? metadata.isVideo : true;
         const callerNickname = metadata.callerNickname || this.remoteNickname || 'Peer';
 
-        this.incomingCallData = { mediaConn, callerNickname, isVideo };
+        this.mediaCall.incomingCallData = { mediaConn, callerNickname, isVideo };
         this.emit('call_incoming', {
           mediaConn,
           callerNickname,
@@ -241,7 +228,6 @@ class PeerService {
         }
 
         if (err.type === 'peer-unavailable') {
-          // Retry connection if we are attempting to join a peer
           if (this.targetPeerId && this.connectAttempts < this.maxConnectAttempts && !this.isConnected()) {
             this.connectAttempts += 1;
             const delay = this.connectAttempts * 1200;
@@ -283,7 +269,10 @@ class PeerService {
     });
   }
 
-  // Connect to target room (Initiator side)
+  // ==========================================
+  // Direct P2P Connection (Initiator Side)
+  // ==========================================
+
   connectToPeer(remoteId) {
     const cleanId = remoteId ? remoteId.trim() : '';
     if (!cleanId || cleanId === this.myPeerId) {
@@ -323,7 +312,6 @@ class PeerService {
     this.emit('status', 'connecting');
 
     try {
-      // Use binary serialization for fast, zero-copy typed arrays
       const connection = this.peer.connect(cleanId, {
         reliable: true,
         serialization: 'binary',
@@ -335,7 +323,6 @@ class PeerService {
 
       this.handleConnection(connection);
 
-      // Connection timeout guard
       if (this.connectionTimeout) clearTimeout(this.connectionTimeout);
       this.connectionTimeout = setTimeout(() => {
         if (!this.isConnected() && this.targetPeerId === cleanId) {
@@ -359,7 +346,6 @@ class PeerService {
   handleConnection(connection) {
     if (!connection) return;
 
-    // If existing active connection with another peer, close it cleanly
     if (this.conn && (this.conn.peer !== connection.peer || !this.conn.open)) {
       try {
         this.conn.close();
@@ -387,23 +373,23 @@ class PeerService {
       this.connectAttempts = 0;
       this.isIntentionalDisconnect = false;
 
-      // 1. Send Handshake with Nickname
+      // 1. Send Handshake
       this.sendJson({
         type: 'handshake',
         nickname: this.myNickname,
         peerId: this.myPeerId,
       });
 
-      // 2. Immediate Ping
+      // 2. Ping Latency Check
       this.sendJson({
         type: 'ping',
         sendTime: performance.now(),
       });
 
-      // 3. Start Heartbeat
+      // 3. Heartbeat
       this.startPingMonitor();
 
-      // 4. Flush queued outgoing messages (network resilience)
+      // 4. Flush queued offline messages
       this.flushOutgoingQueue();
 
       this.emit('status', 'connected');
@@ -426,7 +412,7 @@ class PeerService {
     connection.on('close', () => {
       console.log('[ZeroChat] DataChannel closed with peer:', this.remotePeerId);
       this.stopPingMonitor();
-      this.cleanupCall();
+      this.mediaCall.cleanupCall((e, d) => this.emit(e, d));
 
       if (this.isRoomFull) {
         this.emit('status', 'disconnected');
@@ -437,7 +423,6 @@ class PeerService {
         this.emit('status', 'disconnected');
         this.emit('peer_disconnected', { peerId: this.remotePeerId });
       } else {
-        // Unexpected disconnect: trigger background auto-reconnect
         this.emit('status', 'reconnecting');
         this.emit('peer_disconnected', { peerId: this.remotePeerId });
         this.schedulePeerReconnect();
@@ -463,16 +448,19 @@ class PeerService {
     }, 2500);
   }
 
+  // ==========================================
+  // Incoming DataChannel Packet Dispatcher
+  // ==========================================
+
   handleIncomingPacket(data) {
     if (!data) return;
 
-    // Check if packet is ArrayBuffer (Binary File Chunk)
+    // Binary file chunk
     if (data instanceof ArrayBuffer || (data.buffer && data.buffer instanceof ArrayBuffer)) {
-      this.handleBinaryFileChunk(data);
+      this.fileStream.handleBinaryFileChunk(data, (e, d) => this.emit(e, d));
       return;
     }
 
-    // Packet can be object or serialized JSON string
     let packet = data;
     if (typeof packet === 'string') {
       try {
@@ -499,7 +487,6 @@ class PeerService {
           nickname: this.remoteNickname,
         });
         if (packet.type === 'handshake') {
-          // Respond with handshake_ack so both sides know names
           this.sendJson({
             type: 'handshake_ack',
             nickname: this.myNickname,
@@ -525,7 +512,6 @@ class PeerService {
           timestamp: packet.timestamp || Date.now(),
           replyTo: packet.replyTo || null,
         });
-        // Send delivery ACK
         this.sendJson({ type: 'ack', id: packet.id });
         break;
 
@@ -559,26 +545,7 @@ class PeerService {
         break;
 
       case 'call_signal':
-        console.log('[ZeroChat] Call signal received:', packet.signal);
-        if (packet.signal === 'offer') {
-          this.emit('call_signal_offer', {
-            isVideo: packet.isVideo,
-            callerNickname: packet.callerNickname || this.remoteNickname || 'Peer',
-          });
-        } else if (packet.signal === 'accepted') {
-          this.emit('call_signal_accepted');
-        } else if (packet.signal === 'rejected') {
-          this.emit('call_signal_rejected');
-          this.cleanupCall();
-        } else if (packet.signal === 'busy') {
-          this.emit('call_signal_busy');
-          this.cleanupCall();
-        } else if (packet.signal === 'camera_toggle') {
-          this.emit('remote_camera_toggle', { isVideoActive: !!packet.isVideoActive });
-        } else if (packet.signal === 'ended') {
-          this.emit('call_signal_ended');
-          this.cleanupCall();
-        }
+        this.mediaCall.handleCallSignal(packet, this.remoteNickname, (e, d) => this.emit(e, d));
         break;
 
       case 'room_occupied':
@@ -586,18 +553,9 @@ class PeerService {
         this.isIntentionalDisconnect = true;
         this.isRoomFull = true;
         this.targetPeerId = null;
-        if (this.reconnectTimer) {
-          clearTimeout(this.reconnectTimer);
-          this.reconnectTimer = null;
-        }
-        if (this.connectRetryTimer) {
-          clearTimeout(this.connectRetryTimer);
-          this.connectRetryTimer = null;
-        }
-        if (this.connectionTimeout) {
-          clearTimeout(this.connectionTimeout);
-          this.connectionTimeout = null;
-        }
+        if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
+        if (this.connectRetryTimer) clearTimeout(this.connectRetryTimer);
+        if (this.connectionTimeout) clearTimeout(this.connectionTimeout);
         this.emit('room_full', {
           reason: packet.reason || 'Room is full (2/2 peers connected)',
         });
@@ -605,40 +563,15 @@ class PeerService {
         break;
 
       case 'file_meta':
-        this.incomingFiles.set(packet.fileId, {
-          meta: packet,
-          chunks: new Array(packet.totalChunks),
-          receivedCount: 0,
-          receivedBytes: 0,
-          startTime: performance.now(),
-        });
-        this.emit('file_start', {
-          fileId: packet.fileId,
-          fileName: packet.fileName,
-          fileSize: packet.fileSize,
-          fileType: packet.fileType,
-          senderNickname: packet.senderNickname || this.remoteNickname,
-          isSender: false,
-          isVoiceNote: !!packet.isVoiceNote,
-          durationSec: packet.durationSec || 0,
-        });
+        this.fileStream.handleFileMeta(packet, this.remoteNickname, (e, d) => this.emit(e, d));
         break;
 
       case 'file_chunk_meta':
-        // Metadata preceding binary chunk
-        this.currentReceivingChunk = {
-          fileId: packet.fileId,
-          chunkIndex: packet.chunkIndex,
-        };
+        this.fileStream.handleFileChunkMeta(packet);
         break;
 
       case 'file_cancel':
-        if (this.activeSenders.has(packet.fileId)) {
-          this.activeSenders.get(packet.fileId).cancel = true;
-          this.activeSenders.delete(packet.fileId);
-        }
-        this.incomingFiles.delete(packet.fileId);
-        this.emit('file_cancelled', { fileId: packet.fileId });
+        this.fileStream.handleFileCancel(packet.fileId, (e, d) => this.emit(e, d));
         break;
 
       default:
@@ -646,52 +579,9 @@ class PeerService {
     }
   }
 
-  handleBinaryFileChunk(arrayBuffer) {
-    if (!this.currentReceivingChunk) return;
-
-    const { fileId, chunkIndex } = this.currentReceivingChunk;
-    const record = this.incomingFiles.get(fileId);
-    if (!record) return;
-
-    record.chunks[chunkIndex] = arrayBuffer;
-    record.receivedCount += 1;
-    record.receivedBytes += arrayBuffer.byteLength;
-
-    const progress = Math.min(
-      100,
-      Math.round((record.receivedCount / record.meta.totalChunks) * 100)
-    );
-    const elapsedSec = (performance.now() - record.startTime) / 1000;
-    const speedBps = elapsedSec > 0 ? record.receivedBytes / elapsedSec : 0;
-
-    this.emit('file_progress', {
-      fileId,
-      progress,
-      speedBps,
-      isSender: false,
-    });
-
-    if (record.receivedCount === record.meta.totalChunks) {
-      const blob = new Blob(record.chunks, { type: record.meta.fileType });
-      const downloadUrl = URL.createObjectURL(blob);
-
-      this.emit('file_complete', {
-        fileId,
-        fileName: record.meta.fileName,
-        fileSize: record.meta.fileSize,
-        fileType: record.meta.fileType,
-        senderNickname: record.meta.senderNickname,
-        downloadUrl,
-        blob,
-        isSender: false,
-        isVoiceNote: !!record.meta.isVoiceNote,
-        durationSec: record.meta.durationSec || 0,
-      });
-
-      this.incomingFiles.delete(fileId);
-      this.currentReceivingChunk = null;
-    }
-  }
+  // ==========================================
+  // Outgoing Message Dispatcher & Offline Queue
+  // ==========================================
 
   sendTextMessage(text, replyTo = null) {
     if (!text || !text.trim()) {
@@ -707,7 +597,6 @@ class PeerService {
       ...(replyTo ? { replyTo } : {}),
     };
 
-    // If channel is open and ready, send immediately
     if (this.isConnected()) {
       const sent = this.sendJson(message);
       if (sent) {
@@ -715,7 +604,6 @@ class PeerService {
       }
     }
 
-    // If temporarily disconnected, connecting, or reconnecting: buffer in RAM queue
     if (this.targetPeerId || this.remotePeerId || this.myPeerId) {
       console.log('[ZeroChat] Message queued in memory (waiting for channel open):', message.id);
       this.outgoingQueue.push(message);
@@ -737,7 +625,6 @@ class PeerService {
       if (sent) {
         this.emit('message_flushed', { id: msg.id });
       } else {
-        // If send failed, put remaining back in queue
         this.outgoingQueue.unshift(msg);
         break;
       }
@@ -753,129 +640,95 @@ class PeerService {
     });
   }
 
-  // BULLETPROOF FILE SENDER WITH 16KB CHUNKS & WEBRTC BACKPRESSURE
-  async sendFile(file, onProgress = null) {
-    if (!this.isConnected()) {
-      throw new Error('Peer not connected');
-    }
+  // ==========================================
+  // File Transfer Delegations
+  // ==========================================
 
-    const fileId = 'file_' + Math.random().toString(36).substring(2, 9) + '_' + Date.now();
-    const CHUNK_SIZE = 16 * 1024; // 16KB safe standard WebRTC chunk
-    const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
-
-    this.activeSenders.set(fileId, { cancel: false });
-
-    // 1. Send file metadata header
-    this.sendJson({
-      type: 'file_meta',
-      fileId,
-      fileName: file.name,
-      fileSize: file.size,
-      fileType: file.type || 'application/octet-stream',
-      totalChunks,
-      senderNickname: this.myNickname,
-      isVoiceNote: !!file.isVoiceNote,
-      durationSec: file.durationSec || 0,
-    });
-
-    this.emit('file_start', {
-      fileId,
-      fileName: file.name,
-      fileSize: file.size,
-      fileType: file.type,
-      isSender: true,
-      isVoiceNote: !!file.isVoiceNote,
-      durationSec: file.durationSec || 0,
-    });
-
-    let offset = 0;
-    let chunkIndex = 0;
-    const startTime = performance.now();
-
-    while (offset < file.size) {
-      if (!this.isConnected()) {
-        throw new Error('Connection lost during file transfer');
-      }
-
-      if (this.activeSenders.get(fileId)?.cancel) {
-        this.sendJson({ type: 'file_cancel', fileId });
-        this.emit('file_cancelled', { fileId });
-        this.activeSenders.delete(fileId);
-        return;
-      }
-
-      // CRITICAL BACKPRESSURE: Check underlying RTCDataChannel buffer
-      const rawDc = this.conn?.dataChannel || this.conn?._dc;
-      if (rawDc && rawDc.bufferedAmount > 64 * 1024) {
-        // Wait until buffer drains below 64KB
-        await new Promise((resolve) => setTimeout(resolve, 20));
-        continue;
-      }
-
-      const slice = file.slice(offset, offset + CHUNK_SIZE);
-      const arrayBuffer = await slice.arrayBuffer();
-
-      // Send chunk header then raw binary buffer
-      this.sendJson({
-        type: 'file_chunk_meta',
-        fileId,
-        chunkIndex,
-      });
-
-      // Send raw binary buffer (Native WebRTC zero-copy)
-      this.conn.send(arrayBuffer);
-
-      offset += CHUNK_SIZE;
-      chunkIndex += 1;
-
-      const progress = Math.min(100, Math.round((offset / file.size) * 100));
-      const elapsedSec = (performance.now() - startTime) / 1000;
-      const speedBps = elapsedSec > 0 ? offset / elapsedSec : 0;
-
-      if (onProgress) onProgress(progress, speedBps);
-      this.emit('file_progress', {
-        fileId,
-        progress,
-        speedBps,
-        isSender: true,
-      });
-
-      // Small tick to prevent UI locking on mobile
-      if (chunkIndex % 4 === 0) {
-        await new Promise((resolve) => setTimeout(resolve, 2));
-      }
-    }
-
-    this.activeSenders.delete(fileId);
-
-    const downloadUrl = URL.createObjectURL(file);
-
-    this.emit('file_complete', {
-      fileId,
-      fileName: file.name,
-      fileSize: file.size,
-      fileType: file.type,
-      isSender: true,
-      downloadUrl,
-      blob: file,
-      isVoiceNote: !!file.isVoiceNote,
-      durationSec: file.durationSec || 0,
-    });
-
-    return fileId;
+  sendFile(file, onProgress = null) {
+    return this.fileStream.sendFile(
+      this.conn,
+      file,
+      this.myNickname,
+      (data) => this.sendJson(data),
+      (e, d) => this.emit(e, d),
+      onProgress
+    );
   }
 
   cancelFileTransfer(fileId) {
-    if (this.activeSenders.has(fileId)) {
-      this.activeSenders.get(fileId).cancel = true;
-      this.activeSenders.delete(fileId);
-    }
-    if (this.incomingFiles.has(fileId)) {
-      this.incomingFiles.delete(fileId);
-    }
-    this.sendJson({ type: 'file_cancel', fileId });
-    this.emit('file_cancelled', { fileId });
+    this.fileStream.cancelFileTransfer(
+      fileId,
+      (data) => this.sendJson(data),
+      (e, d) => this.emit(e, d)
+    );
   }
+
+  // ==========================================
+  // WebRTC Media Calling Delegations
+  // ==========================================
+
+  startCall(isVideo = true) {
+    return this.mediaCall.startCall(
+      this.peer,
+      this.remotePeerId,
+      isVideo,
+      this.myNickname,
+      this.remoteNickname,
+      (data) => this.sendJson(data),
+      (e, d) => this.emit(e, d)
+    );
+  }
+
+  answerCall(isVideo = null) {
+    return this.mediaCall.answerCall(
+      isVideo,
+      this.myNickname,
+      this.remoteNickname,
+      (data) => this.sendJson(data),
+      (e, d) => this.emit(e, d)
+    );
+  }
+
+  rejectCall() {
+    this.mediaCall.rejectCall(
+      (data) => this.sendJson(data),
+      (e, d) => this.emit(e, d)
+    );
+  }
+
+  endCall() {
+    this.mediaCall.endCall(
+      (data) => this.sendJson(data),
+      (e, d) => this.emit(e, d)
+    );
+  }
+
+  toggleAudio() {
+    return this.mediaCall.toggleAudio((e, d) => this.emit(e, d));
+  }
+
+  toggleVideo() {
+    return this.mediaCall.toggleVideo(
+      (data) => this.sendJson(data),
+      (e, d) => this.emit(e, d)
+    );
+  }
+
+  startScreenShare() {
+    return this.mediaCall.startScreenShare((e, d) => this.emit(e, d));
+  }
+
+  stopScreenShare() {
+    return this.mediaCall.stopScreenShare((e, d) => this.emit(e, d));
+  }
+
+  switchCamera() {
+    return this.mediaCall.switchCamera((e, d) => this.emit(e, d));
+  }
+
+  // ==========================================
+  // Low-Level DataChannel JSON & Heartbeat
+  // ==========================================
 
   sendJson(data) {
     if (this.conn && this.conn.open) {
@@ -917,18 +770,9 @@ class PeerService {
     this.isIntentionalDisconnect = true;
     this.isRoomFull = false;
     this.stopPingMonitor();
-    if (this.reconnectTimer) {
-      clearTimeout(this.reconnectTimer);
-      this.reconnectTimer = null;
-    }
-    if (this.connectRetryTimer) {
-      clearTimeout(this.connectRetryTimer);
-      this.connectRetryTimer = null;
-    }
-    if (this.connectionTimeout) {
-      clearTimeout(this.connectionTimeout);
-      this.connectionTimeout = null;
-    }
+    if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
+    if (this.connectRetryTimer) clearTimeout(this.connectRetryTimer);
+    if (this.connectionTimeout) clearTimeout(this.connectionTimeout);
 
     if (this.conn) {
       try {
@@ -937,7 +781,7 @@ class PeerService {
       } catch (e) {}
       this.conn = null;
     }
-    this.cleanupCall();
+    this.mediaCall.cleanupCall((e, d) => this.emit(e, d));
     this.remotePeerId = null;
     this.targetPeerId = null;
     this.remoteNickname = 'Peer';
@@ -947,7 +791,7 @@ class PeerService {
 
   cleanup() {
     this.disconnect();
-    this.cleanupCall();
+    this.mediaCall.cleanupCall((e, d) => this.emit(e, d));
     if (this.peer) {
       try {
         this.peer.destroy();
@@ -956,466 +800,8 @@ class PeerService {
     }
     this.myPeerId = null;
     this.isInitializing = false;
-    this.incomingFiles.clear();
-    this.activeSenders.clear();
-  }
-
-  // ==========================================
-  // WebRTC Media Calling & Screen Sharing
-  // ==========================================
-
-  createDummyVideoTrack() {
-    try {
-      const canvas = document.createElement('canvas');
-      canvas.width = 2;
-      canvas.height = 2;
-      const ctx = canvas.getContext('2d');
-      if (ctx) {
-        ctx.fillStyle = '#000000';
-        ctx.fillRect(0, 0, 2, 2);
-      }
-      if (typeof canvas.captureStream === 'function') {
-        const stream = canvas.captureStream(1);
-        const track = stream.getVideoTracks()[0];
-        if (track) {
-          track.enabled = false;
-          return track;
-        }
-      }
-    } catch (e) {
-      console.warn('[ZeroChat] Canvas captureStream fallback not supported:', e);
-    }
-    return null;
-  }
-
-  async startCall(isVideo = true) {
-    if (!this.remotePeerId || !this.peer) {
-      throw new Error('No active peer connected');
-    }
-
-    try {
-      this.isAudioMuted = false;
-      this.isVideoMuted = false;
-      this.isScreenSharing = false;
-
-      const constraints = {
-        audio: {
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true,
-        },
-        video: isVideo ? { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: 'user' } : false,
-      };
-
-      let activeIsVideo = isVideo;
-      try {
-        this.localStream = await navigator.mediaDevices.getUserMedia(constraints);
-      } catch (mediaErr) {
-        if (activeIsVideo) {
-          console.warn('[ZeroChat] Video acquisition failed, falling back to audio-only call:', mediaErr);
-          this.localStream = await navigator.mediaDevices.getUserMedia({
-            audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
-            video: false,
-          });
-          activeIsVideo = false;
-        } else {
-          throw mediaErr;
-        }
-      }
-
-      // If audio-only call, attach a disabled dummy track so the WebRTC video sender pipeline is established
-      if (!activeIsVideo) {
-        const dummyTrack = this.createDummyVideoTrack();
-        if (dummyTrack) this.localStream.addTrack(dummyTrack);
-      }
-
-      this.emit('local_stream', this.localStream);
-
-      const mediaConn = this.peer.call(this.remotePeerId, this.localStream, {
-        metadata: {
-          isVideo: activeIsVideo,
-          callerNickname: this.myNickname,
-        },
-      });
-
-      this.currentCall = mediaConn;
-
-      this.emit('call_started', {
-        role: 'caller',
-        isVideo: activeIsVideo,
-        remoteNickname: this.remoteNickname,
-      });
-
-      this.sendJson({
-        type: 'call_signal',
-        signal: 'offer',
-        isVideo: activeIsVideo,
-        callerNickname: this.myNickname,
-      });
-
-      mediaConn.on('stream', (remoteStream) => {
-        console.log('[ZeroChat] Remote media stream attached');
-        this.remoteStream = remoteStream;
-        this.emit('remote_stream', remoteStream);
-      });
-
-      mediaConn.on('close', () => {
-        console.log('[ZeroChat] Media call ended by peer');
-        this.cleanupCall();
-      });
-
-      mediaConn.on('error', (err) => {
-        console.error('[ZeroChat] Media call error:', err);
-        this.cleanupCall();
-      });
-
-      return mediaConn;
-    } catch (err) {
-      console.error('[ZeroChat] Failed to start media call:', err);
-      this.cleanupCall();
-      throw err;
-    }
-  }
-
-  async answerCall(isVideo = null) {
-    if (!this.incomingCallData || !this.incomingCallData.mediaConn) {
-      console.warn('[ZeroChat] No incoming media call available to answer');
-      return;
-    }
-
-    const { mediaConn, isVideo: callIsVideo } = this.incomingCallData;
-    let activeUseVideo = isVideo !== null ? isVideo : callIsVideo;
-
-    try {
-      this.isAudioMuted = false;
-      this.isVideoMuted = false;
-      this.isScreenSharing = false;
-
-      const constraints = {
-        audio: {
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true,
-        },
-        video: activeUseVideo ? { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: 'user' } : false,
-      };
-
-      try {
-        this.localStream = await navigator.mediaDevices.getUserMedia(constraints);
-      } catch (mediaErr) {
-        if (activeUseVideo) {
-          console.warn('[ZeroChat] Video acquisition failed on answer, falling back to audio-only:', mediaErr);
-          this.localStream = await navigator.mediaDevices.getUserMedia({
-            audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
-            video: false,
-          });
-          activeUseVideo = false;
-        } else {
-          throw mediaErr;
-        }
-      }
-
-      // If answering as audio-only, attach dummy track so WebRTC video sender is established
-      if (!activeUseVideo) {
-        const dummyTrack = this.createDummyVideoTrack();
-        if (dummyTrack) this.localStream.addTrack(dummyTrack);
-      }
-
-      this.emit('local_stream', this.localStream);
-
-      mediaConn.answer(this.localStream);
-      this.currentCall = mediaConn;
-      this.incomingCallData = null;
-
-      this.emit('call_started', {
-        role: 'receiver',
-        isVideo: activeUseVideo,
-        remoteNickname: this.remoteNickname,
-      });
-
-      this.sendJson({
-        type: 'call_signal',
-        signal: 'accepted',
-      });
-
-      mediaConn.on('stream', (remoteStream) => {
-        console.log('[ZeroChat] Remote media stream attached on answer');
-        this.remoteStream = remoteStream;
-        this.emit('remote_stream', remoteStream);
-      });
-
-      mediaConn.on('close', () => {
-        this.cleanupCall();
-      });
-
-      mediaConn.on('error', (err) => {
-        console.error('[ZeroChat] Media call error:', err);
-        this.cleanupCall();
-      });
-    } catch (err) {
-      console.error('[ZeroChat] Failed to answer call:', err);
-      this.rejectCall();
-      throw err;
-    }
-  }
-
-  rejectCall() {
-    if (this.incomingCallData && this.incomingCallData.mediaConn) {
-      try {
-        this.incomingCallData.mediaConn.close();
-      } catch (e) {}
-    }
-    this.incomingCallData = null;
-    this.sendJson({
-      type: 'call_signal',
-      signal: 'rejected',
-    });
-    this.emit('call_ended', { reason: 'rejected' });
-  }
-
-  endCall() {
-    this.sendJson({
-      type: 'call_signal',
-      signal: 'ended',
-    });
-    this.cleanupCall();
-  }
-
-  cleanupCall() {
-    if (this.screenStream) {
-      try {
-        this.screenStream.getTracks().forEach((t) => t.stop());
-      } catch (e) {}
-      this.screenStream = null;
-    }
-    if (this.localStream) {
-      try {
-        this.localStream.getTracks().forEach((t) => t.stop());
-      } catch (e) {}
-      this.localStream = null;
-    }
-    if (this.currentCall) {
-      try {
-        this.currentCall.close();
-      } catch (e) {}
-      this.currentCall = null;
-    }
-    this.incomingCallData = null;
-    this.remoteStream = null;
-    this.isScreenSharing = false;
-    this.isAudioMuted = false;
-    this.isVideoMuted = false;
-
-    this.emit('call_ended', { reason: 'ended' });
-  }
-
-  toggleAudio() {
-    if (!this.localStream) return false;
-    const audioTrack = this.localStream.getAudioTracks()[0];
-    if (audioTrack) {
-      audioTrack.enabled = !audioTrack.enabled;
-      this.isAudioMuted = !audioTrack.enabled;
-      this.emit('call_audio_toggle', { isMuted: this.isAudioMuted });
-      return this.isAudioMuted;
-    }
-    return false;
-  }
-
-  async toggleVideo() {
-    if (!this.localStream) return false;
-    let videoTrack = this.localStream.getVideoTracks().find(
-      (t) => t.label && !t.label.includes('canvas') && t.readyState === 'live'
-    );
-
-    // If no real camera video track exists yet (e.g. upgraded from audio call), acquire camera!
-    if (!videoTrack) {
-      try {
-        const cameraStream = await navigator.mediaDevices.getUserMedia({
-          video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: this.facingMode },
-          audio: false,
-        });
-        const realTrack = cameraStream.getVideoTracks()[0];
-        realTrack.enabled = true;
-
-        // Swap track on WebRTC peer connection
-        if (this.currentCall && this.currentCall.peerConnection) {
-          const pc = this.currentCall.peerConnection;
-          const senders = pc.getSenders();
-          const videoSender = senders.find(
-            (s) => (s.track && s.track.kind === 'video') || (s.track === null && s.kind === 'video')
-          );
-          if (videoSender) {
-            await videoSender.replaceTrack(realTrack);
-          } else {
-            pc.addTrack(realTrack, this.localStream);
-          }
-        }
-
-        // Clean up dummy tracks from localStream
-        const oldTracks = this.localStream.getVideoTracks();
-        oldTracks.forEach((t) => {
-          try { t.stop(); } catch (e) {}
-          this.localStream.removeTrack(t);
-        });
-        this.localStream.addTrack(realTrack);
-
-        this.isVideoMuted = false;
-        this.isVideo = true;
-        this.emit('local_stream', this.localStream);
-        this.emit('call_video_toggle', { isMuted: false, isVideoActive: true });
-
-        // Signal remote peer that our camera is now transmitting
-        this.sendJson({
-          type: 'call_signal',
-          signal: 'camera_toggle',
-          isVideoActive: true,
-        });
-
-        return false;
-      } catch (err) {
-        console.error('[ZeroChat] Failed to acquire camera on call upgrade:', err);
-        return true;
-      }
-    } else {
-      // Toggle enable/disable on existing real video track
-      videoTrack.enabled = !videoTrack.enabled;
-      this.isVideoMuted = !videoTrack.enabled;
-      this.emit('call_video_toggle', { isMuted: this.isVideoMuted, isVideoActive: videoTrack.enabled });
-      this.sendJson({
-        type: 'call_signal',
-        signal: 'camera_toggle',
-        isVideoActive: videoTrack.enabled,
-      });
-      return this.isVideoMuted;
-    }
-  }
-
-  async startScreenShare() {
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
-      throw new Error('Screen sharing is not supported on this device/browser');
-    }
-    if (!this.currentCall || !this.currentCall.peerConnection) {
-      throw new Error('No active call connection');
-    }
-
-    try {
-      this.screenStream = await navigator.mediaDevices.getDisplayMedia({
-        video: { cursor: 'always' },
-        audio: false,
-      });
-
-      const screenTrack = this.screenStream.getVideoTracks()[0];
-      const pc = this.currentCall.peerConnection;
-      const senders = pc.getSenders();
-      const videoSender = senders.find((s) => s.track && s.track.kind === 'video');
-
-      if (videoSender) {
-        await videoSender.replaceTrack(screenTrack);
-      } else {
-        pc.addTrack(screenTrack, this.localStream);
-      }
-
-      this.isScreenSharing = true;
-      this.emit('screen_share_status', { isSharing: true, stream: this.screenStream });
-
-      screenTrack.onended = () => {
-        this.stopScreenShare();
-      };
-
-      return true;
-    } catch (err) {
-      if (err.name !== 'NotAllowedError') {
-        console.error('[ZeroChat] Screen share error:', err);
-      }
-      throw err;
-    }
-  }
-
-  async stopScreenShare() {
-    if (!this.isScreenSharing) return;
-
-    try {
-      if (this.screenStream) {
-        this.screenStream.getTracks().forEach((t) => t.stop());
-        this.screenStream = null;
-      }
-
-      if (this.currentCall && this.currentCall.peerConnection && this.localStream) {
-        const cameraTrack = this.localStream.getVideoTracks()[0] || null;
-        const pc = this.currentCall.peerConnection;
-        const senders = pc.getSenders();
-        const videoSender = senders.find((s) => s.track && s.track.kind === 'video');
-
-        if (videoSender) {
-          await videoSender.replaceTrack(cameraTrack);
-        }
-      }
-
-      this.isScreenSharing = false;
-      this.emit('screen_share_status', { isSharing: false });
-    } catch (err) {
-      console.warn('[ZeroChat] Error stopping screen share:', err);
-      this.isScreenSharing = false;
-      this.emit('screen_share_status', { isSharing: false });
-    }
-  }
-
-  async switchCamera() {
-    if (!this.localStream || !this.currentCall || !this.currentCall.peerConnection) return false;
-    try {
-      this.facingMode = this.facingMode === 'user' ? 'environment' : 'user';
-      let newStream;
-      try {
-        newStream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: { exact: this.facingMode }, width: { ideal: 1280 }, height: { ideal: 720 } },
-          audio: false,
-        });
-      } catch (e) {
-        newStream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: this.facingMode },
-          audio: false,
-        });
-      }
-
-      const newTrack = newStream.getVideoTracks()[0];
-      const pc = this.currentCall.peerConnection;
-      const senders = pc.getSenders();
-      const videoSender = senders.find((s) => s.track && s.track.kind === 'video');
-
-      if (videoSender) {
-        await videoSender.replaceTrack(newTrack);
-      }
-
-      const oldTrack = this.localStream.getVideoTracks()[0];
-      if (oldTrack) {
-        oldTrack.stop();
-        this.localStream.removeTrack(oldTrack);
-      }
-      this.localStream.addTrack(newTrack);
-      this.emit('local_stream', this.localStream);
-      this.emit('camera_switched', { facingMode: this.facingMode });
-      return true;
-    } catch (err) {
-      console.warn('[ZeroChat] Failed to switch camera:', err);
-      return false;
-    }
-  }
-
-
-
-  generateRoomId() {
-    const words = [
-      'alpha', 'bravo', 'cosmic', 'delta', 'echo', 'flame',
-      'galaxy', 'hyper', 'ion', 'jet', 'kinetic', 'lunar',
-      'matrix', 'nexus', 'orbit', 'pulse', 'quantum', 'radar',
-      'solar', 'titan', 'ultra', 'vortex', 'wave', 'zenith'
-    ];
-    const w1 = words[Math.floor(Math.random() * words.length)];
-    const w2 = words[Math.floor(Math.random() * words.length)];
-    const num = Math.floor(100 + Math.random() * 900);
-    return `${w1}-${w2}-${num}`;
+    this.fileStream.clear();
   }
 }
 
 export const peerService = new PeerService();
-
