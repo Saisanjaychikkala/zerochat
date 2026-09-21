@@ -16,7 +16,8 @@ import {
   Share2,
   Users,
   PlusCircle,
-  AlertCircle
+  AlertCircle,
+  Clock
 } from 'lucide-react';
 import { voiceRecorder } from '../utils/voiceRecorder';
 import AudioPlayerBubble from './AudioPlayerBubble';
@@ -469,8 +470,10 @@ export default function ChatArea({
             <div className="message-meta">
               <span>{formatTime(msg.timestamp)}</span>
               {msg.sender === 'local' && (
-                <span>
-                  {msg.delivered ? (
+                <span title={msg.pending ? 'Queued (sending on reconnect)' : msg.delivered ? 'Delivered' : 'Sent'}>
+                  {msg.pending ? (
+                    <Clock size={12} color="#f59e0b" className="animate-pulse" />
+                  ) : msg.delivered ? (
                     <CheckCheck size={14} color="var(--accent-cyan)" />
                   ) : (
                     <Check size={14} />
@@ -583,8 +586,9 @@ export default function ChatArea({
 
           <button 
             type="submit" 
-            disabled={!isConnected || !inputText.trim()} 
+            disabled={status === 'disconnected' || !inputText.trim() || (roomFullError && !isConnected)} 
             className="btn btn-primary send-btn"
+            title={!isConnected && (status === 'connecting' || status === 'reconnecting') ? "Queue message to send once connected" : "Send message"}
           >
             <Send size={16} />
           </button>

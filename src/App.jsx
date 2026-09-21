@@ -172,8 +172,15 @@ export default function App() {
 
     const unsubAck = peerService.on('message_ack', (ackId) => {
       setMessages((prev) =>
-        prev.map((m) => (m.id === ackId ? { ...m, delivered: true } : m))
+        prev.map((m) => (m.id === ackId ? { ...m, pending: false, delivered: true } : m))
       );
+    });
+
+    const unsubFlushed = peerService.on('message_flushed', ({ id }) => {
+      setMessages((prev) =>
+        prev.map((m) => (m.id === id ? { ...m, pending: false } : m))
+      );
+      playSound('message', soundEnabledRef.current);
     });
 
     const unsubTyping = peerService.on('typing', ({ isTyping, nickname }) => {
@@ -259,6 +266,7 @@ export default function App() {
       unsubLatency();
       unsubMessage();
       unsubAck();
+      unsubFlushed();
       unsubTyping();
       unsubFileStart();
       unsubFileProgress();
@@ -270,14 +278,17 @@ export default function App() {
 
   // Actions
   const handleSendMessage = useCallback((text) => {
-    if (!peerService.isConnected()) {
-      showToast('Wait for peer to connect before sending', 'warning');
-      return;
-    }
     try {
       const sentMsg = peerService.sendTextMessage(text);
-      setMessages((prev) => [...prev, { ...sentMsg, sender: 'local', delivered: false }]);
-      playSound('message', soundEnabledRef.current);
+      setMessages((prev) => [
+        ...prev, 
+        { ...sentMsg, sender: 'local', delivered: false, pending: !!sentMsg.pending }
+      ]);
+      if (sentMsg.pending) {
+        showToast('Message queued — will send when reconnected', 'info');
+      } else {
+        playSound('message', soundEnabledRef.current);
+      }
     } catch (err) {
       console.error('[ZeroChat] Send message failed:', err);
       showToast(err.message || 'Could not send message', 'error');

@@ -46,6 +46,9 @@ class PeerService {
     this.isIntentionalDisconnect = false;
     this.isRoomFull = false;
 
+    // Outgoing offline queue for network resilience
+    this.outgoingQueue = [];
+
     // File transfer state
     this.incomingFiles = new Map(); // fileId -> { meta, chunks: [], receivedBytes, totalChunks }
     this.activeSenders = new Map(); // fileId -> { cancel: boolean }
@@ -359,6 +362,9 @@ class PeerService {
       // 3. Start Heartbeat
       this.startPingMonitor();
 
+      // 4. Flush queued outgoing messages (network resilience)
+      this.flushOutgoingQueue();
+
       this.emit('status', 'connected');
       this.emit('peer_connected', {
         peerId: this.remotePeerId,
@@ -618,23 +624,53 @@ class PeerService {
   }
 
   sendTextMessage(text) {
-    if (!this.isConnected()) {
-      throw new Error('Not connected to peer');
+    if (!text || !text.trim()) {
+      throw new Error('Message cannot be empty');
     }
 
     const message = {
       type: 'text',
       id: 'msg_' + Math.random().toString(36).substring(2, 9) + '_' + Date.now(),
-      text,
+      text: text.trim(),
       senderNickname: this.myNickname,
       timestamp: Date.now(),
     };
 
-    const sent = this.sendJson(message);
-    if (!sent) {
-      throw new Error('Failed to send message: DataChannel is not open');
+    // If channel is open and ready, send immediately
+    if (this.isConnected()) {
+      const sent = this.sendJson(message);
+      if (sent) {
+        return { ...message, pending: false };
+      }
     }
-    return message;
+
+    // If temporarily disconnected, connecting, or reconnecting: buffer in RAM queue
+    if (this.targetPeerId || this.remotePeerId || this.myPeerId) {
+      console.log('[ZeroChat] Message queued in memory (waiting for channel open):', message.id);
+      this.outgoingQueue.push(message);
+      return { ...message, pending: true };
+    }
+
+    throw new Error('Connect to a peer to send messages');
+  }
+
+  flushOutgoingQueue() {
+    if (this.outgoingQueue.length === 0 || !this.isConnected()) return;
+
+    console.log(`[ZeroChat] Flushing ${this.outgoingQueue.length} queued messages across DataChannel...`);
+    const queueToFlush = [...this.outgoingQueue];
+    this.outgoingQueue = [];
+
+    for (const msg of queueToFlush) {
+      const sent = this.sendJson(msg);
+      if (sent) {
+        this.emit('message_flushed', { id: msg.id });
+      } else {
+        // If send failed, put remaining back in queue
+        this.outgoingQueue.unshift(msg);
+        break;
+      }
+    }
   }
 
   sendTypingStatus(isTyping) {
@@ -828,6 +864,7 @@ class PeerService {
     this.remotePeerId = null;
     this.targetPeerId = null;
     this.remoteNickname = 'Peer';
+    this.outgoingQueue = [];
     this.emit('status', 'disconnected');
   }
 
