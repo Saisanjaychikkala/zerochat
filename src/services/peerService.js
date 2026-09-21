@@ -62,6 +62,7 @@ class PeerService {
     this.isScreenSharing = false;
     this.isAudioMuted = false;
     this.isVideoMuted = false;
+    this.facingMode = 'user';
     this.incomingCallData = null; // { mediaConn, callerNickname, isVideo }
   }
 
@@ -411,6 +412,7 @@ class PeerService {
     connection.on('close', () => {
       console.log('[ZeroChat] DataChannel closed with peer:', this.remotePeerId);
       this.stopPingMonitor();
+      this.cleanupCall();
 
       if (this.isRoomFull) {
         this.emit('status', 'disconnected');
@@ -951,12 +953,27 @@ class PeerService {
         video: isVideo ? { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: 'user' } : false,
       };
 
-      this.localStream = await navigator.mediaDevices.getUserMedia(constraints);
+      let activeIsVideo = isVideo;
+      try {
+        this.localStream = await navigator.mediaDevices.getUserMedia(constraints);
+      } catch (mediaErr) {
+        if (activeIsVideo) {
+          console.warn('[ZeroChat] Video acquisition failed, falling back to audio-only call:', mediaErr);
+          this.localStream = await navigator.mediaDevices.getUserMedia({
+            audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+            video: false,
+          });
+          activeIsVideo = false;
+        } else {
+          throw mediaErr;
+        }
+      }
+
       this.emit('local_stream', this.localStream);
 
       const mediaConn = this.peer.call(this.remotePeerId, this.localStream, {
         metadata: {
-          isVideo,
+          isVideo: activeIsVideo,
           callerNickname: this.myNickname,
         },
       });
@@ -965,14 +982,14 @@ class PeerService {
 
       this.emit('call_started', {
         role: 'caller',
-        isVideo,
+        isVideo: activeIsVideo,
         remoteNickname: this.remoteNickname,
       });
 
       this.sendJson({
         type: 'call_signal',
         signal: 'offer',
-        isVideo,
+        isVideo: activeIsVideo,
         callerNickname: this.myNickname,
       });
 
@@ -1007,7 +1024,7 @@ class PeerService {
     }
 
     const { mediaConn, isVideo: callIsVideo } = this.incomingCallData;
-    const useVideo = isVideo !== null ? isVideo : callIsVideo;
+    let activeUseVideo = isVideo !== null ? isVideo : callIsVideo;
 
     try {
       this.isAudioMuted = false;
@@ -1020,10 +1037,24 @@ class PeerService {
           noiseSuppression: true,
           autoGainControl: true,
         },
-        video: useVideo ? { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: 'user' } : false,
+        video: activeUseVideo ? { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: 'user' } : false,
       };
 
-      this.localStream = await navigator.mediaDevices.getUserMedia(constraints);
+      try {
+        this.localStream = await navigator.mediaDevices.getUserMedia(constraints);
+      } catch (mediaErr) {
+        if (activeUseVideo) {
+          console.warn('[ZeroChat] Video acquisition failed on answer, falling back to audio-only:', mediaErr);
+          this.localStream = await navigator.mediaDevices.getUserMedia({
+            audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+            video: false,
+          });
+          activeUseVideo = false;
+        } else {
+          throw mediaErr;
+        }
+      }
+
       this.emit('local_stream', this.localStream);
 
       mediaConn.answer(this.localStream);
@@ -1032,7 +1063,7 @@ class PeerService {
 
       this.emit('call_started', {
         role: 'receiver',
-        isVideo: useVideo,
+        isVideo: activeUseVideo,
         remoteNickname: this.remoteNickname,
       });
 
@@ -1205,6 +1236,48 @@ class PeerService {
       this.emit('screen_share_status', { isSharing: false });
     }
   }
+
+  async switchCamera() {
+    if (!this.localStream || !this.currentCall || !this.currentCall.peerConnection) return false;
+    try {
+      this.facingMode = this.facingMode === 'user' ? 'environment' : 'user';
+      let newStream;
+      try {
+        newStream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { exact: this.facingMode }, width: { ideal: 1280 }, height: { ideal: 720 } },
+          audio: false,
+        });
+      } catch (e) {
+        newStream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: this.facingMode },
+          audio: false,
+        });
+      }
+
+      const newTrack = newStream.getVideoTracks()[0];
+      const pc = this.currentCall.peerConnection;
+      const senders = pc.getSenders();
+      const videoSender = senders.find((s) => s.track && s.track.kind === 'video');
+
+      if (videoSender) {
+        await videoSender.replaceTrack(newTrack);
+      }
+
+      const oldTrack = this.localStream.getVideoTracks()[0];
+      if (oldTrack) {
+        oldTrack.stop();
+        this.localStream.removeTrack(oldTrack);
+      }
+      this.localStream.addTrack(newTrack);
+      this.emit('local_stream', this.localStream);
+      this.emit('camera_switched', { facingMode: this.facingMode });
+      return true;
+    } catch (err) {
+      console.warn('[ZeroChat] Failed to switch camera:', err);
+      return false;
+    }
+  }
+
 
 
   generateRoomId() {

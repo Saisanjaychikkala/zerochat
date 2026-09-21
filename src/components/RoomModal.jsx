@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { Copy, Check, X, ArrowRight, ShieldCheck, Radio, Share2 } from 'lucide-react';
+import { copyToClipboard } from '../utils/clipboard';
 
 export default function RoomModal({ 
   isOpen, 
@@ -19,17 +20,21 @@ export default function RoomModal({
 
   const inviteUrl = `${window.location.origin}${window.location.pathname}#${roomId}`;
 
-  const handleCopyLink = () => {
-    navigator.clipboard.writeText(inviteUrl);
-    setCopiedLink(true);
-    setTimeout(() => setCopiedLink(false), 2000);
+  const handleCopyLink = async () => {
+    const success = await copyToClipboard(inviteUrl);
+    if (success) {
+      setCopiedLink(true);
+      setTimeout(() => setCopiedLink(false), 2000);
+    }
   };
 
-  const handleCopyCode = () => {
+  const handleCopyCode = async () => {
     if (!roomId) return;
-    navigator.clipboard.writeText(roomId);
-    setCopiedCode(true);
-    setTimeout(() => setCopiedCode(false), 2000);
+    const success = await copyToClipboard(roomId);
+    if (success) {
+      setCopiedCode(true);
+      setTimeout(() => setCopiedCode(false), 2000);
+    }
   };
 
   const handleShare = async () => {

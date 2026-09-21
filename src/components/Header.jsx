@@ -12,6 +12,8 @@ import {
   Activity
 } from 'lucide-react';
 
+import { copyToClipboard } from '../utils/clipboard';
+
 export default function Header({ 
   status, 
   roomId, 
@@ -29,12 +31,14 @@ export default function Header({
 }) {
   const [copied, setCopied] = useState(false);
 
-  const copyRoomLink = () => {
+  const copyRoomLink = async () => {
     if (!roomId) return;
     const url = `${window.location.origin}${window.location.pathname}#${roomId}`;
-    navigator.clipboard.writeText(url);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    const success = await copyToClipboard(url);
+    if (success) {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
   };
 
   return (

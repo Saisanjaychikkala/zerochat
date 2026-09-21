@@ -91,6 +91,14 @@ export default function App() {
   const soundEnabledRef = useRef(soundEnabled);
   soundEnabledRef.current = soundEnabled;
 
+  useEffect(() => {
+    localStorage.setItem('zerochat_sound', JSON.stringify(soundEnabled));
+    if (!soundEnabled && ringtoneStopRef.current) {
+      ringtoneStopRef.current();
+      ringtoneStopRef.current = null;
+    }
+  }, [soundEnabled]);
+
   const mobileTabRef = useRef(mobileTab);
   mobileTabRef.current = mobileTab;
 
@@ -433,10 +441,15 @@ export default function App() {
 
   const handleJoinRoom = useCallback((targetId) => {
     if (!targetId) return;
-    const cleanId = targetId.trim().replace(/^.*#/, '').replace(/\/+$/, '').trim();
+    let cleanId = targetId.trim();
+    if (cleanId.includes('#')) {
+      cleanId = cleanId.split('#').pop();
+    }
+    cleanId = cleanId.split('?')[0].replace(/\/+$/, '').trim().toLowerCase();
+
     if (cleanId) {
       if (cleanId === myRoomId) {
-        showToast('Cannot connect to your own room ID', 'warning');
+        showToast('You are already in this room', 'warning');
         return;
       }
       // Clear previous conversation when joining another room
@@ -445,7 +458,7 @@ export default function App() {
       setTransfers([]);
       currentConnectedPeerRef.current = null;
       window.location.hash = cleanId;
-      showToast(`Connecting to ${cleanId}...`, 'info');
+      showToast(`Connecting to room ${cleanId}...`, 'info');
       peerService.connectToPeer(cleanId);
     }
   }, [myRoomId, showToast]);
@@ -588,6 +601,13 @@ export default function App() {
     }
   }, [callState.isScreenSharing, showToast]);
 
+  const handleSwitchCamera = useCallback(async () => {
+    const success = await peerService.switchCamera();
+    if (success) {
+      showToast('Switched camera', 'info');
+    }
+  }, [showToast]);
+
   const activeTransfersCount = transfers.filter((t) => !t.completed).length;
 
   return (
@@ -647,6 +667,7 @@ export default function App() {
           onCreateNewRoom={handleCreateNewRoom}
           onOpenInfoModal={() => setIsInfoModalOpen(true)}
           onStartCall={handleStartCall}
+          callStatus={callState.status}
         />
 
         <FileTransferArea 
@@ -698,6 +719,7 @@ export default function App() {
         onToggleAudio={handleToggleAudio}
         onToggleVideo={handleToggleVideo}
         onToggleScreenShare={handleToggleScreenShare}
+        onSwitchCamera={handleSwitchCamera}
       />
     </div>
   );

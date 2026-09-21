@@ -11,7 +11,8 @@ import {
   Maximize2, 
   Minimize2, 
   ShieldCheck, 
-  Radio 
+  Radio,
+  RefreshCw 
 } from 'lucide-react';
 
 export default function CallModal({
@@ -22,9 +23,11 @@ export default function CallModal({
   onToggleAudio,
   onToggleVideo,
   onToggleScreenShare,
+  onSwitchCamera,
 }) {
   const localVideoRef = useRef(null);
   const remoteVideoRef = useRef(null);
+  const remoteAudioRef = useRef(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const overlayRef = useRef(null);
 
@@ -59,6 +62,17 @@ export default function CallModal({
         remoteVideoRef.current.srcObject = remoteStream;
       } else {
         remoteVideoRef.current.srcObject = null;
+      }
+    }
+  }, [remoteStream, status]);
+
+  // Persistent remote audio binding (guarantees voice is ALWAYS audible even in audio-only calls)
+  useEffect(() => {
+    if (remoteAudioRef.current) {
+      if (remoteStream) {
+        remoteAudioRef.current.srcObject = remoteStream;
+      } else {
+        remoteAudioRef.current.srcObject = null;
       }
     }
   }, [remoteStream, status]);
@@ -216,6 +230,13 @@ export default function CallModal({
         </div>
       </div>
 
+      {/* Dedicated audio element ensuring incoming voice is ALWAYS audible */}
+      <audio
+        ref={remoteAudioRef}
+        autoPlay
+        playsInline
+      />
+
       {/* Main Viewport */}
       <div className="call-viewport">
         {/* Remote Video Stream or Screen Share */}
@@ -224,6 +245,7 @@ export default function CallModal({
             ref={remoteVideoRef}
             autoPlay
             playsInline
+            muted
             className="call-remote-video"
           />
         ) : (
@@ -294,6 +316,18 @@ export default function CallModal({
           {isVideoMuted ? <VideoOff size={20} /> : <Video size={20} />}
           <span className="dock-btn-label">{isVideoMuted ? 'Cam Off' : 'Camera'}</span>
         </button>
+
+        {/* Flip Camera (Front / Rear on mobile) */}
+        {isVideo && !isVideoMuted && onSwitchCamera && (
+          <button
+            onClick={onSwitchCamera}
+            className="call-dock-btn"
+            title="Flip Camera (Front/Back)"
+          >
+            <RefreshCw size={20} />
+            <span className="dock-btn-label">Flip</span>
+          </button>
+        )}
 
         {/* Screen Sharing Toggle */}
         {typeof navigator !== 'undefined' && navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia && (

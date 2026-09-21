@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { voiceRecorder } from '../utils/voiceRecorder';
 import AudioPlayerBubble from './AudioPlayerBubble';
+import { copyToClipboard } from '../utils/clipboard';
 
 const QUICK_EMOJIS = ['👍', '🔥', '🚀', '❤️', '⚡', '🎉', '👀'];
 
@@ -43,7 +44,8 @@ export default function ChatArea({
   roomFullError,
   onCreateNewRoom,
   onOpenInfoModal,
-  onStartCall
+  onStartCall,
+  callStatus
 }) {
   const [inputText, setInputText] = useState('');
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
@@ -164,19 +166,23 @@ export default function ChatArea({
     setShowEmojiPicker(false);
   };
 
-  const handleCopyLink = () => {
+  const handleCopyLink = async () => {
     if (!roomId) return;
     const url = `${window.location.origin}${window.location.pathname}#${roomId}`;
-    navigator.clipboard.writeText(url);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    const success = await copyToClipboard(url);
+    if (success) {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
   };
 
-  const handleCopyCode = () => {
+  const handleCopyCode = async () => {
     if (!roomId) return;
-    navigator.clipboard.writeText(roomId);
-    setCopiedCode(true);
-    setTimeout(() => setCopiedCode(false), 2000);
+    const success = await copyToClipboard(roomId);
+    if (success) {
+      setCopiedCode(true);
+      setTimeout(() => setCopiedCode(false), 2000);
+    }
   };
 
   const handleShare = async () => {
@@ -199,10 +205,12 @@ export default function ChatArea({
     }
   };
 
-  const copyCodeToClipboard = (text, id) => {
-    navigator.clipboard.writeText(text);
-    setCopiedCodeId(id);
-    setTimeout(() => setCopiedCodeId(null), 2000);
+  const copyCodeToClipboard = async (text, id) => {
+    const success = await copyToClipboard(text);
+    if (success) {
+      setCopiedCodeId(id);
+      setTimeout(() => setCopiedCodeId(null), 2000);
+    }
   };
 
   const formatTime = (timestamp) => {
@@ -323,8 +331,14 @@ export default function ChatArea({
               <button 
                 onClick={() => onStartCall(false)} 
                 className="btn btn-icon call-trigger-btn"
-                title="Start Encrypted Voice Call"
-                style={{ width: '34px', height: '34px' }}
+                title={callStatus && callStatus !== 'idle' ? "Call in progress" : "Start Encrypted Voice Call"}
+                disabled={callStatus && callStatus !== 'idle'}
+                style={{ 
+                  width: '34px', 
+                  height: '34px', 
+                  opacity: (callStatus && callStatus !== 'idle') ? 0.45 : 1,
+                  cursor: (callStatus && callStatus !== 'idle') ? 'not-allowed' : 'pointer'
+                }}
               >
                 <Phone size={15} color="var(--accent-cyan)" />
               </button>
@@ -332,8 +346,14 @@ export default function ChatArea({
               <button 
                 onClick={() => onStartCall(true)} 
                 className="btn btn-icon call-trigger-btn"
-                title="Start Encrypted Video Call"
-                style={{ width: '34px', height: '34px' }}
+                title={callStatus && callStatus !== 'idle' ? "Call in progress" : "Start Encrypted Video Call"}
+                disabled={callStatus && callStatus !== 'idle'}
+                style={{ 
+                  width: '34px', 
+                  height: '34px', 
+                  opacity: (callStatus && callStatus !== 'idle') ? 0.45 : 1,
+                  cursor: (callStatus && callStatus !== 'idle') ? 'not-allowed' : 'pointer'
+                }}
               >
                 <Video size={16} color="var(--accent-emerald)" />
               </button>
