@@ -39,11 +39,13 @@ export default function ChatArea({
   onOpenLightbox,
   roomId,
   roomFullError,
-  onCreateNewRoom
+  onCreateNewRoom,
+  onOpenInfoModal
 }) {
   const [inputText, setInputText] = useState('');
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [copiedCode, setCopiedCode] = useState(false);
   const [copiedCodeId, setCopiedCodeId] = useState(null);
   const [isRecording, setIsRecording] = useState(false);
   const [recordSeconds, setRecordSeconds] = useState(0);
@@ -165,6 +167,13 @@ export default function ChatArea({
     navigator.clipboard.writeText(url);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleCopyCode = () => {
+    if (!roomId) return;
+    navigator.clipboard.writeText(roomId);
+    setCopiedCode(true);
+    setTimeout(() => setCopiedCode(false), 2000);
   };
 
   const handleShare = async () => {
@@ -374,6 +383,7 @@ export default function ChatArea({
           </div>
         ) : messages.length === 0 && !isConnected && (
           <div className="waiting-hero-card">
+            {/* QR Code */}
             <div style={{ 
               background: '#ffffff', 
               padding: '12px', 
@@ -384,7 +394,7 @@ export default function ChatArea({
               {roomId && (
                 <QRCodeSVG 
                   value={inviteUrl} 
-                  size={150} 
+                  size={145} 
                   level="M"
                   includeMargin={false}
                 />
@@ -392,20 +402,34 @@ export default function ChatArea({
             </div>
 
             <div>
-              <h3 style={{ fontSize: '1.15rem', fontWeight: 700, marginBottom: '4px' }}>
-                {status === 'connecting' ? 'Connecting to Peer...' : 'Scan with Phone to Connect'}
+              <h3 style={{ fontSize: '1.12rem', fontWeight: 700, marginBottom: '3px' }}>
+                {status === 'connecting' ? 'Connecting to Peer...' : 'Private 1-on-1 Peer Room'}
               </h3>
-              <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', lineHeight: 1.45 }}>
-                Open camera on your phone or share this link to start a private, zero-server chat session.
+              <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', lineHeight: 1.45 }}>
+                Share your invite link or code with 1 friend. Direct browser-to-browser encrypted pipe.
               </p>
             </div>
 
-            {/* Quick Action Buttons (Mobile & Laptop) */}
+            {/* Prominent 3-Word Room Code Box */}
+            <div className="room-code-display">
+              <div className="room-code-box" style={{ padding: '6px 12px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+                  <span style={{ fontSize: '0.62rem', color: 'var(--text-dim)', fontWeight: 700, textTransform: 'uppercase' }}>Your Room Code</span>
+                  <span className="room-code-text" style={{ fontSize: '0.96rem' }}>{roomId}</span>
+                </div>
+                <button onClick={handleCopyCode} className="btn btn-secondary text-xs" style={{ padding: '5px 10px' }} title="Copy 3-word code">
+                  {copiedCode ? <Check size={12} color="var(--accent-emerald)" /> : <Copy size={12} />}
+                  <span>{copiedCode ? 'Copied' : 'Copy Code'}</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Quick Action Buttons */}
             <div style={{ display: 'flex', gap: '8px', width: '100%', justifyContent: 'center' }}>
               <button 
                 onClick={handleShare}
                 className="btn btn-primary"
-                style={{ flex: 1, padding: '10px 14px', fontSize: '0.82rem' }}
+                style={{ flex: 1, padding: '10px 14px', fontSize: '0.84rem' }}
               >
                 <Share2 size={15} />
                 <span>{copied ? 'Link Copied!' : 'Share Room Link'}</span>
@@ -414,11 +438,44 @@ export default function ChatArea({
               <button 
                 onClick={onOpenRoomModal}
                 className="btn btn-secondary"
-                style={{ padding: '10px 14px', fontSize: '0.82rem' }}
+                style={{ padding: '10px 14px', fontSize: '0.84rem' }}
               >
-                <span>Join Other</span>
+                <span>Join a Friend</span>
                 <ArrowRight size={14} />
               </button>
+            </div>
+
+            {/* Micro Guide Card */}
+            <div className="connection-guide-card" style={{ textAlign: 'left' }}>
+              <div className="guide-step">
+                <span className="guide-step-num">1</span>
+                <span>Send 3-word code or link to 1 friend (rooms are strictly 1-to-1).</span>
+              </div>
+              <div className="guide-step">
+                <span className="guide-step-num">2</span>
+                <span>When opened, your encrypted chat activates instantly!</span>
+              </div>
+              {onOpenInfoModal && (
+                <div style={{ marginTop: '8px', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '6px', textAlign: 'center' }}>
+                  <button
+                    type="button"
+                    onClick={onOpenInfoModal}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: 'var(--accent-cyan)',
+                      fontSize: '0.76rem',
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '5px'
+                    }}
+                  >
+                    <span>Confused? Read 30s Quick Start Guide</span>
+                    <ArrowRight size={12} />
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* Room Link Quick Copy Input */}
@@ -441,7 +498,7 @@ export default function ChatArea({
                   background: 'transparent', 
                   border: 'none', 
                   color: 'var(--text-muted)', 
-                  fontSize: '0.78rem',
+                  fontSize: '0.75rem',
                   fontFamily: 'var(--font-mono)',
                   outline: 'none'
                 }} 
@@ -449,8 +506,8 @@ export default function ChatArea({
               <button 
                 onClick={handleCopyLink} 
                 className="btn btn-secondary text-xs" 
-                style={{ padding: '4px 10px' }}
-                title="Copy link"
+                style={{ padding: '4px 8px' }}
+                title="Copy full invite link"
               >
                 {copied ? <Check size={12} color="var(--accent-emerald)" /> : <Copy size={12} />}
               </button>

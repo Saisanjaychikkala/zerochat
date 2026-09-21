@@ -444,6 +444,7 @@ export default function App() {
           roomId={myRoomId}
           roomFullError={roomFullError}
           onCreateNewRoom={handleCreateNewRoom}
+          onOpenInfoModal={() => setIsInfoModalOpen(true)}
         />
 
         <FileTransferArea 
@@ -463,6 +464,7 @@ export default function App() {
         roomId={myRoomId}
         status={status}
         onJoinRoom={handleJoinRoom}
+        onOpenGuide={() => setIsInfoModalOpen(true)}
       />
 
       <NicknameModal 

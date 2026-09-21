@@ -930,8 +930,10 @@ body::before {
 
 .modal-content {
   width: 100%;
-  max-width: 460px;
-  padding: 24px;
+  max-width: 480px;
+  max-height: 90dvh;
+  overflow-y: auto;
+  padding: 22px;
   background: #0d121f;
   border: 1px solid var(--border-hover);
   border-radius: var(--radius-lg);
@@ -939,6 +941,76 @@ body::before {
   display: flex;
   flex-direction: column;
   gap: 16px;
+}
+
+/* Guide Card & Room Code UI */
+.room-code-display {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.room-code-title {
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-dim);
+}
+
+.room-code-box {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: rgba(0, 242, 254, 0.06);
+  border: 1px solid rgba(0, 242, 254, 0.25);
+  border-radius: var(--radius-md);
+  gap: 8px;
+}
+
+.room-code-text {
+  font-family: var(--font-mono);
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--accent-cyan);
+  letter-spacing: 0.02em;
+}
+
+.connection-guide-card {
+  width: 100%;
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.guide-step {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+.guide-step-num {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: rgba(0, 242, 254, 0.15);
+  color: var(--accent-cyan);
+  font-size: 0.68rem;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 1px;
 }
 
 @keyframes fadeIn {
@@ -987,7 +1059,6 @@ body::before {
   }
 
   .logo-text p, 
-  .info-btn,
   .burn-text,
   .end-chat-text,
   .nickname-label {
