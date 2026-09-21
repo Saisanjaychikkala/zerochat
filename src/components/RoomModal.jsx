@@ -25,9 +25,14 @@ export default function RoomModal({
 
   const handleJoinSubmit = (e) => {
     e.preventDefault();
-    if (joinCode.trim()) {
-      onJoinRoom(joinCode.trim());
-      onClose();
+    const raw = joinCode.trim();
+    if (raw) {
+      // Support pasting full invite URLs, hashes, or plain IDs
+      const clean = raw.replace(/^.*#/, '').split('?')[0].replace(/\/+$/, '').trim();
+      if (clean) {
+        onJoinRoom(clean);
+        onClose();
+      }
     }
   };
 

@@ -77,11 +77,16 @@ export default function App() {
       setMyRoomId(id);
 
       // Check if URL has hash to auto-join
-      const hash = window.location.hash.replace('#', '').trim();
+      const rawHash = window.location.hash.replace(/^#/, '').trim();
+      const hash = rawHash ? rawHash.replace(/\/+$/, '').trim() : '';
+
       if (hash && hash !== id) {
         console.log('[ZeroChat] Joining room from URL hash:', hash);
         showToast(`Connecting to room ${hash}...`, 'info');
         peerService.connectToPeer(hash);
+      } else if (!rawHash) {
+        // Set hash for host so address bar URL can be copied/shared directly
+        window.history.replaceState(null, '', '#' + id);
       }
     });
 
@@ -131,8 +136,15 @@ export default function App() {
     });
 
     const unsubPeerNotFound = peerService.on('peer_not_found', () => {
-      showToast('Room not found. Please verify the link.', 'error');
+      showToast('Room not found or peer is offline.', 'error');
       setStatus('disconnected');
+    });
+
+    const unsubError = peerService.on('error', (err) => {
+      console.warn('[ZeroChat] Peer error event:', err);
+      if (err?.type === 'peer-unavailable') {
+        showToast('Peer unavailable. Retrying...', 'warning');
+      }
     });
 
     const unsubLatency = peerService.on('latency', (ms) => {
@@ -231,6 +243,7 @@ export default function App() {
       unsubPeerInfo();
       unsubPeerDisconnected();
       unsubPeerNotFound();
+      unsubError();
       unsubLatency();
       unsubMessage();
       unsubAck();
@@ -255,7 +268,7 @@ export default function App() {
       playSound('message', soundEnabledRef.current);
     } catch (err) {
       console.error('[ZeroChat] Send message failed:', err);
-      showToast('Could not send message', 'error');
+      showToast(err.message || 'Could not send message', 'error');
     }
   }, [showToast]);
 
@@ -281,7 +294,8 @@ export default function App() {
   }, []);
 
   const handleJoinRoom = useCallback((targetId) => {
-    const cleanId = targetId.includes('#') ? targetId.split('#')[1].trim() : targetId.trim();
+    if (!targetId) return;
+    const cleanId = targetId.trim().replace(/^.*#/, '').replace(/\/+$/, '').trim();
     if (cleanId) {
       if (cleanId === myRoomId) {
         showToast('Cannot connect to your own room ID', 'warning');

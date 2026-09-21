@@ -500,7 +500,7 @@ export default function ChatArea({
               isConnected 
                 ? "Type message, paste image (Ctrl+V), or record audio..." 
                 : status === 'connecting'
-                ? "Connecting to peer..."
+                ? "Connecting to peer... (type message to prepare)"
                 : status === 'reconnecting'
                 ? "Reconnecting to peer..."
                 : "Scan QR or invite peer to start chatting..."
@@ -509,7 +509,7 @@ export default function ChatArea({
             onChange={handleTextChange}
             onKeyDown={handleKeyDown}
             onPaste={handlePaste}
-            disabled={!isConnected}
+            disabled={status === 'disconnected'}
             className="chat-input"
           />
 

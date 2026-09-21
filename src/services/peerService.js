@@ -1,21 +1,54 @@
 import Peer from 'peerjs';
 
+// High-reliability WebRTC ICE configuration with multiple STUN and free global TURN relays
+const ICE_SERVERS = [
+  { urls: 'stun:stun.l.google.com:19302' },
+  { urls: 'stun:stun1.l.google.com:19302' },
+  { urls: 'stun:stun2.l.google.com:19302' },
+  { urls: 'stun:stun3.l.google.com:19302' },
+  { urls: 'stun:stun4.l.google.com:19302' },
+  { urls: 'stun:stun.cloudflare.com:3478' },
+  { urls: 'stun:openrelay.metered.ca:80' },
+  {
+    urls: 'turn:openrelay.metered.ca:80',
+    username: 'openrelay',
+    credential: 'openrelay',
+  },
+  {
+    urls: 'turn:openrelay.metered.ca:443',
+    username: 'openrelay',
+    credential: 'openrelay',
+  },
+  {
+    urls: 'turn:openrelay.metered.ca:443?transport=tcp',
+    username: 'openrelay',
+    credential: 'openrelay',
+  },
+];
+
 class PeerService {
   constructor() {
     this.peer = null;
     this.conn = null;
     this.myPeerId = null;
     this.remotePeerId = null;
+    this.targetPeerId = null;
     this.myNickname = 'Anonymous';
     this.remoteNickname = 'Peer';
     this.listeners = new Map();
     this.pingInterval = null;
     this.isInitializing = false;
     this.reconnectTimer = null;
+    this.connectRetryTimer = null;
+    this.connectionTimeout = null;
+    this.connectAttempts = 0;
+    this.maxConnectAttempts = 4;
+    this.isIntentionalDisconnect = false;
 
     // File transfer state
     this.incomingFiles = new Map(); // fileId -> { meta, chunks: [], receivedBytes, totalChunks }
     this.activeSenders = new Map(); // fileId -> { cancel: boolean }
+    this.currentReceivingChunk = null;
   }
 
   setNickname(name) {
@@ -78,12 +111,7 @@ class PeerService {
     return new Promise((resolve, reject) => {
       const config = {
         config: {
-          iceServers: [
-            { urls: 'stun:stun.l.google.com:19302' },
-            { urls: 'stun:stun1.l.google.com:19302' },
-            { urls: 'stun:stun2.l.google.com:19302' },
-            { urls: 'stun:stun3.l.google.com:19302' },
-          ],
+          iceServers: ICE_SERVERS,
           iceCandidatePoolSize: 10,
         },
         debug: 1,
@@ -106,6 +134,13 @@ class PeerService {
         this.isInitializing = false;
         console.log('[ZeroChat] Peer online:', id);
         this.emit('ready', id);
+
+        // If a connection was pending before initialization finished, trigger it
+        if (this.targetPeerId && this.targetPeerId !== id && !this.isConnected()) {
+          console.log('[ZeroChat] Executing queued connection to:', this.targetPeerId);
+          this.executeConnect(this.targetPeerId);
+        }
+
         resolve(id);
       });
 
@@ -126,6 +161,21 @@ class PeerService {
         }
 
         if (err.type === 'peer-unavailable') {
+          // Retry connection if we are attempting to join a peer
+          if (this.targetPeerId && this.connectAttempts < this.maxConnectAttempts && !this.isConnected()) {
+            this.connectAttempts += 1;
+            const delay = this.connectAttempts * 1200;
+            console.warn(`[ZeroChat] Peer ${this.targetPeerId} not ready yet. Retrying (${this.connectAttempts}/${this.maxConnectAttempts}) in ${delay}ms...`);
+            this.emit('status', 'connecting');
+            if (this.connectRetryTimer) clearTimeout(this.connectRetryTimer);
+            this.connectRetryTimer = setTimeout(() => {
+              if (this.targetPeerId && !this.isConnected()) {
+                this.executeConnect(this.targetPeerId);
+              }
+            }, delay);
+            return;
+          }
+
           this.emit('peer_not_found', err);
           this.emit('status', 'disconnected');
         } else {
@@ -155,31 +205,81 @@ class PeerService {
 
   // Connect to target room (Initiator side)
   connectToPeer(remoteId) {
-    if (!this.peer || this.peer.destroyed) {
-      console.warn('[ZeroChat] Peer not ready');
+    const cleanId = remoteId ? remoteId.trim() : '';
+    if (!cleanId || cleanId === this.myPeerId) {
       return;
     }
 
-    const cleanId = remoteId.trim();
-    if (!cleanId || cleanId === this.myPeerId) {
+    this.targetPeerId = cleanId;
+    this.connectAttempts = 0;
+    this.isIntentionalDisconnect = false;
+
+    if (!this.peer || this.peer.destroyed) {
+      console.warn('[ZeroChat] Peer not ready, initializing first...');
+      this.init().then(() => this.executeConnect(cleanId)).catch(console.error);
+      return;
+    }
+
+    if (this.peer.disconnected) {
+      console.warn('[ZeroChat] Peer broker disconnected, reconnecting...');
+      try {
+        this.peer.reconnect();
+      } catch (e) {}
+      setTimeout(() => this.executeConnect(cleanId), 800);
+      return;
+    }
+
+    this.executeConnect(cleanId);
+  }
+
+  executeConnect(cleanId) {
+    if (this.isConnected() && this.remotePeerId === cleanId) {
+      console.log('[ZeroChat] Already connected to peer:', cleanId);
       return;
     }
 
     console.log('[ZeroChat] Connecting to remote peer:', cleanId);
     this.emit('status', 'connecting');
 
-    // Use binary serialization for fast, zero-copy typed arrays
-    const connection = this.peer.connect(cleanId, {
-      reliable: true,
-      serialization: 'binary',
-    });
+    try {
+      // Use binary serialization for fast, zero-copy typed arrays
+      const connection = this.peer.connect(cleanId, {
+        reliable: true,
+        serialization: 'binary',
+      });
 
-    this.handleConnection(connection);
+      if (!connection) {
+        throw new Error('peer.connect returned null');
+      }
+
+      this.handleConnection(connection);
+
+      // Connection timeout guard
+      if (this.connectionTimeout) clearTimeout(this.connectionTimeout);
+      this.connectionTimeout = setTimeout(() => {
+        if (!this.isConnected() && this.targetPeerId === cleanId) {
+          console.warn('[ZeroChat] Connection attempt timed out for peer:', cleanId);
+          if (this.connectAttempts < this.maxConnectAttempts) {
+            this.connectAttempts += 1;
+            console.log(`[ZeroChat] Retrying connection (${this.connectAttempts}/${this.maxConnectAttempts})...`);
+            this.executeConnect(cleanId);
+          } else {
+            this.emit('peer_not_found', new Error('Connection timed out'));
+            this.emit('status', 'disconnected');
+          }
+        }
+      }, 10000);
+    } catch (err) {
+      console.error('[ZeroChat] executeConnect error:', err);
+      this.emit('error', err);
+    }
   }
 
   handleConnection(connection) {
+    if (!connection) return;
+
     // If existing active connection with another peer, close it cleanly
-    if (this.conn && this.conn.peer !== connection.peer) {
+    if (this.conn && (this.conn.peer !== connection.peer || !this.conn.open)) {
       try {
         this.conn.close();
       } catch (e) {}
@@ -187,9 +287,24 @@ class PeerService {
 
     this.conn = connection;
     this.remotePeerId = connection.peer;
+    this.targetPeerId = connection.peer;
 
     const onChannelOpen = () => {
       console.log('[ZeroChat] DataChannel is now ACTIVE with:', this.remotePeerId);
+      if (this.connectionTimeout) {
+        clearTimeout(this.connectionTimeout);
+        this.connectionTimeout = null;
+      }
+      if (this.connectRetryTimer) {
+        clearTimeout(this.connectRetryTimer);
+        this.connectRetryTimer = null;
+      }
+      if (this.reconnectTimer) {
+        clearTimeout(this.reconnectTimer);
+        this.reconnectTimer = null;
+      }
+      this.connectAttempts = 0;
+      this.isIntentionalDisconnect = false;
 
       // 1. Send Handshake with Nickname
       this.sendJson({
@@ -227,16 +342,35 @@ class PeerService {
     connection.on('close', () => {
       console.log('[ZeroChat] DataChannel closed with peer:', this.remotePeerId);
       this.stopPingMonitor();
-      this.emit('status', 'reconnecting');
-      this.emit('peer_disconnected', { peerId: this.remotePeerId });
 
-      // Note: We do NOT wipe chat messages on disconnect!
+      if (this.isIntentionalDisconnect) {
+        this.emit('status', 'disconnected');
+        this.emit('peer_disconnected', { peerId: this.remotePeerId });
+      } else {
+        // Unexpected disconnect: trigger background auto-reconnect
+        this.emit('status', 'reconnecting');
+        this.emit('peer_disconnected', { peerId: this.remotePeerId });
+        this.schedulePeerReconnect();
+      }
     });
 
     connection.on('error', (err) => {
       console.error('[ZeroChat] Connection error:', err);
       this.emit('error', err);
     });
+  }
+
+  schedulePeerReconnect() {
+    if (this.isIntentionalDisconnect || !this.remotePeerId) return;
+    if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
+
+    console.log('[ZeroChat] Scheduling auto-reconnect to peer:', this.remotePeerId);
+    this.reconnectTimer = setTimeout(() => {
+      if (!this.isConnected() && !this.isIntentionalDisconnect && this.remotePeerId) {
+        console.log('[ZeroChat] Executing auto-reconnect to peer:', this.remotePeerId);
+        this.executeConnect(this.remotePeerId);
+      }
+    }, 2500);
   }
 
   handleIncomingPacket(data) {
@@ -248,16 +382,33 @@ class PeerService {
       return;
     }
 
-    // Packet is JSON object
-    switch (data.type) {
+    // Packet can be object or serialized JSON string
+    let packet = data;
+    if (typeof packet === 'string') {
+      try {
+        packet = JSON.parse(packet);
+      } catch (e) {
+        packet = {
+          type: 'text',
+          id: 'msg_' + Math.random().toString(36).substring(2, 9) + '_' + Date.now(),
+          text: packet,
+          senderNickname: this.remoteNickname || 'Peer',
+          timestamp: Date.now(),
+        };
+      }
+    }
+
+    if (!packet || typeof packet !== 'object') return;
+
+    switch (packet.type) {
       case 'handshake':
       case 'nickname_update':
-        this.remoteNickname = data.nickname || 'Peer';
+        this.remoteNickname = packet.nickname || 'Peer';
         this.emit('peer_info', {
           peerId: this.remotePeerId,
           nickname: this.remoteNickname,
         });
-        if (data.type === 'handshake') {
+        if (packet.type === 'handshake') {
           // Respond with handshake_ack so both sides know names
           this.sendJson({
             type: 'handshake_ack',
@@ -268,7 +419,7 @@ class PeerService {
         break;
 
       case 'handshake_ack':
-        this.remoteNickname = data.nickname || 'Peer';
+        this.remoteNickname = packet.nickname || 'Peer';
         this.emit('peer_info', {
           peerId: this.remotePeerId,
           nickname: this.remoteNickname,
@@ -277,69 +428,76 @@ class PeerService {
 
       case 'text':
         this.emit('message', {
-          id: data.id,
-          text: data.text,
-          senderNickname: data.senderNickname || this.remoteNickname || 'Peer',
+          id: packet.id,
+          text: packet.text,
+          senderNickname: packet.senderNickname || this.remoteNickname || 'Peer',
           sender: 'remote',
-          timestamp: data.timestamp || Date.now(),
+          timestamp: packet.timestamp || Date.now(),
         });
         // Send delivery ACK
-        this.sendJson({ type: 'ack', id: data.id });
+        this.sendJson({ type: 'ack', id: packet.id });
         break;
 
       case 'ack':
-        this.emit('message_ack', data.id);
+        this.emit('message_ack', packet.id);
         break;
 
       case 'typing':
         this.emit('typing', {
-          isTyping: !!data.isTyping,
-          nickname: data.nickname || this.remoteNickname || 'Peer',
+          isTyping: !!packet.isTyping,
+          nickname: packet.nickname || this.remoteNickname || 'Peer',
         });
         break;
 
       case 'ping':
-        this.sendJson({ type: 'pong', sendTime: data.sendTime });
+        this.sendJson({ type: 'pong', sendTime: packet.sendTime });
         break;
 
       case 'pong':
-        if (data.sendTime) {
-          const latency = Math.max(1, Math.round(performance.now() - data.sendTime));
+        if (packet.sendTime) {
+          const latency = Math.max(1, Math.round(performance.now() - packet.sendTime));
           this.emit('latency', latency);
         }
         break;
 
+      case 'disconnect':
+        console.log('[ZeroChat] Remote peer ended session');
+        this.isIntentionalDisconnect = true;
+        this.disconnect();
+        this.emit('status', 'disconnected');
+        break;
+
       case 'file_meta':
-        this.incomingFiles.set(data.fileId, {
-          meta: data,
-          chunks: new Array(data.totalChunks),
+        this.incomingFiles.set(packet.fileId, {
+          meta: packet,
+          chunks: new Array(packet.totalChunks),
           receivedCount: 0,
           receivedBytes: 0,
           startTime: performance.now(),
         });
         this.emit('file_start', {
-          fileId: data.fileId,
-          fileName: data.fileName,
-          fileSize: data.fileSize,
-          fileType: data.fileType,
-          senderNickname: data.senderNickname || this.remoteNickname,
+          fileId: packet.fileId,
+          fileName: packet.fileName,
+          fileSize: packet.fileSize,
+          fileType: packet.fileType,
+          senderNickname: packet.senderNickname || this.remoteNickname,
           isSender: false,
-          isVoiceNote: !!data.isVoiceNote,
-          durationSec: data.durationSec || 0,
+          isVoiceNote: !!packet.isVoiceNote,
+          durationSec: packet.durationSec || 0,
         });
         break;
 
       case 'file_chunk_meta':
         // Metadata preceding binary chunk
         this.currentReceivingChunk = {
-          fileId: data.fileId,
-          chunkIndex: data.chunkIndex,
+          fileId: packet.fileId,
+          chunkIndex: packet.chunkIndex,
         };
         break;
 
       case 'file_cancel':
-        this.incomingFiles.delete(data.fileId);
-        this.emit('file_cancelled', { fileId: data.fileId });
+        this.incomingFiles.delete(packet.fileId);
+        this.emit('file_cancelled', { fileId: packet.fileId });
         break;
 
       default:
@@ -376,18 +534,18 @@ class PeerService {
       const blob = new Blob(record.chunks, { type: record.meta.fileType });
       const downloadUrl = URL.createObjectURL(blob);
 
-        this.emit('file_complete', {
-          fileId,
-          fileName: record.meta.fileName,
-          fileSize: record.meta.fileSize,
-          fileType: record.meta.fileType,
-          senderNickname: record.meta.senderNickname,
-          downloadUrl,
-          blob,
-          isSender: false,
-          isVoiceNote: !!record.meta.isVoiceNote,
-          durationSec: record.meta.durationSec || 0,
-        });
+      this.emit('file_complete', {
+        fileId,
+        fileName: record.meta.fileName,
+        fileSize: record.meta.fileSize,
+        fileType: record.meta.fileType,
+        senderNickname: record.meta.senderNickname,
+        downloadUrl,
+        blob,
+        isSender: false,
+        isVoiceNote: !!record.meta.isVoiceNote,
+        durationSec: record.meta.durationSec || 0,
+      });
 
       this.incomingFiles.delete(fileId);
       this.currentReceivingChunk = null;
@@ -407,7 +565,10 @@ class PeerService {
       timestamp: Date.now(),
     };
 
-    this.sendJson(message);
+    const sent = this.sendJson(message);
+    if (!sent) {
+      throw new Error('Failed to send message: DataChannel is not open');
+    }
     return message;
   }
 
@@ -472,7 +633,7 @@ class PeerService {
       }
 
       // CRITICAL BACKPRESSURE: Check underlying RTCDataChannel buffer
-      const rawDc = this.conn?._dc;
+      const rawDc = this.conn?.dataChannel || this.conn?._dc;
       if (rawDc && rawDc.bufferedAmount > 64 * 1024) {
         // Wait until buffer drains below 64KB
         await new Promise((resolve) => setTimeout(resolve, 20));
@@ -543,10 +704,13 @@ class PeerService {
     if (this.conn && this.conn.open) {
       try {
         this.conn.send(data);
+        return true;
       } catch (err) {
         console.error('[ZeroChat] sendJson error:', err);
+        return false;
       }
     }
+    return false;
   }
 
   startPingMonitor() {
@@ -573,14 +737,30 @@ class PeerService {
   }
 
   disconnect() {
+    this.isIntentionalDisconnect = true;
     this.stopPingMonitor();
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
+    if (this.connectRetryTimer) {
+      clearTimeout(this.connectRetryTimer);
+      this.connectRetryTimer = null;
+    }
+    if (this.connectionTimeout) {
+      clearTimeout(this.connectionTimeout);
+      this.connectionTimeout = null;
+    }
+
     if (this.conn) {
       try {
+        this.sendJson({ type: 'disconnect' });
         this.conn.close();
       } catch (e) {}
       this.conn = null;
     }
     this.remotePeerId = null;
+    this.targetPeerId = null;
     this.remoteNickname = 'Peer';
     this.emit('status', 'disconnected');
   }
@@ -614,3 +794,4 @@ class PeerService {
 }
 
 export const peerService = new PeerService();
+
