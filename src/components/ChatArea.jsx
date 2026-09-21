@@ -17,7 +17,9 @@ import {
   Users,
   PlusCircle,
   AlertCircle,
-  Clock
+  Clock,
+  Phone,
+  Video
 } from 'lucide-react';
 import { voiceRecorder } from '../utils/voiceRecorder';
 import AudioPlayerBubble from './AudioPlayerBubble';
@@ -40,7 +42,8 @@ export default function ChatArea({
   roomId,
   roomFullError,
   onCreateNewRoom,
-  onOpenInfoModal
+  onOpenInfoModal,
+  onStartCall
 }) {
   const [inputText, setInputText] = useState('');
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
@@ -314,7 +317,29 @@ export default function ChatArea({
           </div>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          {isConnected && onStartCall && (
+            <>
+              <button 
+                onClick={() => onStartCall(false)} 
+                className="btn btn-icon call-trigger-btn"
+                title="Start Encrypted Voice Call"
+                style={{ width: '34px', height: '34px' }}
+              >
+                <Phone size={15} color="var(--accent-cyan)" />
+              </button>
+
+              <button 
+                onClick={() => onStartCall(true)} 
+                className="btn btn-icon call-trigger-btn"
+                title="Start Encrypted Video Call"
+                style={{ width: '34px', height: '34px' }}
+              >
+                <Video size={16} color="var(--accent-emerald)" />
+              </button>
+            </>
+          )}
+
           {!isConnected && (
             <button onClick={onOpenRoomModal} className="btn btn-secondary" style={{ fontSize: '0.78rem', padding: '6px 12px' }}>
               <span>Join Room</span>

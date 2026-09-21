@@ -53,6 +53,16 @@ class PeerService {
     this.incomingFiles = new Map(); // fileId -> { meta, chunks: [], receivedBytes, totalChunks }
     this.activeSenders = new Map(); // fileId -> { cancel: boolean }
     this.currentReceivingChunk = null;
+
+    // Media Calling state
+    this.currentCall = null;
+    this.localStream = null;
+    this.remoteStream = null;
+    this.screenStream = null;
+    this.isScreenSharing = false;
+    this.isAudioMuted = false;
+    this.isVideoMuted = false;
+    this.incomingCallData = null; // { mediaConn, callerNickname, isVideo }
   }
 
   setNickname(name) {
@@ -187,6 +197,22 @@ class PeerService {
         }
 
         this.handleConnection(connection);
+      });
+
+      // Handle incoming WebRTC media call
+      this.peer.on('call', (mediaConn) => {
+        console.log('[ZeroChat] Incoming WebRTC media call from:', mediaConn.peer);
+        const metadata = mediaConn.metadata || {};
+        const isVideo = metadata.isVideo !== undefined ? metadata.isVideo : true;
+        const callerNickname = metadata.callerNickname || this.remoteNickname || 'Peer';
+
+        this.incomingCallData = { mediaConn, callerNickname, isVideo };
+        this.emit('call_incoming', {
+          mediaConn,
+          callerNickname,
+          isVideo,
+          peerId: mediaConn.peer,
+        });
       });
 
       this.peer.on('error', (err) => {
@@ -513,6 +539,24 @@ class PeerService {
         this.isIntentionalDisconnect = true;
         this.disconnect();
         this.emit('status', 'disconnected');
+        break;
+
+      case 'call_signal':
+        console.log('[ZeroChat] Call signal received:', packet.signal);
+        if (packet.signal === 'offer') {
+          this.emit('call_signal_offer', {
+            isVideo: packet.isVideo,
+            callerNickname: packet.callerNickname || this.remoteNickname || 'Peer',
+          });
+        } else if (packet.signal === 'accepted') {
+          this.emit('call_signal_accepted');
+        } else if (packet.signal === 'rejected') {
+          this.emit('call_signal_rejected');
+          this.cleanupCall();
+        } else if (packet.signal === 'ended') {
+          this.emit('call_signal_ended');
+          this.cleanupCall();
+        }
         break;
 
       case 'room_occupied':
@@ -861,6 +905,7 @@ class PeerService {
       } catch (e) {}
       this.conn = null;
     }
+    this.cleanupCall();
     this.remotePeerId = null;
     this.targetPeerId = null;
     this.remoteNickname = 'Peer';
@@ -870,6 +915,7 @@ class PeerService {
 
   cleanup() {
     this.disconnect();
+    this.cleanupCall();
     if (this.peer) {
       try {
         this.peer.destroy();
@@ -881,6 +927,285 @@ class PeerService {
     this.incomingFiles.clear();
     this.activeSenders.clear();
   }
+
+  // ==========================================
+  // WebRTC Media Calling & Screen Sharing
+  // ==========================================
+
+  async startCall(isVideo = true) {
+    if (!this.remotePeerId || !this.peer) {
+      throw new Error('No active peer connected');
+    }
+
+    try {
+      this.isAudioMuted = false;
+      this.isVideoMuted = false;
+      this.isScreenSharing = false;
+
+      const constraints = {
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+        },
+        video: isVideo ? { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: 'user' } : false,
+      };
+
+      this.localStream = await navigator.mediaDevices.getUserMedia(constraints);
+      this.emit('local_stream', this.localStream);
+
+      const mediaConn = this.peer.call(this.remotePeerId, this.localStream, {
+        metadata: {
+          isVideo,
+          callerNickname: this.myNickname,
+        },
+      });
+
+      this.currentCall = mediaConn;
+
+      this.emit('call_started', {
+        role: 'caller',
+        isVideo,
+        remoteNickname: this.remoteNickname,
+      });
+
+      this.sendJson({
+        type: 'call_signal',
+        signal: 'offer',
+        isVideo,
+        callerNickname: this.myNickname,
+      });
+
+      mediaConn.on('stream', (remoteStream) => {
+        console.log('[ZeroChat] Remote media stream attached');
+        this.remoteStream = remoteStream;
+        this.emit('remote_stream', remoteStream);
+      });
+
+      mediaConn.on('close', () => {
+        console.log('[ZeroChat] Media call ended by peer');
+        this.cleanupCall();
+      });
+
+      mediaConn.on('error', (err) => {
+        console.error('[ZeroChat] Media call error:', err);
+        this.cleanupCall();
+      });
+
+      return mediaConn;
+    } catch (err) {
+      console.error('[ZeroChat] Failed to start media call:', err);
+      this.cleanupCall();
+      throw err;
+    }
+  }
+
+  async answerCall(isVideo = null) {
+    if (!this.incomingCallData || !this.incomingCallData.mediaConn) {
+      console.warn('[ZeroChat] No incoming media call available to answer');
+      return;
+    }
+
+    const { mediaConn, isVideo: callIsVideo } = this.incomingCallData;
+    const useVideo = isVideo !== null ? isVideo : callIsVideo;
+
+    try {
+      this.isAudioMuted = false;
+      this.isVideoMuted = false;
+      this.isScreenSharing = false;
+
+      const constraints = {
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+        },
+        video: useVideo ? { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: 'user' } : false,
+      };
+
+      this.localStream = await navigator.mediaDevices.getUserMedia(constraints);
+      this.emit('local_stream', this.localStream);
+
+      mediaConn.answer(this.localStream);
+      this.currentCall = mediaConn;
+      this.incomingCallData = null;
+
+      this.emit('call_started', {
+        role: 'receiver',
+        isVideo: useVideo,
+        remoteNickname: this.remoteNickname,
+      });
+
+      this.sendJson({
+        type: 'call_signal',
+        signal: 'accepted',
+      });
+
+      mediaConn.on('stream', (remoteStream) => {
+        console.log('[ZeroChat] Remote media stream attached on answer');
+        this.remoteStream = remoteStream;
+        this.emit('remote_stream', remoteStream);
+      });
+
+      mediaConn.on('close', () => {
+        this.cleanupCall();
+      });
+
+      mediaConn.on('error', (err) => {
+        console.error('[ZeroChat] Media call error:', err);
+        this.cleanupCall();
+      });
+    } catch (err) {
+      console.error('[ZeroChat] Failed to answer call:', err);
+      this.rejectCall();
+      throw err;
+    }
+  }
+
+  rejectCall() {
+    if (this.incomingCallData && this.incomingCallData.mediaConn) {
+      try {
+        this.incomingCallData.mediaConn.close();
+      } catch (e) {}
+    }
+    this.incomingCallData = null;
+    this.sendJson({
+      type: 'call_signal',
+      signal: 'rejected',
+    });
+    this.emit('call_ended', { reason: 'rejected' });
+  }
+
+  endCall() {
+    this.sendJson({
+      type: 'call_signal',
+      signal: 'ended',
+    });
+    this.cleanupCall();
+  }
+
+  cleanupCall() {
+    if (this.screenStream) {
+      try {
+        this.screenStream.getTracks().forEach((t) => t.stop());
+      } catch (e) {}
+      this.screenStream = null;
+    }
+    if (this.localStream) {
+      try {
+        this.localStream.getTracks().forEach((t) => t.stop());
+      } catch (e) {}
+      this.localStream = null;
+    }
+    if (this.currentCall) {
+      try {
+        this.currentCall.close();
+      } catch (e) {}
+      this.currentCall = null;
+    }
+    this.incomingCallData = null;
+    this.remoteStream = null;
+    this.isScreenSharing = false;
+    this.isAudioMuted = false;
+    this.isVideoMuted = false;
+
+    this.emit('call_ended', { reason: 'ended' });
+  }
+
+  toggleAudio() {
+    if (!this.localStream) return false;
+    const audioTrack = this.localStream.getAudioTracks()[0];
+    if (audioTrack) {
+      audioTrack.enabled = !audioTrack.enabled;
+      this.isAudioMuted = !audioTrack.enabled;
+      this.emit('call_audio_toggle', { isMuted: this.isAudioMuted });
+      return this.isAudioMuted;
+    }
+    return false;
+  }
+
+  toggleVideo() {
+    if (!this.localStream) return false;
+    const videoTrack = this.localStream.getVideoTracks()[0];
+    if (videoTrack) {
+      videoTrack.enabled = !videoTrack.enabled;
+      this.isVideoMuted = !videoTrack.enabled;
+      this.emit('call_video_toggle', { isMuted: this.isVideoMuted });
+      return this.isVideoMuted;
+    }
+    return false;
+  }
+
+  async startScreenShare() {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
+      throw new Error('Screen sharing is not supported on this device/browser');
+    }
+    if (!this.currentCall || !this.currentCall.peerConnection) {
+      throw new Error('No active call connection');
+    }
+
+    try {
+      this.screenStream = await navigator.mediaDevices.getDisplayMedia({
+        video: { cursor: 'always' },
+        audio: false,
+      });
+
+      const screenTrack = this.screenStream.getVideoTracks()[0];
+      const pc = this.currentCall.peerConnection;
+      const senders = pc.getSenders();
+      const videoSender = senders.find((s) => s.track && s.track.kind === 'video');
+
+      if (videoSender) {
+        await videoSender.replaceTrack(screenTrack);
+      } else {
+        pc.addTrack(screenTrack, this.localStream);
+      }
+
+      this.isScreenSharing = true;
+      this.emit('screen_share_status', { isSharing: true, stream: this.screenStream });
+
+      screenTrack.onended = () => {
+        this.stopScreenShare();
+      };
+
+      return true;
+    } catch (err) {
+      if (err.name !== 'NotAllowedError') {
+        console.error('[ZeroChat] Screen share error:', err);
+      }
+      throw err;
+    }
+  }
+
+  async stopScreenShare() {
+    if (!this.isScreenSharing) return;
+
+    try {
+      if (this.screenStream) {
+        this.screenStream.getTracks().forEach((t) => t.stop());
+        this.screenStream = null;
+      }
+
+      if (this.currentCall && this.currentCall.peerConnection && this.localStream) {
+        const cameraTrack = this.localStream.getVideoTracks()[0] || null;
+        const pc = this.currentCall.peerConnection;
+        const senders = pc.getSenders();
+        const videoSender = senders.find((s) => s.track && s.track.kind === 'video');
+
+        if (videoSender) {
+          await videoSender.replaceTrack(cameraTrack);
+        }
+      }
+
+      this.isScreenSharing = false;
+      this.emit('screen_share_status', { isSharing: false });
+    } catch (err) {
+      console.warn('[ZeroChat] Error stopping screen share:', err);
+      this.isScreenSharing = false;
+      this.emit('screen_share_status', { isSharing: false });
+    }
+  }
+
 
   generateRoomId() {
     const words = [

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import confetti from 'canvas-confetti';
 import { peerService } from './services/peerService';
-import { playSound } from './utils/soundEffects';
+import { playSound, startRingtone, startOutgoingRingtone } from './utils/soundEffects';
 import Header from './components/Header';
 import ChatArea from './components/ChatArea';
 import FileTransferArea from './components/FileTransferArea';
@@ -10,6 +10,7 @@ import NicknameModal from './components/NicknameModal';
 import InfoModal from './components/InfoModal';
 import MobileNav from './components/MobileNav';
 import ImageLightboxModal from './components/ImageLightboxModal';
+import CallModal from './components/CallModal';
 
 export default function App() {
   // Identity & Preferences
@@ -52,6 +53,39 @@ export default function App() {
   const [isNicknameModalOpen, setIsNicknameModalOpen] = useState(false);
   const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
   const [lightboxImage, setLightboxImage] = useState(null);
+
+  // WebRTC Calling State
+  const [callState, setCallState] = useState({
+    status: 'idle', // 'idle' | 'incoming' | 'calling' | 'connected'
+    role: null, // 'caller' | 'receiver'
+    isVideo: true,
+    remoteNickname: 'Peer',
+    localStream: null,
+    remoteStream: null,
+    isScreenSharing: false,
+    isAudioMuted: false,
+    isVideoMuted: false,
+    durationSec: 0,
+  });
+  const ringtoneStopRef = useRef(null);
+  const callTimerRef = useRef(null);
+
+  // Call duration timer
+  useEffect(() => {
+    if (callState.status === 'connected') {
+      callTimerRef.current = setInterval(() => {
+        setCallState((prev) => ({ ...prev, durationSec: prev.durationSec + 1 }));
+      }, 1000);
+    } else {
+      if (callTimerRef.current) {
+        clearInterval(callTimerRef.current);
+        callTimerRef.current = null;
+      }
+    }
+    return () => {
+      if (callTimerRef.current) clearInterval(callTimerRef.current);
+    };
+  }, [callState.status]);
 
   // Persistent refs to avoid effect teardown
   const soundEnabledRef = useRef(soundEnabled);
@@ -249,12 +283,86 @@ export default function App() {
       showToast('File transfer cancelled', 'warning');
     });
 
+    // Call Event Listeners
+    const stopActiveRingtones = () => {
+      if (ringtoneStopRef.current) {
+        ringtoneStopRef.current();
+        ringtoneStopRef.current = null;
+      }
+    };
+
+    const unsubCallIncoming = peerService.on('call_incoming', ({ callerNickname, isVideo }) => {
+      stopActiveRingtones();
+      ringtoneStopRef.current = startRingtone(soundEnabledRef.current);
+      setCallState({
+        status: 'incoming',
+        role: 'receiver',
+        isVideo,
+        remoteNickname: callerNickname || 'Peer',
+        localStream: null,
+        remoteStream: null,
+        isScreenSharing: false,
+        isAudioMuted: false,
+        isVideoMuted: false,
+        durationSec: 0,
+      });
+    });
+
+    const unsubLocalStream = peerService.on('local_stream', (stream) => {
+      setCallState((prev) => ({ ...prev, localStream: stream }));
+    });
+
+    const unsubRemoteStream = peerService.on('remote_stream', (stream) => {
+      stopActiveRingtones();
+      playSound('call_start', soundEnabledRef.current);
+      setCallState((prev) => ({
+        ...prev,
+        status: 'connected',
+        remoteStream: stream,
+      }));
+    });
+
+    const unsubCallEnded = peerService.on('call_ended', ({ reason }) => {
+      stopActiveRingtones();
+      playSound('call_end', soundEnabledRef.current);
+      if (reason === 'rejected') {
+        showToast('Call declined', 'info');
+      } else {
+        showToast('Call ended', 'info');
+      }
+      setCallState({
+        status: 'idle',
+        role: null,
+        isVideo: true,
+        remoteNickname: 'Peer',
+        localStream: null,
+        remoteStream: null,
+        isScreenSharing: false,
+        isAudioMuted: false,
+        isVideoMuted: false,
+        durationSec: 0,
+      });
+    });
+
+    const unsubCallAudioToggle = peerService.on('call_audio_toggle', ({ isMuted }) => {
+      setCallState((prev) => ({ ...prev, isAudioMuted: isMuted }));
+    });
+
+    const unsubCallVideoToggle = peerService.on('call_video_toggle', ({ isMuted }) => {
+      setCallState((prev) => ({ ...prev, isVideoMuted: isMuted }));
+    });
+
+    const unsubScreenShareStatus = peerService.on('screen_share_status', ({ isSharing }) => {
+      setCallState((prev) => ({ ...prev, isScreenSharing: isSharing }));
+    });
+
     // Initialize peer
     peerService.init().catch((err) => {
       console.error('[ZeroChat] Init error:', err);
     });
 
     return () => {
+      stopActiveRingtones();
       unsubReady();
       unsubStatus();
       unsubPeerConnected();
@@ -272,6 +380,13 @@ export default function App() {
       unsubFileProgress();
       unsubFileComplete();
       unsubFileCancelled();
+      unsubCallIncoming();
+      unsubLocalStream();
+      unsubRemoteStream();
+      unsubCallEnded();
+      unsubCallAudioToggle();
+      unsubCallVideoToggle();
+      unsubScreenShareStatus();
       peerService.cleanup();
     };
   }, [showToast]);
@@ -387,6 +502,92 @@ export default function App() {
     showToast(`Name updated to ${name}`, 'success');
   };
 
+  const handleStartCall = useCallback(async (isVideo = true) => {
+    if (status !== 'connected') {
+      showToast('Please wait until connected to peer', 'warning');
+      return;
+    }
+    if (ringtoneStopRef.current) ringtoneStopRef.current();
+    ringtoneStopRef.current = startOutgoingRingtone(soundEnabledRef.current);
+
+    setCallState({
+      status: 'calling',
+      role: 'caller',
+      isVideo,
+      remoteNickname: remoteNickname || 'Peer',
+      localStream: null,
+      remoteStream: null,
+      isScreenSharing: false,
+      isAudioMuted: false,
+      isVideoMuted: false,
+      durationSec: 0,
+    });
+
+    try {
+      await peerService.startCall(isVideo);
+    } catch (err) {
+      if (ringtoneStopRef.current) {
+        ringtoneStopRef.current();
+        ringtoneStopRef.current = null;
+      }
+      setCallState((prev) => ({ ...prev, status: 'idle' }));
+      showToast(err.message || 'Could not start call (check mic/camera permissions)', 'error');
+    }
+  }, [status, remoteNickname, showToast]);
+
+  const handleAcceptCall = useCallback(async (isVideo = true) => {
+    if (ringtoneStopRef.current) {
+      ringtoneStopRef.current();
+      ringtoneStopRef.current = null;
+    }
+    try {
+      await peerService.answerCall(isVideo);
+    } catch (err) {
+      setCallState((prev) => ({ ...prev, status: 'idle' }));
+      showToast('Failed to access camera/mic: ' + err.message, 'error');
+    }
+  }, [showToast]);
+
+  const handleRejectCall = useCallback(() => {
+    if (ringtoneStopRef.current) {
+      ringtoneStopRef.current();
+      ringtoneStopRef.current = null;
+    }
+    peerService.rejectCall();
+    setCallState((prev) => ({ ...prev, status: 'idle' }));
+  }, []);
+
+  const handleEndCall = useCallback(() => {
+    if (ringtoneStopRef.current) {
+      ringtoneStopRef.current();
+      ringtoneStopRef.current = null;
+    }
+    peerService.endCall();
+    setCallState((prev) => ({ ...prev, status: 'idle' }));
+  }, []);
+
+  const handleToggleAudio = useCallback(() => {
+    peerService.toggleAudio();
+  }, []);
+
+  const handleToggleVideo = useCallback(() => {
+    peerService.toggleVideo();
+  }, []);
+
+  const handleToggleScreenShare = useCallback(async () => {
+    if (callState.isScreenSharing) {
+      peerService.stopScreenShare();
+    } else {
+      try {
+        await peerService.startScreenShare();
+      } catch (err) {
+        if (err.name !== 'NotAllowedError') {
+          showToast('Screen sharing error: ' + err.message, 'error');
+        }
+      }
+    }
+  }, [callState.isScreenSharing, showToast]);
+
   const activeTransfersCount = transfers.filter((t) => !t.completed).length;
 
   return (
@@ -445,6 +646,7 @@ export default function App() {
           roomFullError={roomFullError}
           onCreateNewRoom={handleCreateNewRoom}
           onOpenInfoModal={() => setIsInfoModalOpen(true)}
+          onStartCall={handleStartCall}
         />
 
         <FileTransferArea 
@@ -485,6 +687,17 @@ export default function App() {
         onClose={() => setLightboxImage(null)}
         imageUrl={lightboxImage?.url}
         imageName={lightboxImage?.name}
+      />
+
+      {/* P2P Video & Voice Call Modal */}
+      <CallModal 
+        callState={callState}
+        onAccept={handleAcceptCall}
+        onReject={handleRejectCall}
+        onEndCall={handleEndCall}
+        onToggleAudio={handleToggleAudio}
+        onToggleVideo={handleToggleVideo}
+        onToggleScreenShare={handleToggleScreenShare}
       />
     </div>
   );
