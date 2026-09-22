@@ -147,12 +147,13 @@ export default function ChatInputBar({
           </button>
 
           {/* Attachment Paperclip Button */}
-          <label 
+          <button 
+            type="button"
             className="btn btn-icon attachment-btn"
-            title={isConnected ? 'Attach Photo, Video, or File' : 'Connect peer to attach files'}
+            title="Attach Photo, Video, or File"
+            onClick={() => attachInputRef.current?.click()}
             style={{ 
-              cursor: isConnected ? 'pointer' : 'not-allowed', 
-              opacity: isConnected ? 1 : 0.45,
+              cursor: 'pointer', 
               display: 'inline-flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -160,28 +161,38 @@ export default function ChatInputBar({
             }}
           >
             <Paperclip size={18} />
-            <input 
-              type="file" 
-              ref={attachInputRef}
-              onChange={handleAttachChange} 
-              disabled={!isConnected}
-              style={{ display: 'none' }}
-              multiple
-            />
-          </label>
+          </button>
+          <input 
+            type="file" 
+            ref={attachInputRef}
+            onChange={handleAttachChange} 
+            style={{
+              position: 'absolute',
+              width: '1px',
+              height: '1px',
+              padding: 0,
+              margin: '-1px',
+              overflow: 'hidden',
+              clip: 'rect(0,0,0,0)',
+              border: 0,
+              opacity: 0,
+              pointerEvents: 'none'
+            }}
+            multiple
+          />
 
           <input 
             type="text" 
             placeholder={
               roomFullError && !isConnected
-                ? 'Room is full (2/2 peers connected). Create your own room above.'
+                ? 'Room is full (2/2 peers connected).'
                 : isConnected 
-                ? 'Type message, paste image (Ctrl+V), or record audio...' 
+                ? 'Type message, paste image, or audio...' 
                 : status === 'connecting'
-                ? 'Connecting to peer... (type message to prepare)'
+                ? 'Connecting to peer...'
                 : status === 'reconnecting'
-                ? 'Reconnecting to peer...'
-                : 'Scan QR or invite peer to start chatting...'
+                ? 'Reconnecting...'
+                : 'Connect peer to chat...'
             } 
             value={inputText}
             onChange={onTextChange}

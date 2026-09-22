@@ -40,8 +40,10 @@ export default function ChatArea({
   const inviteUrl = typeof window !== 'undefined' ? `${window.location.origin}${window.location.pathname}#${roomId}` : '';
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, isPeerTyping, status]);
+    if (messages.length > 0 || isPeerTyping) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [messages, isPeerTyping]);
 
   const handleTextChange = (e) => {
     setInputText(e.target.value);

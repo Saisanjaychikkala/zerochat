@@ -106,6 +106,30 @@ export function useChatTransfers({ soundEnabled, mobileTab, showToast }) {
     };
   }, [showToast]);
 
+  const stagedFilesRef = useRef([]);
+
+  // Auto-flush staged files when a peer connection is established
+  useEffect(() => {
+    const unsubStatus = peerService.on('status', async (newStatus) => {
+      if (newStatus === 'connected' && stagedFilesRef.current.length > 0) {
+        const toSend = [...stagedFilesRef.current];
+        stagedFilesRef.current = [];
+        setTransfers((prev) => prev.filter((t) => !t.staged));
+        if (showToast) {
+          showToast(`Peer connected! Auto-sending ${toSend.length} staged file(s)...`, 'info');
+        }
+        for (const file of toSend) {
+          try {
+            await peerService.sendFile(file);
+          } catch (e) {
+            console.error('[ZeroChat] Auto-send staged file failed:', e);
+          }
+        }
+      }
+    });
+    return () => unsubStatus();
+  }, [showToast]);
+
   const handleSendMessage = useCallback((text, replyTo = null) => {
     try {
       const sentMsg = peerService.sendTextMessage(text, replyTo);
@@ -126,7 +150,25 @@ export function useChatTransfers({ soundEnabled, mobileTab, showToast }) {
 
   const handleSendFile = useCallback(async (file) => {
     if (!peerService.isConnected()) {
-      if (showToast) showToast('Connect a peer before sending files', 'warning');
+      stagedFilesRef.current.push(file);
+      const stagedId = 'staged_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7);
+      setTransfers((prev) => [
+        {
+          fileId: stagedId,
+          fileName: file.name,
+          fileSize: file.size,
+          fileType: file.type,
+          isSender: true,
+          progress: 0,
+          speedBps: 0,
+          completed: false,
+          staged: true,
+        },
+        ...prev,
+      ]);
+      if (showToast) {
+        showToast(`Staged "${file.name}" — will auto-transfer when peer connects`, 'info');
+      }
       return;
     }
     try {
@@ -138,8 +180,14 @@ export function useChatTransfers({ soundEnabled, mobileTab, showToast }) {
   }, [showToast]);
 
   const handleCancelTransfer = useCallback((fileId) => {
+    if (fileId && fileId.startsWith('staged_')) {
+      setTransfers((prev) => prev.filter((t) => t.fileId !== fileId));
+      stagedFilesRef.current = stagedFilesRef.current.filter((f) => f.name !== fileId);
+      if (showToast) showToast('Staged file removed', 'info');
+      return;
+    }
     peerService.cancelFileTransfer(fileId);
-  }, []);
+  }, [showToast]);
 
   const resetHistory = useCallback(() => {
     setMessages([]);

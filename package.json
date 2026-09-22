@@ -9,6 +9,7 @@
     "preview": "vite preview",
     "test": "node scripts/verify-all.js",
     "test:e2e": "node scripts/e2e-browser-test.js",
+    "test:mobile": "node scripts/e2e-mobile-test.js",
     "team:audit": "node scripts/team-dispatch.js"
   },
   "dependencies": {

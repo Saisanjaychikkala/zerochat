@@ -112,27 +112,44 @@ export default function FileTransferArea({
           </span>
         </div>
 
-        <label 
-          htmlFor="airdrop-file-input"
+        <div 
+          role="button"
+          tabIndex={0}
           className={`drop-zone ${isDragOver ? 'active' : ''}`}
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
-          onClick={(e) => {
-            if (!isConnected) {
-              e.preventDefault();
-              if (showToast) showToast('Connect with a peer first to start AirDropping files', 'warning');
+          onClick={() => {
+            if (fileInputRef.current) {
+              fileInputRef.current.click();
             }
           }}
-          style={{ opacity: isConnected ? 1 : 0.65, cursor: isConnected ? 'pointer' : 'not-allowed', display: 'flex' }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              fileInputRef.current?.click();
+            }
+          }}
+          style={{ cursor: 'pointer' }}
+          title={isConnected ? 'Tap to choose files' : 'Select files to queue for AirDrop'}
         >
           <input 
             id="airdrop-file-input"
             type="file" 
             ref={fileInputRef} 
             onChange={handleFileInputChange} 
-            disabled={!isConnected}
-            style={{ display: 'none' }}
+            style={{
+              position: 'absolute',
+              width: '1px',
+              height: '1px',
+              padding: 0,
+              margin: '-1px',
+              overflow: 'hidden',
+              clip: 'rect(0,0,0,0)',
+              border: 0,
+              opacity: 0,
+              pointerEvents: 'none'
+            }}
             multiple
           />
           <div style={{ 
@@ -142,20 +159,19 @@ export default function FileTransferArea({
             background: 'rgba(0, 242, 254, 0.08)',
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'center',
-            flexShrink: 0
+            justifyContent: 'center'
           }}>
             <UploadCloud size={24} color="var(--accent-cyan)" />
           </div>
-          <div style={{ textAlign: 'left' }}>
+          <div>
             <p style={{ fontSize: '0.85rem', fontWeight: 600 }}>
-              {isConnected ? 'Drop files here or tap to select' : 'Connect peer to send files'}
+              {isConnected ? 'Drop files here or tap to select' : 'Tap to select files for AirDrop'}
             </p>
             <p style={{ fontSize: '0.72rem', color: 'var(--text-dim)', marginTop: '2px' }}>
-              {isConnected ? 'Tap to choose photos, videos, or documents' : 'Scan QR or invite peer to enable AirDrop'}
+              {isConnected ? 'Tap to choose photos, videos, or documents' : 'Select files now — auto-transfers once peer connects'}
             </p>
           </div>
-        </label>
+        </div>
       </div>
 
       {/* Transfers Activity Feed */}
@@ -232,9 +248,15 @@ export default function FileTransferArea({
                       </div>
                     ) : (
                       <>
-                        <span style={{ fontSize: '0.75rem', fontFamily: 'var(--font-mono)', color: 'var(--accent-cyan)' }}>
-                          {item.progress}%
-                        </span>
+                        {item.staged ? (
+                          <span style={{ fontSize: '0.72rem', color: '#f59e0b', fontWeight: 600 }}>
+                            Waiting for peer...
+                          </span>
+                        ) : (
+                          <span style={{ fontSize: '0.75rem', fontFamily: 'var(--font-mono)', color: 'var(--accent-cyan)' }}>
+                            {item.progress}%
+                          </span>
+                        )}
                         {onCancelTransfer && (
                           <button 
                             onClick={() => onCancelTransfer(item.fileId)}
@@ -262,7 +284,11 @@ export default function FileTransferArea({
                 <div className="progress-bar-bg">
                   <div 
                     className="progress-bar-fill" 
-                    style={{ width: `${item.completed ? 100 : item.progress}%` }} 
+                    style={{ 
+                      width: item.staged ? '100%' : `${item.completed ? 100 : item.progress}%`,
+                      background: item.staged ? 'linear-gradient(90deg, #f59e0b, #fbbf24)' : undefined,
+                      opacity: item.staged ? 0.65 : 1
+                    }} 
                   />
                 </div>
 

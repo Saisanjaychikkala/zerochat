@@ -76,22 +76,40 @@ export default function RoomHeroCard({
   return (
     <div className="waiting-hero-card">
       {/* QR Code */}
-      <div style={{ 
-        background: '#ffffff', 
-        padding: '12px', 
-        borderRadius: '16px', 
-        boxShadow: '0 8px 30px rgba(0,0,0,0.5)',
-        margin: '0 auto'
-      }}>
-        {roomId && (
+      {roomId ? (
+        <div style={{ 
+          background: '#ffffff', 
+          padding: '10px', 
+          borderRadius: '16px', 
+          boxShadow: '0 8px 30px rgba(0,0,0,0.5)',
+          margin: '0 auto',
+          display: 'inline-flex',
+          alignItems: 'center',
+          justifyContent: 'center'
+        }}>
           <QRCodeSVG 
             value={inviteUrl} 
-            size={145} 
+            size={135} 
             level="M"
             includeMargin={false}
           />
-        )}
-      </div>
+        </div>
+      ) : (
+        <div style={{ 
+          width: '135px', 
+          height: '135px', 
+          borderRadius: '16px', 
+          border: '1px dashed var(--border-subtle)',
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'center',
+          margin: '0 auto',
+          color: 'var(--text-dim)',
+          fontSize: '0.75rem'
+        }}>
+          <span>Loading room...</span>
+        </div>
+      )}
 
       <div>
         <h3 style={{ fontSize: '1.12rem', fontWeight: 700, marginBottom: '3px' }}>

@@ -18,24 +18,28 @@
     height: 100dvh;
   }
 
-  /* Header on Mobile: compact & zero overflow */
+  /* Header on Mobile: compact, balanced & zero overflow */
   .header-bar {
-    padding: 6px 10px;
-    gap: 6px;
-    overflow: hidden;
+    padding: 6px 8px;
+    gap: 4px;
+    overflow: visible;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
   }
 
   .logo-group {
     gap: 6px;
+    flex-shrink: 0;
   }
 
   .logo-badge {
-    width: 30px;
-    height: 30px;
+    width: 28px;
+    height: 28px;
   }
 
   .logo-text h1 {
-    font-size: 0.98rem;
+    font-size: 0.94rem;
   }
 
   .logo-text p, 
@@ -46,7 +50,7 @@
   }
 
   .user-nickname-btn {
-    padding: 3px;
+    padding: 2px;
     border-radius: 50%;
   }
 
@@ -55,9 +59,10 @@
   }
 
   .ping-monitor-badge {
-    padding: 3px 8px;
-    font-size: 0.68rem;
-    gap: 4px;
+    padding: 2px 6px;
+    font-size: 0.65rem;
+    gap: 3px;
+    max-width: 72px;
   }
 
   .ping-monitor-badge svg {
@@ -65,13 +70,31 @@
   }
 
   .header-actions {
-    gap: 5px;
+    gap: 4px;
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
   }
 
-  .btn-icon {
-    width: 36px;
-    height: 36px;
-    padding: 6px;
+  .header-actions .btn-icon {
+    width: 32px !important;
+    height: 32px !important;
+    min-width: 32px !important;
+    padding: 0 !important;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .header-actions .btn-danger {
+    padding: 4px 8px !important;
+    height: 32px !important;
+    min-width: 32px !important;
+    font-size: 0.72rem;
+  }
+
+  .header-actions .info-btn {
+    display: none !important;
   }
 
   /* Mobile Top Segmented Bar (Thumb-friendly pill design) */
@@ -165,26 +188,45 @@
     font-size: 0.86rem;
   }
 
-  /* Prevent iOS Safari auto-zoom on input focus (16px rule) */
-  .chat-input {
-    font-size: 16px !important;
-    padding: 8px 14px;
-    height: 40px;
-  }
-
-  /* Keyboard-safe padding with iOS/Android safe-area support */
+  /* Prevent iOS Safari auto-zoom on input focus (16px rule) & prevent horizontal overflow */
   .chat-input-bar {
     padding: 6px 8px;
     padding-bottom: max(8px, env(safe-area-inset-bottom, 8px));
-    gap: 6px;
+    gap: 4px;
+    width: 100%;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+  }
+
+  .chat-input {
+    font-size: 16px !important;
+    padding: 8px 12px;
+    height: 38px;
+    min-width: 0 !important;
+    flex: 1 1 0%;
+  }
+
+  .chat-input-bar .btn-icon,
+  .chat-input-bar .attachment-btn {
+    width: 32px !important;
+    height: 32px !important;
+    min-width: 32px !important;
+    padding: 0 !important;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
   }
 
   .send-btn {
-    width: 40px;
-    height: 40px;
-    padding: 0;
+    width: 34px !important;
+    height: 34px !important;
+    min-width: 34px !important;
+    padding: 0 !important;
     border-radius: 50%;
-    display: flex;
+    display: inline-flex;
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
