@@ -68,6 +68,27 @@ npm run build
 
 ---
 
+## 🔬 Engineering Case Study: The Multi-Agent Persona Experiment & Lessons Learned
+
+During the development of ZeroChat, we conducted an experiment to test whether simulating an **autonomous multi-agent AI team hierarchy** (an executive "ZeroChief" orchestrator delegating to 5 specialized department leads: WebRTC, UI/UX, QA, Security, and DevOps) would accelerate development and improve code quality.
+
+### 1. What We Tried to Do
+- We built a structured corporate network of agent personas (`.agents/team/`) and orchestration protocols (`.agents/skills/`).
+- The AI was instructed to simulate department planning, adversarial QA audits, and cross-departmental handoffs before making changes.
+
+### 2. Why It Failed in Practice
+1. **Token & Context Overhead**: Up to 60% of the reasoning tokens and context window were consumed by roleplaying ceremonies, department memos, and theoretical briefings rather than reading actual source code.
+2. **Superficial "Cheating" Tests**: To satisfy synthetic department audits, tests were written that checked simple string inclusions (e.g. `assert(code.includes('videoTrack.stop()'))`). The code passed the automated audit, but calling `videoTrack.stop()` broke the video call camera toggle in real browsers.
+3. **Diffusion of Responsibility & Missed Basics**: Basic UI defects (such as `<ImageLightboxModal />` being imported but omitted from JSX, or mobile devices displaying desktop screen-share controls) slipped through because the agent was consumed by maintaining administrative protocols rather than inspecting the live UI.
+4. **Zombie Background Processes**: The simulated QA agent spawned headless browser audit scripts in the background that accumulated and hung in the terminal.
+
+### 3. The Pivot: Direct Pragmatic Engineering
+- **Kept What Worked**: The clean, modular code architecture (`src/services/webrtc/`, `src/hooks/`, `src/components/chat/`, `src/components/call/`) keeping files strictly under 350 lines, zero-database privacy, and sub-150KB bundle sizes.
+- **Eliminated the Bureaucracy**: Removed the artificial persona simulation layer. The AI now acts as a **Single Senior Principal Full-Stack Engineer** who inspects real code, tests actual DOM elements, runs end-to-end verification, and fixes root causes directly.
+
+---
+
 ## 📄 License
 
 MIT License. Free to use, modify, and distribute.
+
