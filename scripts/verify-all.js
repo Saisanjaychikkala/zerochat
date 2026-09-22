@@ -166,9 +166,9 @@ async function runTests() {
   assert(peerServiceSrc.includes("window.addEventListener('beforeunload'"), 'peerService registers beforeunload hardware cleanup');
   assert(peerServiceSrc.includes("window.addEventListener('pagehide'"), 'peerService registers pagehide hardware cleanup');
 
-  // Test mediaCallEngine turns off camera hardware on Cam Off
+  // Test mediaCallEngine toggles camera video track on Cam Off/On
   const mediaCallSrc = fs.readFileSync(mediaEnginePath, 'utf8');
-  assert(mediaCallSrc.includes('videoTrack.stop()'), 'mediaCallEngine calls videoTrack.stop() when toggling camera off');
+  assert(mediaCallSrc.includes('videoTrack.enabled'), 'mediaCallEngine toggles videoTrack.enabled when muting camera');
   assert(mediaCallSrc.includes('this.currentCall.peerConnection.getSenders()'), 'cleanupCall iterates RTCRtpSenders to stop hardware tracks');
 
   // Test ChatInputBar cleans up voice recorder on unmount

@@ -134,8 +134,10 @@ export default function App() {
       {/* Image Lightbox Preview Modal */}
       {lightboxImage && (
         <ImageLightboxModal 
+          isOpen={true}
           imageUrl={lightboxImage.url} 
-          fileName={lightboxImage.name} 
+          fileName={lightboxImage.name}
+          imageName={lightboxImage.name} 
           onClose={() => setLightboxImage(null)} 
         />
       )}

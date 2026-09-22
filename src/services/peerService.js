@@ -35,6 +35,7 @@ class PeerService {
 
     // Ephemeral RAM outgoing message queue for background reconnect resilience
     this.outgoingQueue = [];
+    this.lastActiveTime = Date.now();
 
     // Sub-Engines
     this.fileStream = new FileStreamEngine();
@@ -152,8 +153,19 @@ class PeerService {
       this.peer.on('connection', (connection) => {
         console.log('[ZeroChat] Incoming peer connection from:', connection.peer);
 
-        // Strict 1-on-1 Guard: If room already occupied by another peer, reject 3rd peer
-        if (this.conn && this.conn.open && this.conn.peer !== connection.peer) {
+        // Strict 1-on-1 Guard: If room already occupied by another ACTIVE peer, reject 3rd peer
+        const pc = this.conn?.peerConnection;
+        const isIceDead = pc && (
+          pc.iceConnectionState === 'disconnected' ||
+          pc.iceConnectionState === 'failed' ||
+          pc.iceConnectionState === 'closed' ||
+          pc.connectionState === 'disconnected' ||
+          pc.connectionState === 'failed' ||
+          pc.connectionState === 'closed'
+        );
+        const isInactive = !this.lastActiveTime || (Date.now() - this.lastActiveTime > 8000);
+
+        if (this.conn && this.conn.open && this.conn.peer !== connection.peer && !isIceDead && !isInactive) {
           console.warn(`[ZeroChat] Room full (2/2 peers connected). Rejecting 3rd peer: ${connection.peer}`);
 
           const sendRoomFullAndClose = () => {
@@ -183,6 +195,14 @@ class PeerService {
             }, 3000);
           }
           return;
+        }
+
+        // If existing connection is stale/dead/reconnecting, replace cleanly
+        if (this.conn && this.conn !== connection) {
+          try {
+            this.conn.close();
+          } catch (e) {}
+          this.conn = null;
         }
 
         this.handleConnection(connection);
@@ -358,6 +378,7 @@ class PeerService {
 
     const onChannelOpen = () => {
       console.log('[ZeroChat] DataChannel is now ACTIVE with:', this.remotePeerId);
+      this.lastActiveTime = Date.now();
       if (this.connectionTimeout) {
         clearTimeout(this.connectionTimeout);
         this.connectionTimeout = null;
@@ -454,6 +475,7 @@ class PeerService {
 
   handleIncomingPacket(data) {
     if (!data) return;
+    this.lastActiveTime = Date.now();
 
     // Binary file chunk
     if (data instanceof ArrayBuffer || (data.buffer && data.buffer instanceof ArrayBuffer)) {
@@ -789,6 +811,38 @@ class PeerService {
     this.emit('status', 'disconnected');
   }
 
+  handleWake() {
+    if (this.isIntentionalDisconnect || this.isRoomFull) return;
+
+    // 1. Reconnect to PeerJS broker if socket suspended while device slept
+    if (this.peer && !this.peer.destroyed && this.peer.disconnected) {
+      console.log('[ZeroChat] Reconnecting to broker after wake...');
+      try {
+        this.peer.reconnect();
+      } catch (e) {}
+    }
+
+    // 2. Check if active DataChannel is alive; if dead or disconnected, reconnect
+    const pc = this.conn?.peerConnection;
+    const isDead = !this.conn || !this.conn.open || (pc && (
+      pc.iceConnectionState === 'disconnected' ||
+      pc.iceConnectionState === 'failed' ||
+      pc.iceConnectionState === 'closed'
+    ));
+
+    if (isDead && (this.targetPeerId || this.remotePeerId)) {
+      const target = this.targetPeerId || this.remotePeerId;
+      console.log('[ZeroChat] DataChannel stale after wake. Re-establishing connection with:', target);
+      if (this.conn) {
+        try { this.conn.close(); } catch (e) {}
+        this.conn = null;
+      }
+      this.executeConnect(target);
+    } else if (this.isConnected()) {
+      this.sendJson({ type: 'ping', sendTime: performance.now() });
+    }
+  }
+
   cleanup() {
     this.disconnect();
     this.mediaCall.cleanupCall((e, d) => this.emit(e, d));
@@ -805,6 +859,15 @@ class PeerService {
 }
 
 export const peerService = new PeerService();
+
+// Handle tab visibility resume (phone lock/unlock screen wake)
+if (typeof document !== 'undefined') {
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+      peerService.handleWake();
+    }
+  });
+}
 
 // Hardware & Media Security: Instantly release camera, mic, and WebRTC tracks on page unload or tab close
 if (typeof window !== 'undefined') {

@@ -3,6 +3,7 @@ import { Mic, MicOff, Video, VideoOff, RefreshCw, Monitor, MonitorOff, PhoneOff 
 import { isScreenShareSupported } from '../../services/webrtc/streamHelpers';
 
 export default function CallControlsDock({
+  isVideo = true,
   isAudioMuted,
   onToggleAudio,
   hasActiveLocalVideo,
@@ -13,12 +14,13 @@ export default function CallControlsDock({
   onToggleScreenShare,
   onEndCall,
 }) {
-  const isVideoOff = !hasActiveLocalVideo || isVideoMuted;
-  const canShareScreen = isScreenShareSupported();
+  const isVideoOff = isVideoMuted;
+  // Screen sharing is strictly for video calls on desktop/laptop
+  const canShareScreen = isVideo && isScreenShareSupported();
 
   return (
     <nav className="call-controls-dock" role="toolbar" aria-label="Active call controls">
-      {/* Microphone Toggle */}
+      {/* Microphone Toggle (Always available) */}
       <button
         type="button"
         onClick={onToggleAudio}
@@ -30,20 +32,22 @@ export default function CallControlsDock({
         <span className="dock-btn-label">{isAudioMuted ? 'Unmute' : 'Mute'}</span>
       </button>
 
-      {/* Camera Toggle */}
-      <button
-        type="button"
-        onClick={onToggleVideo}
-        className={`call-dock-btn ${isVideoOff ? 'muted' : ''}`}
-        title={isVideoOff ? 'Turn Camera On' : 'Turn Camera Off'}
-        aria-label={isVideoOff ? 'Turn Camera On' : 'Turn Camera Off'}
-      >
-        {isVideoOff ? <VideoOff size={20} /> : <Video size={20} />}
-        <span className="dock-btn-label">{isVideoOff ? 'Camera On' : 'Cam Off'}</span>
-      </button>
+      {/* Camera Toggle (Video calls only) */}
+      {isVideo && (
+        <button
+          type="button"
+          onClick={onToggleVideo}
+          className={`call-dock-btn ${isVideoOff ? 'muted' : ''}`}
+          title={isVideoOff ? 'Turn Camera On' : 'Turn Camera Off'}
+          aria-label={isVideoOff ? 'Turn Camera On' : 'Turn Camera Off'}
+        >
+          {isVideoOff ? <VideoOff size={20} /> : <Video size={20} />}
+          <span className="dock-btn-label">{isVideoOff ? 'Camera On' : 'Cam Off'}</span>
+        </button>
+      )}
 
-      {/* Camera Flip (Mobile Front/Back) */}
-      {hasActiveLocalVideo && !isVideoMuted && onSwitchCamera && (
+      {/* Camera Flip (Video calls only, when camera is active and flip handler provided) */}
+      {isVideo && !isVideoMuted && onSwitchCamera && (
         <button
           type="button"
           onClick={onSwitchCamera}
@@ -56,7 +60,7 @@ export default function CallControlsDock({
         </button>
       )}
 
-      {/* Screen Sharing */}
+      {/* Screen Sharing (Video calls only, desktop/laptops only) */}
       {canShareScreen && (
         <button
           type="button"
@@ -70,7 +74,7 @@ export default function CallControlsDock({
         </button>
       )}
 
-      {/* End Call Button */}
+      {/* End Call Button (Always available) */}
       <button
         type="button"
         onClick={onEndCall}

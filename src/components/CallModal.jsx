@@ -36,7 +36,7 @@ export default function CallModal({
   const hasActiveLocalVideo = !!(
     localStream &&
     localStream.getVideoTracks().some(
-      (t) => t.enabled && t.label && !t.label.includes('canvas') && t.readyState === 'live'
+      (t) => (!t.label || !t.label.includes('canvas')) && t.readyState === 'live'
     )
   );
 
@@ -156,6 +156,7 @@ export default function CallModal({
       />
 
       <CallControlsDock
+        isVideo={isVideo}
         isAudioMuted={isAudioMuted}
         onToggleAudio={onToggleAudio}
         hasActiveLocalVideo={hasActiveLocalVideo}

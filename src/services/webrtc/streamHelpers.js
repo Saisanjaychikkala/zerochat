@@ -77,9 +77,13 @@ export function stopStreamTracks(stream) {
 
 /**
  * Detects if screen sharing is supported in the current environment.
+ * Restricted to desktop and laptop environments (excluded on mobile devices).
  */
 export function isScreenShareSupported() {
-  return typeof navigator !== 'undefined' && 
+  const isMobile = typeof navigator !== 'undefined' && 
+    /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent || '');
+  return !isMobile && 
+    typeof navigator !== 'undefined' && 
     !!navigator.mediaDevices && 
     typeof navigator.mediaDevices.getDisplayMedia === 'function';
 }

@@ -203,80 +203,27 @@ export class MediaCallEngine {
 
   async toggleVideo(sendJson, emit) {
     if (!this.localStream) return false;
-    let videoTrack = this.localStream.getVideoTracks().find(
-      (t) => t.label && !t.label.includes('canvas') && t.readyState === 'live'
+    const videoTrack = this.localStream.getVideoTracks().find(
+      (t) => (!t.label || !t.label.includes('canvas')) && t.readyState === 'live'
     );
 
-    // Turning Camera ON: Acquire camera hardware and replace dummy track
-    if (!videoTrack) {
-      try {
-        const cameraStream = await navigator.mediaDevices.getUserMedia({
-          video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: this.facingMode },
-          audio: false,
+    if (videoTrack) {
+      // Standard WebRTC track toggle: instant, reliable across mobile and desktop
+      videoTrack.enabled = !videoTrack.enabled;
+      this.isVideoMuted = !videoTrack.enabled;
+
+      emit('call_video_toggle', { isMuted: this.isVideoMuted, isVideoActive: !this.isVideoMuted });
+      if (sendJson) {
+        sendJson({
+          type: 'call_signal',
+          signal: 'camera_toggle',
+          isVideoActive: !this.isVideoMuted,
         });
-        const realTrack = cameraStream.getVideoTracks()[0];
-        realTrack.enabled = true;
-
-        if (this.currentCall?.peerConnection) {
-          const pc = this.currentCall.peerConnection;
-          const senders = pc.getSenders();
-          let videoSender = senders.find((s) => s.track && s.track.kind === 'video');
-          if (!videoSender && pc.getTransceivers) {
-            const transceiver = pc.getTransceivers().find(
-              (t) => (t.receiver?.track?.kind === 'video') || (t.sender?.track?.kind === 'video')
-            );
-            if (transceiver) {
-              videoSender = transceiver.sender;
-              if (transceiver.direction !== 'sendrecv') transceiver.direction = 'sendrecv';
-            }
-          }
-
-          if (videoSender) {
-            await videoSender.replaceTrack(realTrack);
-          } else {
-            pc.addTrack(realTrack, this.localStream);
-          }
-        }
-
-        const oldTracks = this.localStream.getVideoTracks();
-        oldTracks.forEach((t) => {
-          try { t.stop(); } catch (e) {}
-          this.localStream.removeTrack(t);
-        });
-        this.localStream.addTrack(realTrack);
-
-        this.isVideoMuted = false;
-        emit('local_stream', this.localStream);
-        emit('call_video_toggle', { isMuted: false, isVideoActive: true });
-        sendJson({ type: 'call_signal', signal: 'camera_toggle', isVideoActive: true });
-        return false;
-      } catch (err) {
-        console.error('[ZeroChat] Failed to acquire camera on call upgrade:', err);
-        return true;
       }
-    } else {
-      // Turning Camera OFF: Stop hardware camera track completely so laptop camera light turns OFF!
-      videoTrack.stop();
-      this.localStream.removeTrack(videoTrack);
-
-      const dummyTrack = createDummyVideoTrack();
-      if (dummyTrack) {
-        this.localStream.addTrack(dummyTrack);
-        if (this.currentCall?.peerConnection) {
-          const senders = this.currentCall.peerConnection.getSenders();
-          const videoSender = senders.find((s) => s.track && s.track.kind === 'video');
-          if (videoSender) {
-            videoSender.replaceTrack(dummyTrack).catch(() => {});
-          }
-        }
-      }
-
-      this.isVideoMuted = true;
-      emit('local_stream', this.localStream);
-      emit('call_video_toggle', { isMuted: true, isVideoActive: false });
-      sendJson({ type: 'call_signal', signal: 'camera_toggle', isVideoActive: false });
-      return true;
+      return this.isVideoMuted;
     }
+
+    return false;
   }
 
   async startScreenShare(emit) {

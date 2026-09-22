@@ -1,7 +1,9 @@
 import React, { useEffect } from 'react';
 import { X, Download } from 'lucide-react';
 
-export default function ImageLightboxModal({ isOpen, onClose, imageUrl, imageName }) {
+export default function ImageLightboxModal({ isOpen = true, onClose, imageUrl, imageName, fileName }) {
+  const activeName = imageName || fileName || 'Image Preview';
+
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.key === 'Escape') onClose();
@@ -44,13 +46,13 @@ export default function ImageLightboxModal({ isOpen, onClose, imageUrl, imageNam
           border: '1px solid var(--border-subtle)'
         }}>
           <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#fff', maxWidth: '300px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            {imageName || 'Image Preview'}
+            {activeName}
           </span>
 
           <div style={{ display: 'flex', gap: '8px' }}>
             <a 
               href={imageUrl} 
-              download={imageName || 'image.png'}
+              download={activeName}
               className="btn btn-primary text-xs"
               style={{ padding: '6px 12px' }}
             >
