@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { peerService } from '../services/peerService';
 import { playSound, startRingtone, startOutgoingRingtone } from '../utils/soundEffects';
+import { stopStreamTracks } from '../services/webrtc/streamHelpers';
 
 export function useCallSession({ status, remoteNickname, soundEnabled, showToast }) {
   const [callState, setCallState] = useState({
@@ -94,18 +95,26 @@ export function useCallSession({ status, remoteNickname, soundEnabled, showToast
       } else {
         if (showToast) showToast('Call ended', 'info');
       }
-      setCallState({
-        status: 'idle',
-        role: null,
-        isVideo: true,
-        remoteNickname: 'Peer',
-        localStream: null,
-        remoteStream: null,
-        isScreenSharing: false,
-        isAudioMuted: false,
-        isVideoMuted: false,
-        isRemoteCameraActive: false,
-        durationSec: 0,
+      setCallState((prev) => {
+        if (prev.localStream) {
+          stopStreamTracks(prev.localStream);
+        }
+        if (prev.remoteStream) {
+          stopStreamTracks(prev.remoteStream);
+        }
+        return {
+          status: 'idle',
+          role: null,
+          isVideo: true,
+          remoteNickname: 'Peer',
+          localStream: null,
+          remoteStream: null,
+          isScreenSharing: false,
+          isAudioMuted: false,
+          isVideoMuted: false,
+          isRemoteCameraActive: false,
+          durationSec: 0,
+        };
       });
     });
 
@@ -147,6 +156,9 @@ export function useCallSession({ status, remoteNickname, soundEnabled, showToast
       unsubScreenShareStatus();
       unsubCallBusy();
       unsubRemoteCameraToggle();
+      try {
+        peerService.endCall();
+      } catch (e) {}
     };
   }, [showToast, stopActiveRingtones]);
 

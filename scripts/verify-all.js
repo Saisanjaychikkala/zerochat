@@ -1,6 +1,6 @@
 /**
  * ZeroChat - Autonomous Verification & QA Test Harness
- * Validates wire protocols, chunking math, room code generation, skills, zoom math, and CSS integrity.
+ * Validates wire protocols, chunking math, room code generation, skills, zoom math, CSS integrity, and hardware media security teardown.
  */
 
 import fs from 'fs';
@@ -144,6 +144,40 @@ async function runTests() {
   const mediaEnginePath = path.join(ROOT, 'src', 'services', 'webrtc', 'mediaCallEngine.js');
   const engineLines = fs.readFileSync(mediaEnginePath, 'utf8').split('\n').length;
   assert(engineLines <= 350, `mediaCallEngine.js complies with line budget (${engineLines}/350 lines)`);
+
+  // 7. Hardware Security & Camera/Mic Teardown Verification
+  console.log('\n[Test Suite 7] Hardware Security & Camera/Mic Resource Release');
+  
+  // Test stopStreamTracks stops all mock tracks
+  let mockTrackStopped = false;
+  const mockStream = {
+    getTracks: () => [
+      {
+        stop: () => { mockTrackStopped = true; },
+        readyState: 'live',
+      },
+    ],
+  };
+  stopStreamTracks(mockStream);
+  assert(mockTrackStopped === true, 'stopStreamTracks invokes .stop() on all tracks to release hardware');
+
+  // Test peerService has beforeunload and pagehide hardware cleanup listeners
+  const peerServiceSrc = fs.readFileSync(path.join(ROOT, 'src', 'services', 'peerService.js'), 'utf8');
+  assert(peerServiceSrc.includes("window.addEventListener('beforeunload'"), 'peerService registers beforeunload hardware cleanup');
+  assert(peerServiceSrc.includes("window.addEventListener('pagehide'"), 'peerService registers pagehide hardware cleanup');
+
+  // Test mediaCallEngine turns off camera hardware on Cam Off
+  const mediaCallSrc = fs.readFileSync(mediaEnginePath, 'utf8');
+  assert(mediaCallSrc.includes('videoTrack.stop()'), 'mediaCallEngine calls videoTrack.stop() when toggling camera off');
+  assert(mediaCallSrc.includes('this.currentCall.peerConnection.getSenders()'), 'cleanupCall iterates RTCRtpSenders to stop hardware tracks');
+
+  // Test ChatInputBar cleans up voice recorder on unmount
+  const chatInputSrc = fs.readFileSync(path.join(ROOT, 'src', 'components', 'chat', 'ChatInputBar.jsx'), 'utf8');
+  assert(chatInputSrc.includes('voiceRecorder.cancel()'), 'ChatInputBar cancels voice recording on component unmount');
+
+  // Test App.jsx terminates call on burn and disconnect
+  const appSrc = fs.readFileSync(path.join(ROOT, 'src', 'App.jsx'), 'utf8');
+  assert(appSrc.includes('handleEndCall()'), 'App.jsx terminates active calls on session burn and disconnect');
 
   // Summary
   console.log('\n====================================================');

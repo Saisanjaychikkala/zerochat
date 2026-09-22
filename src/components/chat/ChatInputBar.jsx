@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Send, Smile, Mic, X } from 'lucide-react';
 import { voiceRecorder } from '../../utils/voiceRecorder';
 
@@ -17,6 +17,14 @@ export default function ChatInputBar({
   const [isRecording, setIsRecording] = useState(false);
   const [recordSeconds, setRecordSeconds] = useState(0);
   const recordIntervalRef = useRef(null);
+
+  // Hardware Security: Always cancel mic recording on component unmount
+  useEffect(() => {
+    return () => {
+      if (recordIntervalRef.current) clearInterval(recordIntervalRef.current);
+      voiceRecorder.cancel();
+    };
+  }, []);
 
   const handleKeyDown = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {

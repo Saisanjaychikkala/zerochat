@@ -805,3 +805,14 @@ class PeerService {
 }
 
 export const peerService = new PeerService();
+
+// Hardware & Media Security: Instantly release camera, mic, and WebRTC tracks on page unload or tab close
+if (typeof window !== 'undefined') {
+  const onPageExit = () => {
+    try {
+      peerService.cleanup();
+    } catch (e) {}
+  };
+  window.addEventListener('beforeunload', onPageExit);
+  window.addEventListener('pagehide', onPageExit);
+}

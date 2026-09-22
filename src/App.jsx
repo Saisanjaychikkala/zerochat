@@ -97,9 +97,15 @@ export default function App() {
   });
 
   const onBurnSession = () => {
+    handleEndCall();
     handleBurnSession(() => {
       stopActiveRingtones();
     });
+  };
+
+  const onDisconnect = () => {
+    handleEndCall();
+    handleDisconnect();
   };
 
   return (
@@ -146,7 +152,7 @@ export default function App() {
         onOpenNicknameModal={() => setIsNicknameModalOpen(true)}
         onOpenInfoModal={() => setIsInfoModalOpen(true)}
         onBurnSession={onBurnSession}
-        onDisconnect={handleDisconnect}
+        onDisconnect={onDisconnect}
       />
 
       {/* Mobile Top Segmented Tab Pill */}

@@ -1,6 +1,7 @@
 /**
  * ZeroChat - WebRTC P2P Media Calling Engine
  * Manages voice & video calls, dummy canvas tracks for audio-to-video upgrades, track replacement & screen share.
+ * Hardware Security: 100% camera & mic track teardown on mute, end, disconnect, and page unload.
  */
 
 import {
@@ -136,24 +137,48 @@ export class MediaCallEngine {
   }
 
   cleanupCall(emit) {
+    // 1. Terminate all screen sharing tracks
     if (this.screenStream) {
       stopStreamTracks(this.screenStream);
       this.screenStream = null;
     }
+
+    // 2. Terminate all local hardware camera and mic tracks (turns off laptop camera LED)
     if (this.localStream) {
       stopStreamTracks(this.localStream);
       this.localStream = null;
     }
+
+    // 3. Explicitly terminate tracks on RTCRtpSenders as hardware fail-safe
+    if (this.currentCall?.peerConnection) {
+      try {
+        const senders = this.currentCall.peerConnection.getSenders();
+        senders.forEach((sender) => {
+          if (sender.track) {
+            try { sender.track.stop(); } catch (e) {}
+          }
+        });
+      } catch (e) {}
+    }
+
+    // 4. Terminate incoming remote media tracks to free memory
+    if (this.remoteStream) {
+      stopStreamTracks(this.remoteStream);
+      this.remoteStream = null;
+    }
+
+    // 5. Close WebRTC media connection
     if (this.currentCall) {
       try { this.currentCall.close(); } catch (e) {}
       this.currentCall = null;
     }
+
     this.incomingCallData = null;
-    this.remoteStream = null;
     this.isScreenSharing = false;
     this.isAudioMuted = false;
     this.isVideoMuted = false;
-    emit('call_ended', { reason: 'ended' });
+
+    if (emit) emit('call_ended', { reason: 'ended' });
   }
 
   toggleAudio(emit) {
@@ -174,6 +199,7 @@ export class MediaCallEngine {
       (t) => t.label && !t.label.includes('canvas') && t.readyState === 'live'
     );
 
+    // Turning Camera ON: Acquire camera hardware and replace dummy track
     if (!videoTrack) {
       try {
         const cameraStream = await navigator.mediaDevices.getUserMedia({
@@ -221,11 +247,27 @@ export class MediaCallEngine {
         return true;
       }
     } else {
-      videoTrack.enabled = !videoTrack.enabled;
-      this.isVideoMuted = !videoTrack.enabled;
-      emit('call_video_toggle', { isMuted: this.isVideoMuted, isVideoActive: videoTrack.enabled });
-      sendJson({ type: 'call_signal', signal: 'camera_toggle', isVideoActive: videoTrack.enabled });
-      return this.isVideoMuted;
+      // Turning Camera OFF: Stop hardware camera track completely so laptop camera light turns OFF!
+      videoTrack.stop();
+      this.localStream.removeTrack(videoTrack);
+
+      const dummyTrack = createDummyVideoTrack();
+      if (dummyTrack) {
+        this.localStream.addTrack(dummyTrack);
+        if (this.currentCall?.peerConnection) {
+          const senders = this.currentCall.peerConnection.getSenders();
+          const videoSender = senders.find((s) => s.track && s.track.kind === 'video');
+          if (videoSender) {
+            videoSender.replaceTrack(dummyTrack).catch(() => {});
+          }
+        }
+      }
+
+      this.isVideoMuted = true;
+      emit('local_stream', this.localStream);
+      emit('call_video_toggle', { isMuted: true, isVideoActive: false });
+      sendJson({ type: 'call_signal', signal: 'camera_toggle', isVideoActive: false });
+      return true;
     }
   }
 
