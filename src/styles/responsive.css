@@ -235,4 +235,29 @@
   .dock-btn-label {
     font-size: 0.6rem;
   }
+
+  /* Mobile Zoom Controls */
+  .call-zoom-dock {
+    top: 10px;
+    right: 10px;
+    gap: 4px;
+    padding: 4px 6px;
+  }
+
+  .zoom-btn {
+    width: 28px;
+    height: 28px;
+  }
+
+  .zoom-pill {
+    min-width: 40px;
+    font-size: 0.68rem;
+    padding: 3px 6px;
+  }
+
+  .call-zoom-hint {
+    bottom: 80px;
+    font-size: 0.65rem;
+    padding: 3px 10px;
+  }
 }

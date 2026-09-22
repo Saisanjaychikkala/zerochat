@@ -1,6 +1,6 @@
 /**
  * ZeroChat - Autonomous Verification & QA Test Harness
- * Validates wire protocols, chunking math, room code generation, skills, and CSS integrity.
+ * Validates wire protocols, chunking math, room code generation, skills, zoom math, and CSS integrity.
  */
 
 import fs from 'fs';
@@ -29,9 +29,10 @@ console.log('====================================================');
 console.log(' ZeroChat Autonomous Verification & QA Suite');
 console.log('====================================================\n');
 
-// 1. Verify Room ID Generation
-console.log('[Test Suite 1] Room ID Generation & Entropy');
-import('../src/services/webrtc/constants.js').then(({ generateRoomId, ROOM_WORDS, CHUNK_SIZE }) => {
+async function runTests() {
+  // 1. Verify Room ID Generation
+  console.log('[Test Suite 1] Room ID Generation & Entropy');
+  const { generateRoomId, ROOM_WORDS, CHUNK_SIZE } = await import('../src/services/webrtc/constants.js');
   assert(typeof generateRoomId === 'function', 'generateRoomId is exported');
   assert(Array.isArray(ROOM_WORDS) && ROOM_WORDS.length >= 20, 'ROOM_WORDS dictionary has sufficient entropy');
   assert(CHUNK_SIZE === 16384, 'CHUNK_SIZE is standard 16KB (16384 bytes)');
@@ -93,6 +94,7 @@ import('../src/services/webrtc/constants.js').then(({ generateRoomId, ROOM_WORDS
     'chat.css',
     'media.css',
     'call.css',
+    'zoom.css',
     'modals.css',
     'responsive.css',
   ];
@@ -104,6 +106,44 @@ import('../src/services/webrtc/constants.js').then(({ generateRoomId, ROOM_WORDS
   const indexCss = fs.readFileSync(path.join(ROOT, 'src', 'index.css'), 'utf8');
   assert(indexCss.includes("@import './styles/variables.css';"), 'index.css imports variables.css');
   assert(indexCss.includes("@import './styles/call.css';"), 'index.css imports call.css');
+  assert(indexCss.includes("@import './styles/zoom.css';"), 'index.css imports zoom.css');
+
+  // 6. Video Call & Screen Share Zoom System Verification
+  console.log('\n[Test Suite 6] Video Call Zoom & Subcomponent Modularity');
+  const { clampZoomScale, createDummyVideoTrack, stopStreamTracks } = await import('../src/services/webrtc/streamHelpers.js');
+  assert(typeof clampZoomScale === 'function', 'clampZoomScale is exported');
+  assert(typeof createDummyVideoTrack === 'function', 'createDummyVideoTrack is exported');
+  assert(typeof stopStreamTracks === 'function', 'stopStreamTracks is exported');
+
+  // Test zoom clamping
+  assert(clampZoomScale(0.5) === 1.0, 'clampZoomScale clamps min zoom below 1.0 to 1.0');
+  assert(clampZoomScale(1.5) === 1.5, 'clampZoomScale permits normal 1.5x zoom');
+  assert(clampZoomScale(5.0) === 4.0, 'clampZoomScale clamps max zoom above 4.0 to 4.0');
+  assert(clampZoomScale(1.0) === 1.0, 'clampZoomScale permits baseline 1.0x');
+
+  // Verify call subcomponents exist and meet Prime Directive 4 (<350 lines)
+  const callComponents = [
+    'CallModal.jsx',
+    'call/ZoomControls.jsx',
+    'call/VideoViewport.jsx',
+    'call/CallHeaderBar.jsx',
+    'call/CallControlsDock.jsx',
+    'call/IncomingCallDialog.jsx',
+  ];
+
+  callComponents.forEach((compPath) => {
+    const fullPath = path.join(ROOT, 'src', 'components', compPath);
+    assert(fs.existsSync(fullPath), `Call component ${compPath} exists`);
+    if (fs.existsSync(fullPath)) {
+      const lineCount = fs.readFileSync(fullPath, 'utf8').split('\n').length;
+      assert(lineCount <= 350, `File ${compPath} complies with line budget (${lineCount}/350 lines)`);
+    }
+  });
+
+  // Verify mediaCallEngine.js meets Prime Directive 4 (<350 lines)
+  const mediaEnginePath = path.join(ROOT, 'src', 'services', 'webrtc', 'mediaCallEngine.js');
+  const engineLines = fs.readFileSync(mediaEnginePath, 'utf8').split('\n').length;
+  assert(engineLines <= 350, `mediaCallEngine.js complies with line budget (${engineLines}/350 lines)`);
 
   // Summary
   console.log('\n====================================================');
@@ -117,7 +157,9 @@ import('../src/services/webrtc/constants.js').then(({ generateRoomId, ROOM_WORDS
     console.error(`💥 ${totalTests - passedTests} tests failed.`);
     process.exit(1);
   }
-}).catch((err) => {
+}
+
+runTests().catch((err) => {
   console.error('Fatal test error:', err);
   process.exit(1);
 });
