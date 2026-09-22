@@ -21,7 +21,8 @@ export default function FileTransferArea({
   onCancelTransfer,
   onOpenLightbox,
   status,
-  remotePeerNickname 
+  remotePeerNickname,
+  showToast 
 }) {
   const [isDragOver, setIsDragOver] = useState(false);
   const fileInputRef = useRef(null);
@@ -111,18 +112,26 @@ export default function FileTransferArea({
           </span>
         </div>
 
-        <div 
+        <label 
+          htmlFor="airdrop-file-input"
           className={`drop-zone ${isDragOver ? 'active' : ''}`}
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
-          onClick={() => isConnected && fileInputRef.current?.click()}
-          style={{ opacity: isConnected ? 1 : 0.6, cursor: isConnected ? 'pointer' : 'not-allowed' }}
+          onClick={(e) => {
+            if (!isConnected) {
+              e.preventDefault();
+              if (showToast) showToast('Connect with a peer first to start AirDropping files', 'warning');
+            }
+          }}
+          style={{ opacity: isConnected ? 1 : 0.65, cursor: isConnected ? 'pointer' : 'not-allowed', display: 'flex' }}
         >
           <input 
+            id="airdrop-file-input"
             type="file" 
             ref={fileInputRef} 
             onChange={handleFileInputChange} 
+            disabled={!isConnected}
             style={{ display: 'none' }}
             multiple
           />
@@ -133,19 +142,20 @@ export default function FileTransferArea({
             background: 'rgba(0, 242, 254, 0.08)',
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'center'
+            justifyContent: 'center',
+            flexShrink: 0
           }}>
             <UploadCloud size={24} color="var(--accent-cyan)" />
           </div>
-          <div>
+          <div style={{ textAlign: 'left' }}>
             <p style={{ fontSize: '0.85rem', fontWeight: 600 }}>
-              {isConnected ? 'Drop files here or tap to select' : 'Connect peer to drop files'}
+              {isConnected ? 'Drop files here or tap to select' : 'Connect peer to send files'}
             </p>
             <p style={{ fontSize: '0.72rem', color: 'var(--text-dim)', marginTop: '2px' }}>
-              Transferred directly memory-to-memory via WebRTC
+              {isConnected ? 'Tap to choose photos, videos, or documents' : 'Scan QR or invite peer to enable AirDrop'}
             </p>
           </div>
-        </div>
+        </label>
       </div>
 
       {/* Transfers Activity Feed */}

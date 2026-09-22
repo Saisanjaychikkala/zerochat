@@ -159,12 +159,18 @@ export default function App() {
       {/* Mobile Top Segmented Tab Pill */}
       <MobileNav 
         activeTab={mobileTab} 
+        setActiveTab={(tab) => {
+          setMobileTab(tab);
+          if (tab === 'chat') setUnreadChatCount(0);
+        }}
         onTabChange={(tab) => {
           setMobileTab(tab);
           if (tab === 'chat') setUnreadChatCount(0);
         }}
         transfersCount={transfers.length}
+        activeTransfersCount={transfers.length}
         unreadChatCount={unreadChatCount}
+        unreadCount={unreadChatCount}
       />
 
       {/* Main Grid Workspace */}
@@ -197,6 +203,7 @@ export default function App() {
           onOpenLightbox={(url, name) => setLightboxImage({ url, name })}
           status={status}
           remotePeerNickname={remoteNickname}
+          showToast={showToast}
         />
       </main>
 

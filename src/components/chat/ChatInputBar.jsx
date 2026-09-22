@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Smile, Mic, X } from 'lucide-react';
+import { Send, Smile, Mic, X, Paperclip } from 'lucide-react';
 import { voiceRecorder } from '../../utils/voiceRecorder';
 
 const QUICK_EMOJIS = ['👍', '🔥', '🚀', '❤️', '⚡', '🎉', '👀'];
@@ -17,6 +17,16 @@ export default function ChatInputBar({
   const [isRecording, setIsRecording] = useState(false);
   const [recordSeconds, setRecordSeconds] = useState(0);
   const recordIntervalRef = useRef(null);
+  const attachInputRef = useRef(null);
+
+  const handleAttachChange = (e) => {
+    if (e.target.files && e.target.files.length > 0) {
+      Array.from(e.target.files).forEach((file) => {
+        if (onSendFile) onSendFile(file);
+      });
+      e.target.value = '';
+    }
+  };
 
   // Hardware Security: Always cancel mic recording on component unmount
   useEffect(() => {
@@ -135,6 +145,30 @@ export default function ChatInputBar({
           >
             <Smile size={18} />
           </button>
+
+          {/* Attachment Paperclip Button */}
+          <label 
+            className="btn btn-icon attachment-btn"
+            title={isConnected ? 'Attach Photo, Video, or File' : 'Connect peer to attach files'}
+            style={{ 
+              cursor: isConnected ? 'pointer' : 'not-allowed', 
+              opacity: isConnected ? 1 : 0.45,
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: 0
+            }}
+          >
+            <Paperclip size={18} />
+            <input 
+              type="file" 
+              ref={attachInputRef}
+              onChange={handleAttachChange} 
+              disabled={!isConnected}
+              style={{ display: 'none' }}
+              multiple
+            />
+          </label>
 
           <input 
             type="text" 
