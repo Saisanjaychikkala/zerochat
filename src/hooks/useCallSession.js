@@ -73,6 +73,17 @@ export function useCallSession({ status, remoteNickname, soundEnabled, showToast
       });
     });
 
+    const unsubCallStarted = peerService.on('call_started', ({ role, isVideo: callIsVideo, remoteNickname: callerNick }) => {
+      stopActiveRingtones();
+      setCallState((prev) => ({
+        ...prev,
+        status: 'connected',
+        role: role || prev.role,
+        isVideo: callIsVideo !== undefined ? callIsVideo : prev.isVideo,
+        remoteNickname: callerNick || prev.remoteNickname,
+      }));
+    });
+
     const unsubLocalStream = peerService.on('local_stream', (stream) => {
       setCallState((prev) => ({ ...prev, localStream: stream }));
     });
@@ -148,6 +159,7 @@ export function useCallSession({ status, remoteNickname, soundEnabled, showToast
     return () => {
       stopActiveRingtones();
       unsubCallIncoming();
+      unsubCallStarted();
       unsubLocalStream();
       unsubRemoteStream();
       unsubCallEnded();
@@ -195,6 +207,11 @@ export function useCallSession({ status, remoteNickname, soundEnabled, showToast
 
   const handleAnswerCall = useCallback(async (isVideo = null) => {
     stopActiveRingtones();
+    setCallState((prev) => ({
+      ...prev,
+      status: 'connected',
+      role: 'receiver',
+    }));
     try {
       await peerService.answerCall(isVideo);
     } catch (err) {

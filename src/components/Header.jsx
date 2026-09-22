@@ -17,23 +17,33 @@ import { copyToClipboard } from '../utils/clipboard';
 export default function Header({ 
   status, 
   roomId, 
+  myRoomId,
   remotePeerNickname, 
   myNickname,
   myAvatarBg,
   latency, 
   soundEnabled, 
   setSoundEnabled, 
+  onToggleSound,
   onDisconnect,
   onBurnSession,
   onShowRoomModal,
+  onOpenRoomModal,
   onShowNicknameModal,
-  onShowInfoModal
+  onOpenNicknameModal,
+  onShowInfoModal,
+  onOpenInfoModal
 }) {
   const [copied, setCopied] = useState(false);
+  const activeRoomId = roomId || myRoomId;
+  const handleRoomModal = onShowRoomModal || onOpenRoomModal;
+  const handleNicknameModal = onShowNicknameModal || onOpenNicknameModal;
+  const handleInfoModal = onShowInfoModal || onOpenInfoModal;
+  const handleSoundToggle = onToggleSound || (() => setSoundEnabled && setSoundEnabled(!soundEnabled));
 
   const copyRoomLink = async () => {
-    if (!roomId) return;
-    const url = `${window.location.origin}${window.location.pathname}#${roomId}`;
+    if (!activeRoomId) return;
+    const url = `${window.location.origin}${window.location.pathname}#${activeRoomId}`;
     const success = await copyToClipboard(url);
     if (success) {
       setCopied(true);
@@ -55,7 +65,7 @@ export default function Header({
 
         {/* User Nickname Button */}
         <button 
-          onClick={onShowNicknameModal}
+          onClick={handleNicknameModal}
           className="user-nickname-btn"
           title="Change display nickname"
         >
@@ -82,19 +92,19 @@ export default function Header({
       {/* Header Actions */}
       <div className="header-actions">
         {/* Room Invite Button */}
-        {roomId && (
+        {activeRoomId && (
           <div className="room-link-group">
             <button 
               onClick={copyRoomLink} 
               className="btn btn-secondary text-xs"
               title="Click to copy invite link"
             >
-              <span className="font-mono text-cyan-400">#{roomId}</span>
+              <span className="font-mono text-cyan-400">#{activeRoomId}</span>
               {copied ? <Check size={13} className="text-emerald-400" /> : <Copy size={13} />}
             </button>
 
             <button 
-              onClick={onShowRoomModal}
+              onClick={handleRoomModal}
               className="btn btn-icon" 
               title="Open QR Code & Mobile Invite"
             >
@@ -120,7 +130,7 @@ export default function Header({
 
         {/* Sound Toggle */}
         <button 
-          onClick={() => setSoundEnabled(!soundEnabled)} 
+          onClick={handleSoundToggle} 
           className="btn btn-icon"
           title={soundEnabled ? 'Mute Sounds' : 'Unmute Sounds'}
         >
@@ -129,7 +139,7 @@ export default function Header({
 
         {/* Info Modal */}
         <button 
-          onClick={onShowInfoModal}
+          onClick={handleInfoModal}
           className="btn btn-icon info-btn"
           title="Security & Architecture"
         >

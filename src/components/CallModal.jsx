@@ -6,6 +6,7 @@ import IncomingCallDialog from './call/IncomingCallDialog';
 
 export default function CallModal({
   callState,
+  onAnswer,
   onAccept,
   onReject,
   onEndCall,
@@ -14,6 +15,7 @@ export default function CallModal({
   onToggleScreenShare,
   onSwitchCamera,
 }) {
+  const handleAccept = onAnswer || onAccept;
   const overlayRef = useRef(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [durationSec, setDurationSec] = useState(0);
@@ -123,7 +125,8 @@ export default function CallModal({
         remoteNickname={remoteNickname}
         isVideo={isVideo}
         localStream={localStream}
-        onAccept={onAccept}
+        onAccept={handleAccept}
+        onAnswer={handleAccept}
         onReject={onReject}
         onEndCall={onEndCall}
       />

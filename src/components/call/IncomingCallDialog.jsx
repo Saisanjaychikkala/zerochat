@@ -7,6 +7,7 @@ export default function IncomingCallDialog({
   isVideo,
   localStream,
   onAccept,
+  onAnswer,
   onReject,
   onEndCall,
 }) {
@@ -23,6 +24,7 @@ export default function IncomingCallDialog({
   }, [localStream, isVideo]);
 
   const avatarLetter = remoteNickname ? remoteNickname.substring(0, 1).toUpperCase() : 'P';
+  const handleAnswer = onAccept || onAnswer;
 
   return (
     <div className="modal-overlay" style={{ zIndex: 10000 }}>
@@ -103,7 +105,9 @@ export default function IncomingCallDialog({
 
             <button
               type="button"
-              onClick={() => onAccept(isVideo)}
+              onClick={() => {
+                if (handleAnswer) handleAnswer(isVideo);
+              }}
               className="btn btn-call-accept"
               title="Answer Call"
             >

@@ -59,6 +59,10 @@ export class MediaCallEngine {
         callerNickname: myNickname,
       });
 
+      if (mediaConn.remoteStream) {
+        this.remoteStream = mediaConn.remoteStream;
+        emit('remote_stream', this.remoteStream);
+      }
       mediaConn.on('stream', (remoteStream) => {
         this.remoteStream = remoteStream;
         emit('remote_stream', remoteStream);
@@ -105,6 +109,10 @@ export class MediaCallEngine {
       emit('call_started', { role: 'receiver', isVideo: activeIsVideo, remoteNickname });
       sendJson({ type: 'call_signal', signal: 'accepted' });
 
+      if (mediaConn.remoteStream) {
+        this.remoteStream = mediaConn.remoteStream;
+        emit('remote_stream', this.remoteStream);
+      }
       mediaConn.on('stream', (remoteStream) => {
         this.remoteStream = remoteStream;
         emit('remote_stream', remoteStream);
@@ -320,24 +328,16 @@ export class MediaCallEngine {
   }
 
   handleCallSignal(packet, remoteNickname, emit) {
-    if (packet.signal === 'offer') {
-      emit('call_signal_offer', {
-        isVideo: packet.isVideo,
-        callerNickname: packet.callerNickname || remoteNickname || 'Peer',
-      });
-    } else if (packet.signal === 'accepted') {
+    const { signal, isVideo, callerNickname, isVideoActive } = packet;
+    if (signal === 'offer') {
+      emit('call_signal_offer', { isVideo, callerNickname: callerNickname || remoteNickname || 'Peer' });
+    } else if (signal === 'accepted') {
       emit('call_signal_accepted');
-    } else if (packet.signal === 'rejected') {
-      emit('call_signal_rejected');
+    } else if (signal === 'rejected' || signal === 'busy' || signal === 'ended') {
+      emit(`call_signal_${signal}`);
       this.cleanupCall(emit);
-    } else if (packet.signal === 'busy') {
-      emit('call_signal_busy');
-      this.cleanupCall(emit);
-    } else if (packet.signal === 'camera_toggle') {
-      emit('remote_camera_toggle', { isVideoActive: !!packet.isVideoActive });
-    } else if (packet.signal === 'ended') {
-      emit('call_signal_ended');
-      this.cleanupCall(emit);
+    } else if (signal === 'camera_toggle') {
+      emit('remote_camera_toggle', { isVideoActive: !!isVideoActive });
     }
   }
 }

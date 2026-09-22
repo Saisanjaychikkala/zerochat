@@ -122,6 +122,7 @@ export default function App() {
         callState={callState}
         myNickname={myNickname}
         onAnswer={handleAnswerCall}
+        onAccept={handleAnswerCall}
         onReject={handleRejectCall}
         onEndCall={handleEndCall}
         onToggleAudio={handleToggleAudio}
