@@ -6,6 +6,7 @@ import IncomingCallDialog from './call/IncomingCallDialog';
 
 export default function CallModal({
   callState,
+  myNickname,
   onAnswer,
   onAccept,
   onReject,
@@ -34,18 +35,20 @@ export default function CallModal({
   } = callState;
 
   const hasActiveLocalVideo = !!(
+    isVideo &&
     localStream &&
     localStream.getVideoTracks().some(
-      (t) => (!t.label || !t.label.includes('canvas')) && t.readyState === 'live'
+      (t) => (!t.label || !t.label.includes('canvas')) && t.readyState === 'live' && t.enabled
     )
   );
 
   const hasActiveRemoteVideo = !!(
-    (remoteStream &&
+    isVideo &&
+    ((remoteStream &&
       remoteStream.getVideoTracks().some(
-        (t) => t.enabled && t.label && !t.label.includes('canvas') && t.readyState === 'live'
+        (t) => (!t.label || !t.label.includes('canvas')) && t.readyState === 'live' && t.enabled
       )) ||
-    isRemoteCameraActive
+    isRemoteCameraActive)
   );
 
   // Active call duration timer
@@ -146,6 +149,7 @@ export default function CallModal({
       />
 
       <VideoViewport
+        isVideo={isVideo}
         remoteStream={remoteStream}
         localStream={localStream}
         hasActiveRemoteVideo={hasActiveRemoteVideo}
@@ -153,6 +157,7 @@ export default function CallModal({
         isVideoMuted={isVideoMuted}
         isScreenSharing={isScreenSharing}
         remoteNickname={remoteNickname}
+        myNickname={myNickname}
       />
 
       <CallControlsDock

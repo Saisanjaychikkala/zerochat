@@ -37,12 +37,6 @@ export class MediaCallEngine {
       const { stream, activeIsVideo } = await acquireCallStream(isVideo, this.facingMode);
       this.localStream = stream;
 
-      // Attach dummy video track so m=video is negotiated in SDP for audio calls
-      if (!activeIsVideo) {
-        const dummyTrack = createDummyVideoTrack();
-        if (dummyTrack) this.localStream.addTrack(dummyTrack);
-      }
-
       emit('local_stream', this.localStream);
 
       const mediaConn = peer.call(remotePeerId, this.localStream, {
@@ -50,7 +44,7 @@ export class MediaCallEngine {
       });
 
       this.currentCall = mediaConn;
-      emit('call_started', { role: 'caller', isVideo: activeIsVideo, remoteNickname });
+      emit('call_outgoing', { role: 'caller', isVideo: activeIsVideo, remoteNickname });
 
       sendJson({
         type: 'call_signal',
@@ -62,10 +56,12 @@ export class MediaCallEngine {
       if (mediaConn.remoteStream) {
         this.remoteStream = mediaConn.remoteStream;
         emit('remote_stream', this.remoteStream);
+        emit('call_started', { role: 'caller', isVideo: activeIsVideo, remoteNickname });
       }
       mediaConn.on('stream', (remoteStream) => {
         this.remoteStream = remoteStream;
         emit('remote_stream', remoteStream);
+        emit('call_started', { role: 'caller', isVideo: activeIsVideo, remoteNickname });
       });
 
       mediaConn.on('close', () => this.cleanupCall(emit));
@@ -95,11 +91,6 @@ export class MediaCallEngine {
 
       const { stream, activeIsVideo } = await acquireCallStream(activeUseVideo, this.facingMode);
       this.localStream = stream;
-
-      if (!activeIsVideo) {
-        const dummyTrack = createDummyVideoTrack();
-        if (dummyTrack) this.localStream.addTrack(dummyTrack);
-      }
 
       emit('local_stream', this.localStream);
       mediaConn.answer(this.localStream);
@@ -280,6 +271,7 @@ export class MediaCallEngine {
       emit('call_signal_offer', { isVideo, callerNickname: callerNickname || remoteNickname || 'Peer' });
     } else if (signal === 'accepted') {
       emit('call_signal_accepted');
+      emit('call_started', { role: 'caller', isVideo: this.currentCall?.metadata?.isVideo, remoteNickname });
     } else if (signal === 'rejected' || signal === 'busy' || signal === 'ended') {
       emit(`call_signal_${signal}`);
       this.cleanupCall(emit);

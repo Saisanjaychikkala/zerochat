@@ -4,6 +4,7 @@ import ZoomControls from './ZoomControls';
 import { clampZoomScale } from '../../services/webrtc/streamHelpers';
 
 export default function VideoViewport({
+  isVideo = true,
   remoteStream,
   localStream,
   hasActiveRemoteVideo,
@@ -11,6 +12,7 @@ export default function VideoViewport({
   isVideoMuted,
   isScreenSharing,
   remoteNickname,
+  myNickname,
 }) {
   const remoteVideoRef = useRef(null);
   const localVideoRef = useRef(null);
@@ -243,7 +245,7 @@ export default function VideoViewport({
       <audio ref={remoteAudioRef} autoPlay playsInline />
 
       {/* Main Remote Feed or Audio Visualizer */}
-      {hasActiveRemoteVideo ? (
+      {isVideo && hasActiveRemoteVideo ? (
         <div className="call-remote-container">
           <div
             className="call-zoom-wrapper"
@@ -281,7 +283,7 @@ export default function VideoViewport({
           )}
         </div>
       ) : (
-        /* Audio-only Avatar Visualizer */
+        /* Audio-only Profile Visualizer */
         <div className="call-audio-visualizer">
           <div className="audio-visualizer-orb">
             <div className="audio-visualizer-wave wave-1" />
@@ -290,38 +292,32 @@ export default function VideoViewport({
               {remoteNickname ? remoteNickname.substring(0, 1).toUpperCase() : 'P'}
             </div>
           </div>
-          <h3 style={{ fontSize: '1.2rem', fontWeight: 700, color: '#fff', marginTop: '16px' }}>
+          <h3 style={{ fontSize: '1.4rem', fontWeight: 700, color: '#fff', marginTop: '18px' }}>
             {remoteNickname || 'Peer'}
           </h3>
-          <p style={{ fontSize: '0.8rem', color: 'var(--accent-cyan)', marginTop: '4px' }}>
+          <div className="voice-wave-bars">
+            <div className="voice-wave-bar" />
+            <div className="voice-wave-bar" />
+            <div className="voice-wave-bar" />
+            <div className="voice-wave-bar" />
+            <div className="voice-wave-bar" />
+          </div>
+          <p style={{ fontSize: '0.82rem', color: 'var(--accent-cyan)', marginTop: '8px', fontWeight: 600 }}>
             Encrypted Voice Call Active
           </p>
         </div>
       )}
 
-      {/* Local Camera Picture-in-Picture */}
-      {localStream && (
+      {/* Local Camera Picture-in-Picture (Video Calls Only) */}
+      {isVideo && localStream && hasActiveLocalVideo && !isVideoMuted && !isScreenSharing && (
         <div className="call-local-pip">
-          {hasActiveLocalVideo && !isVideoMuted && !isScreenSharing ? (
-            <video
-              ref={localVideoRef}
-              autoPlay
-              playsInline
-              muted
-              className="call-local-video"
-            />
-          ) : (
-            <div className="call-local-placeholder">
-              {isScreenSharing ? (
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
-                  <Monitor size={22} color="var(--accent-cyan)" />
-                  <span style={{ fontSize: '0.65rem', color: 'var(--accent-cyan)' }}>Sharing Screen</span>
-                </div>
-              ) : (
-                <VideoOff size={20} color="var(--text-dim)" />
-              )}
-            </div>
-          )}
+          <video
+            ref={localVideoRef}
+            autoPlay
+            playsInline
+            muted
+            className="call-local-video"
+          />
           <span className="pip-label">You</span>
         </div>
       )}
