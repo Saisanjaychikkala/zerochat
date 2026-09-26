@@ -1,16 +1,18 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, lazy, Suspense } from 'react';
 import Header from './components/Header';
 import ChatArea from './components/ChatArea';
 import FileTransferArea from './components/FileTransferArea';
-import RoomModal from './components/RoomModal';
-import NicknameModal from './components/NicknameModal';
-import InfoModal from './components/InfoModal';
 import MobileNav from './components/MobileNav';
-import ImageLightboxModal from './components/ImageLightboxModal';
-import CallModal from './components/CallModal';
 import HomeScreen from './components/HomeScreen';
-import P2PGameArena from './components/P2PGameArena';
-import FirewallFallbackModal from './components/FirewallFallbackModal';
+
+// Dynamic code-splitting for non-critical views & heavy modals
+const P2PGameArena = lazy(() => import('./components/P2PGameArena'));
+const CallModal = lazy(() => import('./components/CallModal'));
+const RoomModal = lazy(() => import('./components/RoomModal'));
+const NicknameModal = lazy(() => import('./components/NicknameModal'));
+const InfoModal = lazy(() => import('./components/InfoModal'));
+const ImageLightboxModal = lazy(() => import('./components/ImageLightboxModal'));
+const FirewallFallbackModal = lazy(() => import('./components/FirewallFallbackModal'));
 
 import { peerService } from './services/peerService';
 import { usePreferences } from './hooks/usePreferences';
@@ -166,13 +168,14 @@ export default function App() {
   };
 
   return (
-    <div className="app-container">
-      {/* Dynamic Toast Feedback */}
-      {toast && (
-        <div className={`toast-notification toast-${toast.type}`}>
-          <span>{toast.message}</span>
-        </div>
-      )}
+    <Suspense fallback={null}>
+      <div className="app-container">
+        {/* Dynamic Toast Feedback */}
+        {toast && (
+          <div className={`toast-notification toast-${toast.type}`}>
+            <span>{toast.message}</span>
+          </div>
+        )}
 
       {/* WebRTC Video/Voice Call Modal Overlay */}
       <CallModal
@@ -338,6 +341,7 @@ export default function App() {
         onClose={() => setIsInfoModalOpen(false)}
         myRoomId={myRoomId}
       />
-    </div>
+      </div>
+    </Suspense>
   );
 }

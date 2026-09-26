@@ -8,5 +8,19 @@ export default defineConfig({
   server: {
     port: 3000,
     open: true
+  },
+  build: {
+    target: 'esnext',
+    cssCodeSplit: true,
+    chunkSizeWarningLimit: 600,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'vendor-react': ['react', 'react-dom'],
+          'vendor-webrtc': ['peerjs'],
+          'vendor-icons': ['lucide-react'],
+        }
+      }
+    }
   }
 })
