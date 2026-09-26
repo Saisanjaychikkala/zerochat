@@ -12,7 +12,6 @@ const RoomModal = lazy(() => import('./components/RoomModal'));
 const NicknameModal = lazy(() => import('./components/NicknameModal'));
 const InfoModal = lazy(() => import('./components/InfoModal'));
 const ImageLightboxModal = lazy(() => import('./components/ImageLightboxModal'));
-const FirewallFallbackModal = lazy(() => import('./components/FirewallFallbackModal'));
 
 import { peerService } from './services/peerService';
 import { usePreferences } from './hooks/usePreferences';
@@ -28,10 +27,6 @@ export default function App() {
     }
     return 'home';
   });
-
-  // Connection Mode: 'universal' (STUN+TURN) or 'stun_only' (Pure direct P2P)
-  const [connectionMode, setConnectionMode] = useState('universal');
-  const [isFirewallModalOpen, setIsFirewallModalOpen] = useState(false);
 
   // Toast notifications
   const [toast, setToast] = useState(null);
@@ -117,11 +112,8 @@ export default function App() {
     showToast,
   });
 
-  // Detect STUN firewall block in True Private mode
+  // Listen for session burn and automatic entry when peer connects
   useEffect(() => {
-    const unsubFirewall = peerService.on('stun_firewall_blocked', () => {
-      setIsFirewallModalOpen(true);
-    });
     const unsubBurned = peerService.on('session_burned', () => {
       handleEndCall();
       stopActiveRingtones();
@@ -129,28 +121,23 @@ export default function App() {
       setLightboxImage(null);
       setViewMode('home');
     });
+    const unsubPeerConnected = peerService.on('peer_connected', () => {
+      // Auto-enter room when remote peer connects
+      setViewMode('room');
+    });
     return () => {
-      unsubFirewall();
       unsubBurned();
+      unsubPeerConnected();
     };
   }, [handleEndCall, stopActiveRingtones]);
 
-  const handleLaunchRoomFromHome = (mode = 'universal') => {
-    setConnectionMode(mode);
-    peerService.setConnectionMode(mode);
+  const handleLaunchRoomFromHome = () => {
     setViewMode('room');
   };
 
   const handleJoinRoomFromHome = (code) => {
     handleJoinRoom(code);
     setViewMode('room');
-  };
-
-  const handleSwitchToUniversal = () => {
-    setConnectionMode('universal');
-    peerService.setConnectionMode('universal');
-    setIsFirewallModalOpen(false);
-    showToast('Switched to Universal Private Mode (Firewall bypass active)', 'success');
   };
 
   const onBurnSession = () => {
@@ -200,17 +187,6 @@ export default function App() {
         />
       )}
 
-      {/* Firewall Block Fallback Dialog */}
-      <FirewallFallbackModal 
-        isOpen={isFirewallModalOpen}
-        onClose={() => {
-          setIsFirewallModalOpen(false);
-          setViewMode('home');
-        }}
-        onSwitchToUniversal={handleSwitchToUniversal}
-        roomId={myRoomId}
-      />
-
       {/* App Header (shown on room and game views) */}
       {viewMode !== 'home' && (
         <Header 
@@ -256,7 +232,6 @@ export default function App() {
           myRoomId={myRoomId}
           status={status}
           latency={latency}
-          connectionMode={connectionMode}
           theme={theme}
           onToggleTheme={toggleTheme}
           onLaunchRoom={handleLaunchRoomFromHome}

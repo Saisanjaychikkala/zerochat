@@ -2,17 +2,13 @@
  * ZeroChat WebRTC Configuration & Constants
  */
 
-export const STUN_ONLY_ICE_SERVERS = [
+export const ICE_SERVERS = [
   { urls: 'stun:stun.l.google.com:19302' },
   { urls: 'stun:stun1.l.google.com:19302' },
   { urls: 'stun:stun2.l.google.com:19302' },
   { urls: 'stun:stun3.l.google.com:19302' },
   { urls: 'stun:stun4.l.google.com:19302' },
   { urls: 'stun:stun.cloudflare.com:3478' },
-];
-
-export const UNIVERSAL_ICE_SERVERS = [
-  ...STUN_ONLY_ICE_SERVERS,
   { urls: 'stun:openrelay.metered.ca:80' },
   {
     urls: 'turn:openrelay.metered.ca:80',
@@ -31,7 +27,8 @@ export const UNIVERSAL_ICE_SERVERS = [
   },
 ];
 
-export const ICE_SERVERS = UNIVERSAL_ICE_SERVERS;
+export const STUN_ONLY_ICE_SERVERS = ICE_SERVERS;
+export const UNIVERSAL_ICE_SERVERS = ICE_SERVERS;
 
 export const CHUNK_SIZE = 16 * 1024; // 16KB WebRTC chunk size
 

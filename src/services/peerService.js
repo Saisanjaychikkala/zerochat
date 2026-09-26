@@ -33,9 +33,6 @@ class PeerService {
     this.isIntentionalDisconnect = false;
     this.isRoomFull = false;
 
-    // Connection Mode: 'universal' (STUN+TURN) or 'stun_only' (Pure direct P2P)
-    this.connectionMode = 'universal';
-
     // Ephemeral RAM outgoing message queue for background reconnect resilience
     this.outgoingQueue = [];
     this.lastActiveTime = Date.now();
@@ -43,22 +40,6 @@ class PeerService {
     // Sub-Engines
     this.fileStream = new FileStreamEngine();
     this.mediaCall = new MediaCallEngine();
-  }
-
-  setConnectionMode(mode) {
-    if (this.connectionMode !== mode) {
-      this.connectionMode = mode;
-      console.log('[ZeroChat] Connection mode updated to:', mode);
-      if (this.peer && !this.peer.destroyed) {
-        const prevId = this.myPeerId;
-        try {
-          this.peer.destroy();
-        } catch (e) {}
-        this.peer = null;
-        this.myPeerId = null;
-        this.init(prevId);
-      }
-    }
   }
 
   // ==========================================
@@ -134,13 +115,9 @@ class PeerService {
     this.isInitializing = true;
 
     return new Promise((resolve, reject) => {
-      const activeIce = this.connectionMode === 'stun_only' 
-        ? STUN_ONLY_ICE_SERVERS 
-        : (UNIVERSAL_ICE_SERVERS || ICE_SERVERS);
-
       const config = {
         config: {
-          iceServers: activeIce,
+          iceServers: ICE_SERVERS,
           iceCandidatePoolSize: 10,
         },
         debug: 1,
@@ -389,7 +366,7 @@ class PeerService {
   handleConnection(connection) {
     if (!connection) return;
 
-    if (this.conn && (this.conn.peer !== connection.peer || !this.conn.open)) {
+    if (this.conn && this.conn !== connection) {
       try {
         this.conn.close();
       } catch (e) {}

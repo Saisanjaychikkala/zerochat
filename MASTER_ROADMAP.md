@@ -36,9 +36,8 @@
 - [x] **Zero-Database Volatile Memory**: Chat history and files live strictly in RAM (`useState`); zero disk persistence.
 - [x] **Hardware Media Security Teardown**: Explicit `MediaStreamTrack.stop()` turning off camera/mic LEDs on mute/hangup.
 - [x] **Procedural Audio Synthesis**: Native Web Audio API sound effects (no external MP3/WAV files).
-- [x] **Dual Connection Modes ("True Private" vs "Universal Private")**:
-  - **Mode 1: True Private (STUN Only)**: Direct peer-to-peer router connection. Zero relay. If router firewall blocks direct connection, shows user-friendly fallback modal explaining the firewall and offering Mode 2.
-  - **Mode 2: Universal Private (STUN + Free TURN Relay)**: Relays encrypted UDP packets through public TURN servers to penetrate strict corporate/university NAT firewalls.
+- [x] **Unified Single Chat Mode (Guaranteed Direct P2P + Relay Fallback)**:
+  - Single, authoritative direct WebRTC mode with zero mode fragmentation. Connects direct router-to-router over STUN with seamless automatic TURN relay fallback to guarantee connection across symmetric NATs, cellular 4G/5G, and corporate firewalls.
 - [x] **Real-time Peer Online / Offline Status Badge**:
   - Live status pills in Chat Header: 🟢 Online (Connected) | 🟡 Reconnecting (Re-syncing) | 🔴 Offline.
 - [🔒] **Cloud Vault Chat (Login / Persistent)**:

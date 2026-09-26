@@ -18,7 +18,6 @@ import {
 export default function HomeScreen({
   myRoomId,
   status,
-  connectionMode,
   theme,
   onToggleTheme,
   onLaunchRoom,
@@ -58,7 +57,7 @@ export default function HomeScreen({
           {/* Active Room Indicator */}
           {myRoomId && (
             <button 
-              onClick={() => onLaunchRoom(connectionMode)} 
+              onClick={onLaunchRoom} 
               className="active-room-pill"
               title="Return to your active chat session"
             >
@@ -112,71 +111,42 @@ export default function HomeScreen({
 
       {/* Hero Welcome */}
       <div className="home-hero-section">
-        <h2>Choose Your Direct Peer Channel</h2>
-        <p>No databases. No central servers. Everything exists strictly in browser RAM.</p>
+        <h2>Direct Peer-to-Peer Ephemeral Channel</h2>
+        <p>Zero databases. Zero cloud storage. Everything exists strictly in browser RAM.</p>
       </div>
 
       {/* Feature Cards Grid */}
       <div className="home-cards-grid">
-        {/* Card 1: True Private */}
+        {/* Card 1: Direct Encrypted Chat */}
         <div className="feature-hub-card glass-panel highlight-cyan">
           <div className="card-top-badge">
             <ShieldCheck size={14} />
-            <span>Maximum Privacy • Direct P2P</span>
+            <span>End-to-End Encrypted • In-Memory P2P</span>
           </div>
           <div className="card-icon-title">
             <div className="card-icon-box cyan">
               <ShieldCheck size={24} />
             </div>
             <div>
-              <h3>True Private Chat</h3>
-              <span className="card-sub-tag">STUN Direct Only</span>
+              <h3>Direct Private Chat</h3>
+              <span className="card-sub-tag">WebRTC Direct Channel</span>
             </div>
           </div>
           <p className="card-desc">
-            Direct router-to-router connection over STUN. Zero relay servers touch your packets. If your network's firewall blocks the direct route, ZeroChat prompts you to switch to Universal mode.
+            Direct, serverless 1-on-1 communications over WebRTC. Zero databases, zero cloud storage, zero message logs. High-speed encrypted messaging, voice notes, and 16KB AirDrop transfers strictly in volatile RAM.
           </p>
           <div className="card-action-bar">
             <button 
-              onClick={() => onLaunchRoom('stun_only')} 
+              onClick={onLaunchRoom} 
               className="btn btn-primary w-full"
             >
-              <span>{isConnected && connectionMode === 'stun_only' ? 'Enter Active Room' : 'Launch True Private'}</span>
+              <span>{isConnected ? 'Enter Active Room' : 'Launch Chat Room'}</span>
               <ArrowRight size={15} />
             </button>
           </div>
         </div>
 
-        {/* Card 2: Universal Private */}
-        <div className="feature-hub-card glass-panel highlight-emerald">
-          <div className="card-top-badge emerald">
-            <Zap size={14} />
-            <span>Guaranteed Connection • Relay Fallback</span>
-          </div>
-          <div className="card-icon-title">
-            <div className="card-icon-box emerald">
-              <Zap size={24} />
-            </div>
-            <div>
-              <h3>Universal Private</h3>
-              <span className="card-sub-tag">STUN + Encrypted TURN</span>
-            </div>
-          </div>
-          <p className="card-desc">
-            Penetrates strict corporate firewalls, university dorm Wi-Fi, and symmetric NAT routers using encrypted relays. 100% volatile in-memory chat & unlimited AirDrop transfers.
-          </p>
-          <div className="card-action-bar">
-            <button 
-              onClick={() => onLaunchRoom('universal')} 
-              className="btn btn-secondary emerald-border w-full"
-            >
-              <span>{isConnected && connectionMode === 'universal' ? 'Enter Active Room' : 'Launch Universal Mode'}</span>
-              <ArrowRight size={15} />
-            </button>
-          </div>
-        </div>
-
-        {/* Card 3: P2P Game Arena */}
+        {/* Card 2: P2P Game Arena */}
         <div className="feature-hub-card glass-panel highlight-purple">
           <div className="card-top-badge purple">
             <Gamepad2 size={14} />
