@@ -32,13 +32,14 @@ body::before {
   right: 0;
   bottom: 0;
   background-image: 
-    radial-gradient(circle at 10% 15%, rgba(0, 242, 254, 0.08) 0%, transparent 40%),
-    radial-gradient(circle at 90% 85%, rgba(157, 78, 221, 0.09) 0%, transparent 45%),
+    radial-gradient(circle at 10% 15%, var(--bg-ambient-1, rgba(0, 242, 254, 0.08)) 0%, transparent 45%),
+    radial-gradient(circle at 90% 85%, var(--bg-ambient-2, rgba(157, 78, 221, 0.09)) 0%, transparent 50%),
     linear-gradient(rgba(255, 255, 255, 0.015) 1px, transparent 1px),
     linear-gradient(90deg, rgba(255, 255, 255, 0.015) 1px, transparent 1px);
   background-size: 100% 100%, 100% 100%, 40px 40px, 40px 40px;
   pointer-events: none;
   z-index: -1;
+  transition: background-image 0.4s ease;
 }
 
 /* Scrollbars */

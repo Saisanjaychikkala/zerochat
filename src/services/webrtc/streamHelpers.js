@@ -156,20 +156,66 @@ export async function stopScreenShareHelper(currentCall, localStream, screenStre
 export async function switchCameraHelper(currentCall, localStream, facingMode) {
   if (!localStream || !currentCall || !currentCall.peerConnection) return null;
   const newFacingMode = facingMode === 'user' ? 'environment' : 'user';
-  let newStream;
-  try {
-    newStream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: { exact: newFacingMode }, width: { ideal: 1280 }, height: { ideal: 720 } },
-      audio: false,
-    });
-  } catch (e) {
-    newStream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: newFacingMode },
-      audio: false,
-    });
+
+  // Hardware Security & Compatibility: Explicitly stop old video track first to release hardware lock on legacy Android devices (e.g. OnePlus 3T)
+  const oldTrack = localStream.getVideoTracks()[0];
+  if (oldTrack) {
+    try {
+      oldTrack.stop();
+      localStream.removeTrack(oldTrack);
+    } catch (e) {
+      console.warn('[ZeroChat] Error releasing old camera track:', e);
+    }
   }
 
+  let newStream = null;
+
+  // Attempt 1: Standard facingMode with ideal constraints
+  try {
+    newStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { ideal: newFacingMode }, width: { ideal: 1280 }, height: { ideal: 720 } },
+      audio: false,
+    });
+  } catch (err1) {
+    // Attempt 2: Fallback to simple facingMode string
+    try {
+      newStream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: newFacingMode },
+        audio: false,
+      });
+    } catch (err2) {
+      // Attempt 3: Hardware deviceId enumeration (Works reliably on older Android kernels)
+      try {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const videoDevices = devices.filter((d) => d.kind === 'videoinput');
+        const targetDevice = videoDevices.find((d) => {
+          const label = (d.label || '').toLowerCase();
+          return newFacingMode === 'environment'
+            ? label.includes('back') || label.includes('rear') || label.includes('environment')
+            : label.includes('front') || label.includes('user') || label.includes('selfie');
+        }) || (videoDevices.length > 1 ? (newFacingMode === 'environment' ? videoDevices[1] : videoDevices[0]) : null);
+
+        if (targetDevice && targetDevice.deviceId) {
+          newStream = await navigator.mediaDevices.getUserMedia({
+            video: { deviceId: { exact: targetDevice.deviceId } },
+            audio: false,
+          });
+        } else {
+          // Last resort: standard video stream
+          newStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+        }
+      } catch (err3) {
+        console.error('[ZeroChat] All camera switch fallbacks exhausted:', err3);
+        return null;
+      }
+    }
+  }
+
+  if (!newStream) return null;
+
   const newTrack = newStream.getVideoTracks()[0];
+  if (!newTrack) return null;
+
   const pc = currentCall.peerConnection;
   const senders = pc.getSenders();
   const videoSender = senders.find((s) => s.track && s.track.kind === 'video');
@@ -178,11 +224,6 @@ export async function switchCameraHelper(currentCall, localStream, facingMode) {
     await videoSender.replaceTrack(newTrack);
   }
 
-  const oldTrack = localStream.getVideoTracks()[0];
-  if (oldTrack) {
-    oldTrack.stop();
-    localStream.removeTrack(oldTrack);
-  }
   localStream.addTrack(newTrack);
   return newFacingMode;
 }

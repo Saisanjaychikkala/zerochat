@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import Header from './components/Header';
 import ChatArea from './components/ChatArea';
 import FileTransferArea from './components/FileTransferArea';
@@ -8,13 +8,29 @@ import InfoModal from './components/InfoModal';
 import MobileNav from './components/MobileNav';
 import ImageLightboxModal from './components/ImageLightboxModal';
 import CallModal from './components/CallModal';
+import HomeScreen from './components/HomeScreen';
+import P2PGameArena from './components/P2PGameArena';
+import FirewallFallbackModal from './components/FirewallFallbackModal';
 
+import { peerService } from './services/peerService';
 import { usePreferences } from './hooks/usePreferences';
 import { usePeerSession } from './hooks/usePeerSession';
 import { useCallSession } from './hooks/useCallSession';
 import { useChatTransfers } from './hooks/useChatTransfers';
 
 export default function App() {
+  // Navigation View: 'home' | 'room' | 'game'
+  const [viewMode, setViewMode] = useState(() => {
+    if (typeof window !== 'undefined' && window.location.hash && window.location.hash.length > 3) {
+      return 'room';
+    }
+    return 'home';
+  });
+
+  // Connection Mode: 'universal' (STUN+TURN) or 'stun_only' (Pure direct P2P)
+  const [connectionMode, setConnectionMode] = useState('universal');
+  const [isFirewallModalOpen, setIsFirewallModalOpen] = useState(false);
+
   // Toast notifications
   const [toast, setToast] = useState(null);
   const showToast = useCallback((message, type = 'info') => {
@@ -31,12 +47,14 @@ export default function App() {
   const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
   const [lightboxImage, setLightboxImage] = useState(null);
 
-  // Hook 1: LocalStorage User Preferences & Sound
+  // Hook 1: LocalStorage User Preferences, Theme & Sound
   const {
     myNickname,
     myAvatarBg,
     soundEnabled,
     setSoundEnabled,
+    theme,
+    toggleTheme,
     handleSaveNickname,
   } = usePreferences(showToast);
 
@@ -88,6 +106,7 @@ export default function App() {
     handleToggleVideo,
     handleToggleScreenShare,
     handleSwitchCamera,
+    handleSendNudge,
     stopActiveRingtones,
   } = useCallSession({
     status,
@@ -96,16 +115,54 @@ export default function App() {
     showToast,
   });
 
+  // Detect STUN firewall block in True Private mode
+  useEffect(() => {
+    const unsubFirewall = peerService.on('stun_firewall_blocked', () => {
+      setIsFirewallModalOpen(true);
+    });
+    const unsubBurned = peerService.on('session_burned', () => {
+      handleEndCall();
+      stopActiveRingtones();
+      setIsRoomModalOpen(false);
+      setLightboxImage(null);
+      setViewMode('home');
+    });
+    return () => {
+      unsubFirewall();
+      unsubBurned();
+    };
+  }, [handleEndCall, stopActiveRingtones]);
+
+  const handleLaunchRoomFromHome = (mode = 'universal') => {
+    setConnectionMode(mode);
+    peerService.setConnectionMode(mode);
+    setViewMode('room');
+  };
+
+  const handleJoinRoomFromHome = (code) => {
+    handleJoinRoom(code);
+    setViewMode('room');
+  };
+
+  const handleSwitchToUniversal = () => {
+    setConnectionMode('universal');
+    peerService.setConnectionMode('universal');
+    setIsFirewallModalOpen(false);
+    showToast('Switched to Universal Private Mode (Firewall bypass active)', 'success');
+  };
+
   const onBurnSession = () => {
     handleEndCall();
     handleBurnSession(() => {
       stopActiveRingtones();
     });
+    setViewMode('home');
   };
 
   const onDisconnect = () => {
     handleEndCall();
     handleDisconnect();
+    setViewMode('home');
   };
 
   return (
@@ -122,7 +179,6 @@ export default function App() {
         callState={callState}
         myNickname={myNickname}
         onAnswer={handleAnswerCall}
-        onAccept={handleAnswerCall}
         onReject={handleRejectCall}
         onEndCall={handleEndCall}
         onToggleAudio={handleToggleAudio}
@@ -137,77 +193,125 @@ export default function App() {
           isOpen={true}
           imageUrl={lightboxImage.url} 
           fileName={lightboxImage.name}
-          imageName={lightboxImage.name} 
           onClose={() => setLightboxImage(null)} 
         />
       )}
 
-      {/* App Header */}
-      <Header 
-        status={status}
-        myRoomId={myRoomId}
-        myNickname={myNickname}
-        myAvatarBg={myAvatarBg}
-        latency={latency}
-        soundEnabled={soundEnabled}
-        onToggleSound={() => setSoundEnabled(!soundEnabled)}
-        onOpenRoomModal={() => setIsRoomModalOpen(true)}
-        onOpenNicknameModal={() => setIsNicknameModalOpen(true)}
-        onOpenInfoModal={() => setIsInfoModalOpen(true)}
-        onBurnSession={onBurnSession}
-        onDisconnect={onDisconnect}
+      {/* Firewall Block Fallback Dialog */}
+      <FirewallFallbackModal 
+        isOpen={isFirewallModalOpen}
+        onClose={() => {
+          setIsFirewallModalOpen(false);
+          setViewMode('home');
+        }}
+        onSwitchToUniversal={handleSwitchToUniversal}
+        roomId={myRoomId}
       />
 
-      {/* Mobile Top Segmented Tab Pill */}
-      <MobileNav 
-        activeTab={mobileTab} 
-        setActiveTab={(tab) => {
-          setMobileTab(tab);
-          if (tab === 'chat') setUnreadChatCount(0);
-        }}
-        onTabChange={(tab) => {
-          setMobileTab(tab);
-          if (tab === 'chat') setUnreadChatCount(0);
-        }}
-        transfersCount={transfers.length}
-        activeTransfersCount={transfers.length}
-        unreadChatCount={unreadChatCount}
-        unreadCount={unreadChatCount}
-      />
-
-      {/* Main Grid Workspace */}
-      <main className={`main-workspace tab-${mobileTab}`}>
-        <ChatArea 
-          messages={messages}
-          onSendMessage={handleSendMessage}
-          onSendFile={handleSendFile}
+      {/* App Header (shown on room and game views) */}
+      {viewMode !== 'home' && (
+        <Header 
           status={status}
-          remotePeerId={remotePeerId}
-          remotePeerNickname={remoteNickname}
+          myRoomId={myRoomId}
           myNickname={myNickname}
-          isPeerTyping={isPeerTyping}
-          peerTypingNickname={peerTypingNickname}
-          onTyping={handleTyping}
+          myAvatarBg={myAvatarBg}
+          latency={latency}
+          soundEnabled={soundEnabled}
+          onToggleSound={() => setSoundEnabled(!soundEnabled)}
           onOpenRoomModal={() => setIsRoomModalOpen(true)}
-          onOpenLightbox={(url, name) => setLightboxImage({ url, name })}
-          roomId={myRoomId}
-          roomFullError={roomFullError}
-          onCreateNewRoom={handleCreateNewRoom}
+          onOpenNicknameModal={() => setIsNicknameModalOpen(true)}
           onOpenInfoModal={() => setIsInfoModalOpen(true)}
-          onStartCall={handleStartCall}
-          callStatus={callState.status}
+          onBurnSession={onBurnSession}
+          onDisconnect={onDisconnect}
+          onGoHome={() => setViewMode('home')}
+          theme={theme}
+          onToggleTheme={toggleTheme}
+          onLaunchGame={() => setViewMode('game')}
         />
+      )}
 
-        <FileTransferArea 
-          transfers={transfers}
-          onSendFile={handleSendFile}
-          onCancelTransfer={handleCancelTransfer}
-          onOpenLightbox={(url, name) => setLightboxImage({ url, name })}
+      {/* Mobile Top Segmented Tab Pill (room view only) */}
+      {viewMode === 'room' && (
+        <MobileNav 
+          activeTab={mobileTab} 
+          setActiveTab={(tab) => {
+            setMobileTab(tab);
+            if (tab === 'chat') setUnreadChatCount(0);
+          }}
+          onTabChange={(tab) => {
+            setMobileTab(tab);
+            if (tab === 'chat') setUnreadChatCount(0);
+          }}
+          transfersCount={transfers.length}
+          unreadChatCount={unreadChatCount}
+        />
+      )}
+
+      {/* Main View Router */}
+      {viewMode === 'home' ? (
+        <HomeScreen 
+          myRoomId={myRoomId}
+          status={status}
+          latency={latency}
+          connectionMode={connectionMode}
+          theme={theme}
+          onToggleTheme={toggleTheme}
+          onLaunchRoom={handleLaunchRoomFromHome}
+          onJoinRoom={handleJoinRoomFromHome}
+          onLaunchGame={() => setViewMode('game')}
+          onOpenInfoModal={() => setIsInfoModalOpen(true)}
+          onOpenRoomModal={() => setIsRoomModalOpen(true)}
+          onBurnSession={onBurnSession}
+          activePeerNickname={remoteNickname}
+        />
+      ) : viewMode === 'game' ? (
+        <P2PGameArena 
           status={status}
           remotePeerNickname={remoteNickname}
+          localStream={callState.localStream}
+          remoteStream={callState.remoteStream}
+          isAudioMuted={callState.isAudioMuted}
+          isVideoMuted={callState.isVideoMuted}
+          onToggleAudio={handleToggleAudio}
+          onToggleVideo={handleToggleVideo}
+          onExit={() => setViewMode('room')}
           showToast={showToast}
         />
-      </main>
+      ) : (
+        <main className={`main-workspace tab-${mobileTab}`}>
+          <ChatArea 
+            messages={messages}
+            onSendMessage={handleSendMessage}
+            onSendFile={handleSendFile}
+            status={status}
+            remotePeerId={remotePeerId}
+            remotePeerNickname={remoteNickname}
+            myNickname={myNickname}
+            isPeerTyping={isPeerTyping}
+            peerTypingNickname={peerTypingNickname}
+            onTyping={handleTyping}
+            onOpenRoomModal={() => setIsRoomModalOpen(true)}
+            onOpenLightbox={(url, name) => setLightboxImage({ url, name })}
+            roomId={myRoomId}
+            roomFullError={roomFullError}
+            onCreateNewRoom={handleCreateNewRoom}
+            onOpenInfoModal={() => setIsInfoModalOpen(true)}
+            onStartCall={handleStartCall}
+            callStatus={callState.status}
+            onSendNudge={handleSendNudge}
+          />
+
+          <FileTransferArea 
+            transfers={transfers}
+            onSendFile={handleSendFile}
+            onCancelTransfer={handleCancelTransfer}
+            onOpenLightbox={(url, name) => setLightboxImage({ url, name })}
+            status={status}
+            remotePeerNickname={remoteNickname}
+            showToast={showToast}
+          />
+        </main>
+      )}
 
       {/* Room Share & Join Dialog */}
       <RoomModal 

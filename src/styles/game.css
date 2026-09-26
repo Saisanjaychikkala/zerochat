@@ -1,0 +1,316 @@
+/* ==========================================================================
+   ZeroChat - P2P Cyber Game Arena Styles (Pong & Cyber Grid)
+   ========================================================================== */
+
+.game-arena-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  position: relative;
+  background: var(--bg-primary);
+}
+
+.game-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--bg-card);
+  flex-shrink: 0;
+  gap: 12px;
+}
+
+.game-mode-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.04);
+  padding: 3px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--border-subtle);
+}
+
+.game-tab-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: var(--radius-full);
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.game-tab-btn.active {
+  background: var(--accent-cyan);
+  color: #000;
+  box-shadow: 0 0 12px var(--accent-cyan-glow);
+}
+
+.game-stage-wrapper {
+  flex: 1;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* Pong Specific Styles */
+.pong-arena-wrapper {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
+}
+
+.pong-subbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 18px;
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.game-scoreboard {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-family: var(--font-mono);
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.player-tag.left {
+  color: var(--accent-cyan);
+}
+
+.player-tag.right {
+  color: var(--accent-emerald);
+}
+
+.vs-divider {
+  color: var(--text-dim);
+}
+
+.game-canvas-wrapper {
+  flex: 1;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
+  touch-action: none;
+  cursor: ns-resize;
+  background: #04060a;
+}
+
+.game-canvas {
+  width: 100%;
+  height: 100%;
+  max-width: 600px;
+  max-height: 400px;
+  object-fit: contain;
+  box-shadow: 0 0 40px rgba(0, 0, 0, 0.8), 0 0 0 1px var(--border-subtle);
+  border-radius: var(--radius-md);
+}
+
+/* Face-Off Video / Audio PIP Dock */
+.faceoff-pip-dock {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  width: 90px;
+  height: 90px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-accent);
+  background: rgba(12, 16, 26, 0.88);
+  backdrop-filter: var(--glass-blur);
+  overflow: hidden;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+  display: flex;
+  flex-direction: column;
+  z-index: 20;
+}
+
+.faceoff-video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.faceoff-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: var(--accent-cyan);
+  background: rgba(0, 242, 254, 0.05);
+}
+
+.faceoff-controls {
+  position: absolute;
+  bottom: 3px;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: center;
+  gap: 4px;
+  padding: 2px;
+  background: rgba(0, 0, 0, 0.65);
+}
+
+.btn-xs {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border-radius: 4px;
+}
+
+/* Cyber Grid (Tic-Tac-Toe) Specific Styles */
+.cyber-grid-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 16px;
+  background: #04060a;
+}
+
+.grid-status-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  max-width: 380px;
+}
+
+.grid-score-pills {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.score-pill {
+  font-size: 0.72rem;
+  font-family: var(--font-mono);
+  padding: 3px 8px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--border-subtle);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.score-pill.you {
+  color: var(--accent-cyan);
+  border-color: rgba(0, 242, 254, 0.25);
+}
+
+.score-pill.ties {
+  color: var(--text-dim);
+}
+
+.score-pill.peer {
+  color: var(--accent-emerald);
+  border-color: rgba(16, 185, 129, 0.25);
+}
+
+.grid-turn-indicator {
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.active-turn.user {
+  color: var(--accent-cyan);
+  text-shadow: 0 0 10px var(--accent-cyan-glow);
+}
+
+.active-turn.opponent {
+  color: var(--accent-amber);
+}
+
+.winner-label {
+  color: #fff;
+  font-size: 1rem;
+}
+
+.cyber-board {
+  display: grid;
+  grid-template-columns: repeat(3, 90px);
+  grid-template-rows: repeat(3, 90px);
+  gap: 8px;
+  padding: 10px;
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-subtle);
+  box-shadow: 0 0 30px rgba(0, 0, 0, 0.7);
+}
+
+.cyber-cell {
+  background: rgba(14, 19, 32, 0.85);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  font-size: 2.2rem;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  user-select: none;
+}
+
+.cyber-cell:hover:not(:disabled) {
+  border-color: var(--accent-cyan);
+  background: rgba(0, 242, 254, 0.08);
+  transform: scale(1.03);
+}
+
+.cyber-cell.filled-x {
+  color: var(--accent-cyan);
+  text-shadow: 0 0 15px var(--accent-cyan-glow);
+}
+
+.cyber-cell.filled-o {
+  color: var(--accent-emerald);
+  text-shadow: 0 0 15px var(--accent-emerald-glow);
+}
+
+.cyber-cell.winning-cell {
+  background: rgba(0, 242, 254, 0.25);
+  border-color: var(--accent-cyan);
+  animation: pulse-ring 1s infinite alternate;
+}
+
+/* Winner Overlay */
+.game-winner-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(6, 8, 13, 0.88);
+  backdrop-filter: var(--glass-blur);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  z-index: 30;
+}
+
+.game-winner-overlay h3 {
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: #fff;
+}

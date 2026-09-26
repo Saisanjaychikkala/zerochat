@@ -25,7 +25,9 @@ export default function ChatArea({
   onCreateNewRoom,
   onOpenInfoModal,
   onStartCall,
-  callStatus
+  callStatus,
+  onSendNudge,
+  latency
 }) {
   const [inputText, setInputText] = useState('');
   const [copied, setCopied] = useState(false);
@@ -44,6 +46,24 @@ export default function ChatArea({
       messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }
   }, [messages, isPeerTyping]);
+
+  // Mobile Visual Viewport Auto-Scroll when soft keyboard opens/resizes
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.visualViewport) return;
+    const handleViewportResize = () => {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    };
+    window.visualViewport.addEventListener('resize', handleViewportResize);
+    return () => window.visualViewport.removeEventListener('resize', handleViewportResize);
+  }, []);
+
+  // Tap-to-dismiss mobile keyboard when tapping outside inputs or buttons
+  const handleDismissKeyboard = (e) => {
+    if (e.target.closest('button, a, input, textarea, [data-interactive]')) return;
+    if (typeof document !== 'undefined' && document.activeElement && typeof document.activeElement.blur === 'function') {
+      document.activeElement.blur();
+    }
+  };
 
   const handleTextChange = (e) => {
     setInputText(e.target.value);
@@ -197,6 +217,8 @@ export default function ChatArea({
         onStartCall={onStartCall}
         callStatus={callStatus}
         onOpenRoomModal={onOpenRoomModal}
+        onSendNudge={onSendNudge}
+        latency={latency}
       />
 
       {/* Reconnecting Alert Bar */}
@@ -208,7 +230,7 @@ export default function ChatArea({
       )}
 
       {/* Messages Scroll Feed */}
-      <div className="messages-list">
+      <div className="messages-list" onClick={handleDismissKeyboard}>
         {/* Waiting Room Hero Card */}
         {((roomFullError && !isConnected) || (messages.length === 0 && !isConnected)) && (
           <RoomHeroCard 

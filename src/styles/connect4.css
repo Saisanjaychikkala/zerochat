@@ -1,0 +1,116 @@
+/* ==========================================================================
+   ZeroChat - Cyber Connect Four (Drop-4) Modular Styles
+   ========================================================================== */
+
+.cyber-c4-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 14px;
+  background: #04060a;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.c4-status-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  max-width: 440px;
+}
+
+.c4-board-shell {
+  background: rgba(14, 19, 32, 0.95);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: 10px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8), 0 0 0 1px var(--border-subtle);
+  max-width: 100%;
+}
+
+.c4-columns-container {
+  display: flex;
+  gap: 6px;
+  background: rgba(0, 0, 0, 0.35);
+  padding: 6px;
+  border-radius: var(--radius-md);
+}
+
+.c4-column {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 4px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.c4-column.col-hover {
+  background: rgba(0, 242, 254, 0.08);
+}
+
+.c4-slot {
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.c4-disc {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  transition: all 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.6);
+}
+
+.c4-disc.empty {
+  background: rgba(5, 8, 14, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.c4-disc.disc-c {
+  background: radial-gradient(circle at 35% 35%, #67e8f9 0%, var(--accent-cyan) 60%, #0891b2 100%);
+  box-shadow: 0 0 14px var(--accent-cyan-glow);
+  animation: disc-drop 0.25s ease-out;
+}
+
+.c4-disc.disc-m {
+  background: radial-gradient(circle at 35% 35%, #f472b6 0%, #d946ef 60%, #9333ea 100%);
+  box-shadow: 0 0 14px rgba(217, 70, 239, 0.5);
+  animation: disc-drop 0.25s ease-out;
+}
+
+.c4-disc.winning-disc {
+  animation: disc-pulse 0.9s infinite alternate;
+  filter: brightness(1.25);
+  box-shadow: 0 0 22px #fff;
+}
+
+@keyframes disc-drop {
+  0% { transform: translateY(-40px) scale(0.85); opacity: 0; }
+  100% { transform: translateY(0) scale(1); opacity: 1; }
+}
+
+@keyframes disc-pulse {
+  0% { transform: scale(1); }
+  100% { transform: scale(1.12); }
+}
+
+/* Mobile Responsive */
+@media (max-width: 480px) {
+  .c4-slot {
+    width: 36px;
+    height: 36px;
+  }
+  .c4-disc {
+    width: 30px;
+    height: 30px;
+  }
+}

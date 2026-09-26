@@ -2,7 +2,7 @@
    ZeroChat - Design System Tokens & CSS Variables
    ========================================================================== */
 
-:root {
+:root, [data-theme="cyber-cyan"] {
   /* Color Palette */
   --bg-primary: #06080d;
   --bg-secondary: #0c101a;
@@ -40,9 +40,153 @@
   --shadow-card: 0 10px 30px -10px rgba(0, 0, 0, 0.6), 0 0 0 1px var(--border-subtle);
   --shadow-glow: 0 0 25px var(--accent-cyan-glow);
 
+  /* Ambient Background Lights */
+  --bg-ambient-1: rgba(0, 242, 254, 0.08);
+  --bg-ambient-2: rgba(157, 78, 221, 0.09);
+
   /* Radius */
   --radius-sm: 8px;
   --radius-md: 14px;
   --radius-lg: 20px;
   --radius-full: 9999px;
+}
+
+/* Matrix Emerald Theme */
+[data-theme="matrix-emerald"] {
+  --bg-primary: #030805;
+  --bg-secondary: #06140b;
+  --bg-tertiary: #0b1f13;
+  --bg-card: rgba(6, 22, 13, 0.88);
+  --bg-card-hover: rgba(10, 34, 20, 0.94);
+  --bg-input: rgba(4, 16, 9, 0.92);
+
+  --accent-cyan: #00ff88;
+  --accent-cyan-glow: rgba(0, 255, 136, 0.35);
+  --accent-blue: #10b981;
+  --accent-purple: #059669;
+  --accent-purple-glow: rgba(16, 185, 129, 0.3);
+  --border-accent: rgba(0, 255, 136, 0.3);
+  --shadow-glow: 0 0 25px rgba(0, 255, 136, 0.35);
+  --bg-ambient-1: rgba(0, 255, 136, 0.08);
+  --bg-ambient-2: rgba(16, 185, 129, 0.09);
+}
+
+/* Synthwave Purple / Neon Magenta Theme */
+[data-theme="synthwave-purple"] {
+  --bg-primary: #090511;
+  --bg-secondary: #130a24;
+  --bg-tertiary: #1c0e35;
+  --bg-card: rgba(22, 12, 40, 0.88);
+  --bg-card-hover: rgba(32, 18, 58, 0.94);
+  --bg-input: rgba(16, 8, 30, 0.92);
+
+  --accent-cyan: #f43f5e;
+  --accent-cyan-glow: rgba(244, 63, 94, 0.35);
+  --accent-blue: #ec4899;
+  --accent-purple: #a855f7;
+  --accent-purple-glow: rgba(168, 85, 247, 0.3);
+  --border-accent: rgba(244, 63, 94, 0.3);
+  --shadow-glow: 0 0 25px rgba(244, 63, 94, 0.35);
+  --bg-ambient-1: rgba(244, 63, 94, 0.09);
+  --bg-ambient-2: rgba(168, 85, 247, 0.1);
+}
+
+/* Solar Amber / Cyber Gold Theme */
+[data-theme="solar-amber"] {
+  --bg-primary: #0a0702;
+  --bg-secondary: #150f05;
+  --bg-tertiary: #201708;
+  --bg-card: rgba(25, 18, 7, 0.88);
+  --bg-card-hover: rgba(38, 27, 10, 0.94);
+  --bg-input: rgba(18, 12, 4, 0.92);
+
+  --accent-cyan: #f59e0b;
+  --accent-cyan-glow: rgba(245, 158, 11, 0.35);
+  --accent-blue: #fbbf24;
+  --accent-purple: #d97706;
+  --accent-purple-glow: rgba(217, 119, 6, 0.3);
+  --border-accent: rgba(245, 158, 11, 0.3);
+  --shadow-glow: 0 0 25px rgba(245, 158, 11, 0.35);
+  --bg-ambient-1: rgba(245, 158, 11, 0.08);
+  --bg-ambient-2: rgba(217, 119, 6, 0.09);
+}
+
+/* Crimson Red / Blood Ruby Theme */
+[data-theme="crimson-red"] {
+  --bg-primary: #0a0304;
+  --bg-secondary: #160608;
+  --bg-tertiary: #22090c;
+  --bg-card: rgba(28, 8, 11, 0.88);
+  --bg-card-hover: rgba(42, 12, 16, 0.94);
+  --bg-input: rgba(20, 5, 7, 0.92);
+
+  --accent-cyan: #ef4444;
+  --accent-cyan-glow: rgba(239, 68, 68, 0.35);
+  --accent-blue: #f87171;
+  --accent-purple: #dc2626;
+  --accent-purple-glow: rgba(220, 38, 38, 0.3);
+  --border-accent: rgba(239, 68, 68, 0.3);
+  --shadow-glow: 0 0 25px rgba(239, 68, 68, 0.35);
+  --bg-ambient-1: rgba(239, 68, 68, 0.09);
+  --bg-ambient-2: rgba(220, 38, 38, 0.08);
+}
+
+/* Midnight Blue / Deep Cobalt Theme */
+[data-theme="midnight-blue"] {
+  --bg-primary: #030712;
+  --bg-secondary: #070e24;
+  --bg-tertiary: #0c183a;
+  --bg-card: rgba(9, 20, 48, 0.88);
+  --bg-card-hover: rgba(14, 30, 70, 0.94);
+  --bg-input: rgba(6, 14, 34, 0.92);
+
+  --accent-cyan: #38bdf8;
+  --accent-cyan-glow: rgba(56, 189, 248, 0.35);
+  --accent-blue: #2563eb;
+  --accent-purple: #60a5fa;
+  --accent-purple-glow: rgba(96, 165, 250, 0.3);
+  --border-accent: rgba(56, 189, 248, 0.3);
+  --shadow-glow: 0 0 25px rgba(56, 189, 248, 0.35);
+  --bg-ambient-1: rgba(56, 189, 248, 0.08);
+  --bg-ambient-2: rgba(37, 99, 235, 0.1);
+}
+
+/* Monolith Slate / Industrial Platinum Theme */
+[data-theme="monolith-slate"] {
+  --bg-primary: #07090e;
+  --bg-secondary: #0e1219;
+  --bg-tertiary: #161c26;
+  --bg-card: rgba(18, 24, 34, 0.88);
+  --bg-card-hover: rgba(26, 34, 48, 0.94);
+  --bg-input: rgba(12, 16, 24, 0.92);
+
+  --accent-cyan: #e2e8f0;
+  --accent-cyan-glow: rgba(226, 232, 240, 0.35);
+  --accent-blue: #94a3b8;
+  --accent-purple: #cbd5e1;
+  --accent-purple-glow: rgba(203, 213, 225, 0.25);
+  --border-accent: rgba(226, 232, 240, 0.35);
+  --shadow-glow: 0 0 25px rgba(226, 232, 240, 0.25);
+  --bg-ambient-1: rgba(226, 232, 240, 0.06);
+  --bg-ambient-2: rgba(148, 163, 184, 0.07);
+}
+
+/* Tokyo Neon / Cyberpunk Sakura Theme */
+[data-theme="tokyo-neon"] {
+  --bg-primary: #0a0414;
+  --bg-secondary: #140827;
+  --bg-tertiary: #1f0d3a;
+  --bg-card: rgba(26, 11, 48, 0.88);
+  --bg-card-hover: rgba(38, 16, 70, 0.94);
+  --bg-input: rgba(18, 7, 34, 0.92);
+
+  --accent-cyan: #ff007f;
+  --accent-cyan-glow: rgba(255, 0, 127, 0.4);
+  --accent-blue: #00f0ff;
+  --accent-purple: #b026ff;
+  --accent-purple-glow: rgba(176, 38, 255, 0.35);
+  --border-accent: rgba(255, 0, 127, 0.35);
+  --shadow-glow: 0 0 25px rgba(255, 0, 127, 0.4);
+  --bg-ambient-1: rgba(255, 0, 127, 0.09);
+  --bg-ambient-2: rgba(0, 240, 255, 0.09);
 }

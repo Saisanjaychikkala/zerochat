@@ -9,7 +9,10 @@ import {
   Flame, 
   Info, 
   PhoneOff, 
-  Activity
+  Activity,
+  Home,
+  Palette,
+  Gamepad2
 } from 'lucide-react';
 
 import { copyToClipboard } from '../utils/clipboard';
@@ -32,7 +35,11 @@ export default function Header({
   onShowNicknameModal,
   onOpenNicknameModal,
   onShowInfoModal,
-  onOpenInfoModal
+  onOpenInfoModal,
+  onGoHome,
+  theme,
+  onToggleTheme,
+  onLaunchGame
 }) {
   const [copied, setCopied] = useState(false);
   const activeRoomId = roomId || myRoomId;
@@ -55,10 +62,27 @@ export default function Header({
     <header className="header-bar glass-panel">
       {/* Brand & User Profile */}
       <div className="logo-group">
-        <div className="logo-badge">
+        {onGoHome && (
+          <button 
+            onClick={onGoHome} 
+            className="btn btn-icon" 
+            title="Return to Homescreen Hub"
+          >
+            <Home size={16} />
+          </button>
+        )}
+        <div 
+          className="logo-badge cursor-pointer" 
+          onClick={onGoHome}
+          title="Go to Homescreen Hub"
+        >
           <Sparkles size={19} />
         </div>
-        <div className="logo-text">
+        <div 
+          className="logo-text cursor-pointer" 
+          onClick={onGoHome}
+          title="Go to Homescreen Hub"
+        >
           <h1>ZeroChat</h1>
           <p>Direct P2P DataChannel</p>
         </div>
@@ -118,15 +142,37 @@ export default function Header({
           <Activity size={14} color={status === 'connected' ? 'var(--accent-cyan)' : 'var(--text-dim)'} />
           <span className="ping-val">
             {status === 'connected' 
-              ? (latency !== null ? `${latency}ms` : '<10ms') 
+              ? (latency !== null ? `Online • ${latency}ms` : 'Online • <10ms') 
               : status === 'connecting' 
               ? 'Connecting' 
               : status === 'reconnecting'
               ? 'Reconnecting'
-              : 'Standby'}
+              : 'Offline'}
           </span>
           <span className={`status-dot ${status}`} />
         </div>
+
+        {/* P2P Game Arena Action */}
+        {onLaunchGame && (
+          <button 
+            onClick={onLaunchGame} 
+            className="btn btn-icon"
+            title="Open P2P Cyber Game Arena"
+          >
+            <Gamepad2 size={16} color="var(--accent-purple)" />
+          </button>
+        )}
+
+        {/* Theme Switcher */}
+        {onToggleTheme && (
+          <button 
+            onClick={onToggleTheme} 
+            className="btn btn-icon theme-toggle-btn"
+            title={`Active Theme: ${theme}. Click to switch theme.`}
+          >
+            <Palette size={16} />
+          </button>
+        )}
 
         {/* Sound Toggle */}
         <button 
@@ -139,7 +185,7 @@ export default function Header({
 
         {/* Info Modal */}
         <button 
-          onClick={handleInfoModal}
+          onClick={handleInfoModal} 
           className="btn btn-icon info-btn"
           title="Security & Architecture"
         >

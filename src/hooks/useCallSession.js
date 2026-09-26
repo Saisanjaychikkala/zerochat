@@ -56,21 +56,54 @@ export function useCallSession({ status, remoteNickname, soundEnabled, showToast
 
   useEffect(() => {
     const unsubCallIncoming = peerService.on('call_incoming', ({ callerNickname, isVideo }) => {
-      stopActiveRingtones();
-      ringtoneStopRef.current = startRingtone(soundEnabledRef.current);
-      setCallState({
-        status: 'incoming',
-        role: 'receiver',
-        isVideo,
-        remoteNickname: callerNickname || 'Peer',
-        localStream: null,
-        remoteStream: null,
-        isScreenSharing: false,
-        isAudioMuted: false,
-        isVideoMuted: false,
-        isRemoteCameraActive: false,
-        durationSec: 0,
+      // Deterministic Call Glare Resolution: if outgoing call already pending, auto-reconcile
+      setCallState((prev) => {
+        if (prev.status === 'calling') {
+          stopActiveRingtones();
+          try {
+            peerService.endCall();
+          } catch (e) {}
+          if (showToast) {
+            showToast('Simultaneous call! Both of you dialed at the same second. Use Nudge (🔔) to coordinate.', 'warning');
+          }
+          return {
+            status: 'idle',
+            role: null,
+            isVideo: true,
+            remoteNickname: callerNickname || 'Peer',
+            localStream: null,
+            remoteStream: null,
+            isScreenSharing: false,
+            isAudioMuted: false,
+            isVideoMuted: false,
+            isRemoteCameraActive: false,
+            durationSec: 0,
+          };
+        }
+
+        stopActiveRingtones();
+        ringtoneStopRef.current = startRingtone(soundEnabledRef.current);
+        return {
+          status: 'incoming',
+          role: 'receiver',
+          isVideo,
+          remoteNickname: callerNickname || 'Peer',
+          localStream: null,
+          remoteStream: null,
+          isScreenSharing: false,
+          isAudioMuted: false,
+          isVideoMuted: false,
+          isRemoteCameraActive: false,
+          durationSec: 0,
+        };
       });
+    });
+
+    const unsubPeerNudge = peerService.on('peer_nudge', ({ message, senderNickname }) => {
+      playSound('pop', soundEnabledRef.current);
+      if (showToast) {
+        showToast(`🔔 ${senderNickname || 'Peer'}: ${message || 'Calling you soon!'}`, 'info');
+      }
     });
 
     const unsubCallStarted = peerService.on('call_started', ({ role, isVideo: callIsVideo, remoteNickname: callerNick }) => {
@@ -159,6 +192,7 @@ export function useCallSession({ status, remoteNickname, soundEnabled, showToast
     return () => {
       stopActiveRingtones();
       unsubCallIncoming();
+      unsubPeerNudge();
       unsubCallStarted();
       unsubLocalStream();
       unsubRemoteStream();
@@ -255,6 +289,17 @@ export function useCallSession({ status, remoteNickname, soundEnabled, showToast
     await peerService.switchCamera();
   }, []);
 
+  const handleSendNudge = useCallback((customMsg = null) => {
+    if (status !== 'connected') {
+      if (showToast) showToast('Connect with a peer to send a call ping', 'warning');
+      return;
+    }
+    const text = customMsg || "I'm calling you in 5s! Stay ready.";
+    peerService.sendNudge(text);
+    playSound('pop', soundEnabledRef.current);
+    if (showToast) showToast(`Call ping sent: "${text}"`, 'success');
+  }, [status, showToast]);
+
   return {
     callState,
     setCallState,
@@ -266,6 +311,7 @@ export function useCallSession({ status, remoteNickname, soundEnabled, showToast
     handleToggleVideo,
     handleToggleScreenShare,
     handleSwitchCamera,
+    handleSendNudge,
     stopActiveRingtones,
   };
 }

@@ -15,13 +15,50 @@ export function usePreferences(showToast) {
     return saved !== null ? JSON.parse(saved) : true;
   });
 
+  const [theme, setTheme] = useState(() => {
+    return localStorage.getItem('zerochat_theme') || 'cyber-cyan';
+  });
+
   useEffect(() => {
     localStorage.setItem('zerochat_sound', JSON.stringify(soundEnabled));
   }, [soundEnabled]);
 
   useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('zerochat_theme', theme);
+  }, [theme]);
+
+  useEffect(() => {
     peerService.setNickname(myNickname);
   }, [myNickname]);
+
+  const toggleTheme = () => {
+    const themeCycle = [
+      'cyber-cyan',
+      'matrix-emerald',
+      'synthwave-purple',
+      'solar-amber',
+      'crimson-red',
+      'midnight-blue',
+      'monolith-slate',
+      'tokyo-neon',
+    ];
+    const nextTheme = themeCycle[(themeCycle.indexOf(theme) + 1) % themeCycle.length];
+    setTheme(nextTheme);
+    if (showToast) {
+      const names = {
+        'cyber-cyan': 'Cyber Cyan (Default)',
+        'matrix-emerald': 'Matrix Emerald',
+        'synthwave-purple': 'Synthwave Purple',
+        'solar-amber': 'Solar Amber',
+        'crimson-red': 'Crimson Red',
+        'midnight-blue': 'Midnight Blue',
+        'monolith-slate': 'Monolith Slate',
+        'tokyo-neon': 'Tokyo Neon',
+      };
+      showToast(`Switched theme: ${names[nextTheme] || nextTheme}`, 'info');
+    }
+  };
 
   const handleSaveNickname = (name, color) => {
     setMyNickname(name);
@@ -37,6 +74,8 @@ export function usePreferences(showToast) {
     myAvatarBg,
     soundEnabled,
     setSoundEnabled,
+    theme,
+    toggleTheme,
     handleSaveNickname,
   };
 }

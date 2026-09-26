@@ -9,7 +9,7 @@
  */
 
 import Peer from 'peerjs';
-import { ICE_SERVERS, generateRoomId } from './webrtc/constants';
+import { ICE_SERVERS, STUN_ONLY_ICE_SERVERS, UNIVERSAL_ICE_SERVERS, generateRoomId } from './webrtc/constants';
 import { FileStreamEngine } from './webrtc/fileStreamEngine';
 import { MediaCallEngine } from './webrtc/mediaCallEngine';
 
@@ -33,6 +33,9 @@ class PeerService {
     this.isIntentionalDisconnect = false;
     this.isRoomFull = false;
 
+    // Connection Mode: 'universal' (STUN+TURN) or 'stun_only' (Pure direct P2P)
+    this.connectionMode = 'universal';
+
     // Ephemeral RAM outgoing message queue for background reconnect resilience
     this.outgoingQueue = [];
     this.lastActiveTime = Date.now();
@@ -40,6 +43,22 @@ class PeerService {
     // Sub-Engines
     this.fileStream = new FileStreamEngine();
     this.mediaCall = new MediaCallEngine();
+  }
+
+  setConnectionMode(mode) {
+    if (this.connectionMode !== mode) {
+      this.connectionMode = mode;
+      console.log('[ZeroChat] Connection mode updated to:', mode);
+      if (this.peer && !this.peer.destroyed) {
+        const prevId = this.myPeerId;
+        try {
+          this.peer.destroy();
+        } catch (e) {}
+        this.peer = null;
+        this.myPeerId = null;
+        this.init(prevId);
+      }
+    }
   }
 
   // ==========================================
@@ -115,9 +134,13 @@ class PeerService {
     this.isInitializing = true;
 
     return new Promise((resolve, reject) => {
+      const activeIce = this.connectionMode === 'stun_only' 
+        ? STUN_ONLY_ICE_SERVERS 
+        : (UNIVERSAL_ICE_SERVERS || ICE_SERVERS);
+
       const config = {
         config: {
-          iceServers: ICE_SERVERS,
+          iceServers: activeIce,
           iceCandidatePoolSize: 10,
         },
         debug: 1,
@@ -566,6 +589,16 @@ class PeerService {
         this.emit('status', 'disconnected');
         break;
 
+      case 'session_burned':
+        console.warn('[ZeroChat] Remote peer burned the session!');
+        this.emit('session_burned', {
+          burnerNickname: packet.burnerNickname || this.remoteNickname || 'Peer',
+        });
+        this.isIntentionalDisconnect = true;
+        this.disconnect();
+        this.emit('status', 'disconnected');
+        break;
+
       case 'call_signal':
         this.mediaCall.handleCallSignal(packet, this.remoteNickname, (e, d) => this.emit(e, d));
         break;
@@ -596,9 +629,47 @@ class PeerService {
         this.fileStream.handleFileCancel(packet.fileId, (e, d) => this.emit(e, d));
         break;
 
+      case 'peer_nudge':
+        this.emit('peer_nudge', {
+          message: packet.message,
+          senderNickname: packet.senderNickname || this.remoteNickname || 'Peer',
+          nudgeType: packet.nudgeType || 'calling_soon',
+        });
+        break;
+
+      case 'game_event':
+        this.emit('game_event', packet.data);
+        break;
+
       default:
         break;
     }
+  }
+
+  sendNudge(message = "I'll be calling you in 5 seconds! Get ready.", nudgeType = 'calling_soon') {
+    this.sendJson({
+      type: 'peer_nudge',
+      message,
+      senderNickname: this.myNickname,
+      nudgeType,
+    });
+  }
+
+  sendGameEvent(data) {
+    this.sendJson({
+      type: 'game_event',
+      data,
+    });
+  }
+
+  burnSession() {
+    try {
+      this.sendJson({
+        type: 'session_burned',
+        burnerNickname: this.myNickname,
+      });
+    } catch (e) {}
+    this.isIntentionalDisconnect = true;
   }
 
   // ==========================================

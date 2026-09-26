@@ -1,5 +1,5 @@
 import React from 'react';
-import { Lock, AlertCircle, Phone, Video, ArrowRight } from 'lucide-react';
+import { Lock, AlertCircle, Phone, Video, ArrowRight, Bell } from 'lucide-react';
 
 export default function ChatHeader({
   isConnected,
@@ -9,8 +9,35 @@ export default function ChatHeader({
   roomFullError,
   onStartCall,
   callStatus,
-  onOpenRoomModal
+  onOpenRoomModal,
+  onSendNudge,
+  latency
 }) {
+  const getStatusBadge = () => {
+    if (isConnected) {
+      return (
+        <span className="status-badge-inline online" title={`Peer is online • Ping: ${latency !== null ? `${latency}ms` : '<10ms'}`}>
+          <span className="status-dot-pulse" />
+          <span>Online {latency !== null ? `(${latency}ms)` : '(<10ms)'}</span>
+        </span>
+      );
+    }
+    if (status === 'reconnecting') {
+      return (
+        <span className="status-badge-inline reconnecting" title="Re-syncing connection">
+          <span className="status-dot-pulse warning" />
+          <span>Reconnecting</span>
+        </span>
+      );
+    }
+    return (
+      <span className="status-badge-inline offline" title="No peer currently connected">
+        <span className="status-dot-static offline" />
+        <span>Offline</span>
+      </span>
+    );
+  };
+
   return (
     <div className="chat-header">
       <div className="peer-info">
@@ -33,9 +60,10 @@ export default function ChatHeader({
                 ? 'Connecting...'
                 : 'Ready for Connection'}
             </span>
+            {getStatusBadge()}
             <span className="e2ee-tag" style={roomFullError && !isConnected ? { borderColor: 'rgba(239, 68, 68, 0.3)', color: '#f87171' } : {}}>
               {roomFullError && !isConnected ? <AlertCircle size={10} /> : <Lock size={10} />}
-              <span>{roomFullError && !isConnected ? 'Occupied' : 'WebRTC E2EE'}</span>
+              <span>{roomFullError && !isConnected ? 'Occupied' : 'E2EE'}</span>
             </span>
           </div>
           <p style={{ fontSize: '0.72rem', color: roomFullError && !isConnected ? '#f87171' : 'var(--text-muted)' }}>
@@ -53,37 +81,52 @@ export default function ChatHeader({
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-        {isConnected && onStartCall && (
+        {isConnected && (
           <>
-            <button 
-              onClick={() => onStartCall(false)} 
-              className="btn btn-icon call-trigger-btn"
-              title={callStatus && callStatus !== 'idle' ? 'Call in progress' : 'Start Encrypted Voice Call'}
-              disabled={callStatus && callStatus !== 'idle'}
-              style={{ 
-                width: '34px', 
-                height: '34px', 
-                opacity: (callStatus && callStatus !== 'idle') ? 0.45 : 1,
-                cursor: (callStatus && callStatus !== 'idle') ? 'not-allowed' : 'pointer'
-              }}
-            >
-              <Phone size={15} color="var(--accent-cyan)" />
-            </button>
+            {onSendNudge && (
+              <button
+                onClick={onSendNudge}
+                className="btn btn-icon call-trigger-btn"
+                title="Ping Peer: 'Calling you soon!' (Avoids calling at the same time)"
+                style={{ width: '34px', height: '34px' }}
+              >
+                <Bell size={15} color="var(--accent-amber)" />
+              </button>
+            )}
 
-            <button 
-              onClick={() => onStartCall(true)} 
-              className="btn btn-icon call-trigger-btn"
-              title={callStatus && callStatus !== 'idle' ? 'Call in progress' : 'Start Encrypted Video Call'}
-              disabled={callStatus && callStatus !== 'idle'}
-              style={{ 
-                width: '34px', 
-                height: '34px', 
-                opacity: (callStatus && callStatus !== 'idle') ? 0.45 : 1,
-                cursor: (callStatus && callStatus !== 'idle') ? 'not-allowed' : 'pointer'
-              }}
-            >
-              <Video size={16} color="var(--accent-emerald)" />
-            </button>
+            {onStartCall && (
+              <>
+                <button 
+                  onClick={() => onStartCall(false)} 
+                  className="btn btn-icon call-trigger-btn"
+                  title={callStatus && callStatus !== 'idle' ? 'Call in progress' : 'Start Encrypted Voice Call'}
+                  disabled={callStatus && callStatus !== 'idle'}
+                  style={{ 
+                    width: '34px', 
+                    height: '34px', 
+                    opacity: (callStatus && callStatus !== 'idle') ? 0.45 : 1,
+                    cursor: (callStatus && callStatus !== 'idle') ? 'not-allowed' : 'pointer'
+                  }}
+                >
+                  <Phone size={15} color="var(--accent-cyan)" />
+                </button>
+
+                <button 
+                  onClick={() => onStartCall(true)} 
+                  className="btn btn-icon call-trigger-btn"
+                  title={callStatus && callStatus !== 'idle' ? 'Call in progress' : 'Start Encrypted Video Call'}
+                  disabled={callStatus && callStatus !== 'idle'}
+                  style={{ 
+                    width: '34px', 
+                    height: '34px', 
+                    opacity: (callStatus && callStatus !== 'idle') ? 0.45 : 1,
+                    cursor: (callStatus && callStatus !== 'idle') ? 'not-allowed' : 'pointer'
+                  }}
+                >
+                  <Video size={16} color="var(--accent-emerald)" />
+                </button>
+              </>
+            )}
           </>
         )}
 

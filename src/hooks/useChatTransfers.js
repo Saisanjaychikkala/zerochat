@@ -95,6 +95,36 @@ export function useChatTransfers({ soundEnabled, mobileTab, showToast }) {
       if (showToast) showToast('File transfer cancelled', 'warning');
     });
 
+    const unsubSessionBurned = peerService.on('session_burned', ({ burnerNickname }) => {
+      // Hardware & Memory Security: Immediately revoke all local blob memory and wipe RAM state
+      setTransfers((prev) => {
+        prev.forEach((t) => {
+          if (t.downloadUrl) {
+            try { URL.revokeObjectURL(t.downloadUrl); } catch (e) {}
+          }
+        });
+        return [];
+      });
+      setMessages((prev) => {
+        prev.forEach((m) => {
+          if (m.downloadUrl) {
+            try { URL.revokeObjectURL(m.downloadUrl); } catch (e) {}
+          }
+          if (m.imageUrl) {
+            try { URL.revokeObjectURL(m.imageUrl); } catch (e) {}
+          }
+          if (m.audioUrl) {
+            try { URL.revokeObjectURL(m.audioUrl); } catch (e) {}
+          }
+        });
+        return [];
+      });
+      playSound('burn', soundEnabledRef.current);
+      if (showToast) {
+        showToast(`🔥 ${burnerNickname || 'The other user'} burned the session! All messages & files were permanently deleted.`, 'warning');
+      }
+    });
+
     return () => {
       unsubMessage();
       unsubAck();
@@ -103,6 +133,7 @@ export function useChatTransfers({ soundEnabled, mobileTab, showToast }) {
       unsubFileProgress();
       unsubFileComplete();
       unsubFileCancelled();
+      unsubSessionBurned();
     };
   }, [showToast]);
 
@@ -196,34 +227,42 @@ export function useChatTransfers({ soundEnabled, mobileTab, showToast }) {
 
   const handleBurnSession = useCallback((onReset) => {
     if (window.confirm('Burn session? This immediately wipes all messages and files from memory and resets the room.')) {
-      peerService.cleanup();
+      // Notify remote peer to burn their session memory too
+      peerService.burnSession();
 
-      // Revoke all Blob URLs to completely free RAM
-      transfers.forEach((t) => {
-        if (t.downloadUrl) {
-          try { URL.revokeObjectURL(t.downloadUrl); } catch (e) {}
-        }
+      // Revoke all Blob URLs and wipe state safely
+      setTransfers((prev) => {
+        prev.forEach((t) => {
+          if (t.downloadUrl) {
+            try { URL.revokeObjectURL(t.downloadUrl); } catch (e) {}
+          }
+        });
+        return [];
       });
-      messages.forEach((m) => {
-        if (m.downloadUrl) {
-          try { URL.revokeObjectURL(m.downloadUrl); } catch (e) {}
-        }
-        if (m.imageUrl) {
-          try { URL.revokeObjectURL(m.imageUrl); } catch (e) {}
-        }
-        if (m.audioUrl) {
-          try { URL.revokeObjectURL(m.audioUrl); } catch (e) {}
-        }
+      setMessages((prev) => {
+        prev.forEach((m) => {
+          if (m.downloadUrl) {
+            try { URL.revokeObjectURL(m.downloadUrl); } catch (e) {}
+          }
+          if (m.imageUrl) {
+            try { URL.revokeObjectURL(m.imageUrl); } catch (e) {}
+          }
+          if (m.audioUrl) {
+            try { URL.revokeObjectURL(m.audioUrl); } catch (e) {}
+          }
+        });
+        return [];
       });
 
-      setMessages([]);
-      setTransfers([]);
-      if (onReset) onReset();
-      window.history.replaceState(null, '', window.location.pathname);
-      peerService.init().catch(console.error);
-      if (showToast) showToast('Session burned. Fresh room ready.', 'success');
+      setTimeout(() => {
+        peerService.cleanup();
+        if (onReset) onReset();
+        window.history.replaceState(null, '', window.location.pathname);
+        peerService.init().catch(console.error);
+        if (showToast) showToast('Session burned. Fresh room ready.', 'success');
+      }, 50);
     }
-  }, [transfers, messages, showToast]);
+  }, [showToast]);
 
   return {
     messages,
