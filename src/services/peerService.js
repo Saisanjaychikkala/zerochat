@@ -127,7 +127,15 @@ class PeerService {
       this.currentRoomId = targetRoom;
       this.connectAttempts = 0;
 
-      this.setupPeerInstance(targetRoom, targetRoom, false, resolve, reject);
+      if (normalizedRoom) {
+        // Invite link / QR code scanned: register unique Guest ID and connect to Host
+        const guestId = `${targetRoom}-g-${Math.floor(1000 + Math.random() * 9000)}`;
+        console.log(`[ZeroChat] Joining room "${targetRoom}" via invite/QR as Guest: ${guestId}`);
+        this.setupPeerInstance(guestId, targetRoom, true, resolve, reject);
+      } else {
+        // Fresh room initialization: register as Host
+        this.setupPeerInstance(targetRoom, targetRoom, false, resolve, reject);
+      }
     });
   }
 
