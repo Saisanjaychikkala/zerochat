@@ -975,7 +975,7 @@ class PeerService {
   }
 
   cleanup() {
-    this.disconnect(false);
+    this.disconnect(true);
     this.mediaCall.cleanupCall((e, d) => this.emit(e, d));
     if (this.peer) {
       try {

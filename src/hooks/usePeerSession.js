@@ -150,7 +150,7 @@ export function usePeerSession({ soundEnabled, showToast, onNewPeerConnection })
       setStatus('connecting');
       window.history.replaceState(null, '', '#' + cleanId);
       if (showToast) showToast(`Connecting to room ${cleanId}...`, 'info');
-      if (!peerService.peer || peerService.peer.destroyed) {
+      if (asHost || !peerService.peer || peerService.peer.destroyed) {
         peerService.init(cleanId, asHost).catch((err) => {
           console.error('[ZeroChat] Join init error:', err);
           setStatus('disconnected');

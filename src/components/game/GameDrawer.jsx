@@ -69,6 +69,7 @@ export default function GameDrawer({
             return (
               <div 
                 key={game.id} 
+                data-game={game.id}
                 className={`game-drawer-card ${isCurrent ? 'active' : ''}`}
                 onClick={() => {
                   onSelectGame(game.id);
