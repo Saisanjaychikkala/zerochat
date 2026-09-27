@@ -194,6 +194,48 @@
   color: var(--text-dim) !important;
 }
 
+.launch-card-btn {
+  background: linear-gradient(135deg, #a855f7, #ec4899) !important;
+  border: none !important;
+  color: #fff !important;
+  font-weight: 700 !important;
+  height: 38px !important;
+  font-size: 0.82rem !important;
+  box-shadow: 0 0 16px rgba(236, 72, 153, 0.45);
+  border-radius: var(--radius-sm);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: all 0.2s ease;
+}
+
+.launch-card-btn:hover {
+  box-shadow: 0 0 24px rgba(236, 72, 153, 0.65);
+  transform: translateY(-1px);
+}
+
+.join-card-btn {
+  background: linear-gradient(135deg, #00f2fe, #4facfe) !important;
+  border: none !important;
+  color: #000 !important;
+  font-weight: 700 !important;
+  height: 38px !important;
+  font-size: 0.82rem !important;
+  box-shadow: 0 0 16px rgba(0, 242, 254, 0.4);
+  border-radius: var(--radius-sm);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: all 0.2s ease;
+}
+
+.join-card-btn:hover {
+  box-shadow: 0 0 22px rgba(0, 242, 254, 0.6);
+  transform: translateY(-1px);
+}
+
 @media (max-width: 480px) {
   .in-chat-game-card {
     padding: 10px;

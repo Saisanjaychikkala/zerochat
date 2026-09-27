@@ -47,6 +47,7 @@ export default function GameDrawer({
         role="dialog"
         aria-label="Select Game"
       >
+        <div className="drawer-drag-pill" />
         <div className="game-drawer-header">
           <div className="game-drawer-title-group">
             <div className="game-drawer-badge-icon">

@@ -253,21 +253,24 @@ async function runFull2PeerE2ETest() {
     await gridCard.click();
     console.log('Peer 1 selected Cyber Grid from library.');
 
-    // Peer 2 sees the challenge card
-    console.log('Waiting for Peer 2 to observe challenge card...');
-    await pageB.waitForSelector('.active-challenge-card, .join-large-btn, .join-btn', { timeout: 8000 });
-    console.log('✓ Peer 2 received duel proposal!');
+    // Peer 2 sees the in-chat game card
+    console.log('Waiting for Peer 2 to observe in-chat game card...');
+    await pageB.waitForSelector('.in-chat-game-card, .join-card-btn', { timeout: 8000 });
+    console.log('✓ Peer 2 received in-chat game card!');
 
     // Peer 2 clicks Join Match
-    const joinMatchBtn = await pageB.waitForSelector('.join-large-btn, .join-btn', { timeout: 5000 });
+    const joinMatchBtn = await pageB.waitForSelector('.join-card-btn, .join-large-btn, .join-btn', { timeout: 5000 });
     await joinMatchBtn.click();
     console.log('Peer 2 joined the duel.');
 
-    // Peer 1 launches the match
-    await new Promise((r) => setTimeout(r, 400));
-    const launchMatchBtn = await pageA.waitForSelector('.launch-match-btn', { timeout: 5000 });
-    await launchMatchBtn.click();
-    console.log('Peer 1 triggered "Launch Match".');
+    // Peer 1 launches the match or auto-launches
+    try {
+      const launchMatchBtn = await pageA.waitForSelector('.launch-card-btn, .launch-match-btn', { timeout: 2500 });
+      if (launchMatchBtn) {
+        await launchMatchBtn.click();
+        console.log('Peer 1 triggered "Launch Match".');
+      }
+    } catch (_) {}
 
     // Verify both peers see the active game board
     await Promise.all([

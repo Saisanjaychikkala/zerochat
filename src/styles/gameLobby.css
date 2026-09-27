@@ -1,5 +1,5 @@
 /* ==========================================================================
-   ZeroChat - Game Lobby & Interactive Challenge Cards
+   ZeroChat - Arena Full-Screen Chat & Game Duel Feed
    ========================================================================== */
 .game-lobby-chat-container {
   flex: 1;
@@ -7,182 +7,8 @@
   flex-direction: column;
   min-height: 0;
   height: 100%;
-}
-
-.game-lobby-stage {
-  padding: 16px;
-  border-bottom: 1px solid var(--border-subtle);
-}
-
-.active-challenge-card {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.challenge-card-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.challenge-game-info {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.challenge-icon-box {
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
-  background: rgba(0, 242, 254, 0.15);
-  border: 1px solid rgba(0, 242, 254, 0.3);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.challenge-title {
-  margin: 0;
-  font-size: 0.98rem;
-  font-weight: 700;
-  color: var(--text-main);
-}
-
-.challenge-sub {
-  font-size: 0.72rem;
-  color: var(--text-muted);
-}
-
-.challenge-status-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 3px 10px;
-  border-radius: var(--radius-full);
-  background: rgba(255, 255, 255, 0.04);
-  font-size: 0.74rem;
-  color: var(--text-muted);
-}
-
-.challenge-players-grid {
-  display: grid;
-  grid-template-columns: 1fr auto 1fr;
-  align-items: center;
-  gap: 12px;
-  padding: 12px;
-  background: rgba(0, 0, 0, 0.3);
-  border-radius: var(--radius-md);
-  border: 1px solid var(--border-subtle);
-}
-
-.challenge-player-box {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 12px;
-  border-radius: var(--radius-sm);
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid var(--border-subtle);
-}
-
-.challenge-player-box.joined {
-  border-color: rgba(16, 185, 129, 0.4);
-  background: rgba(16, 185, 129, 0.06);
-}
-
-.challenge-avatar {
-  width: 38px;
-  height: 38px;
-  border-radius: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 800;
-  font-size: 1rem;
-  color: #fff;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
-  flex-shrink: 0;
-}
-
-.challenge-player-meta {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-}
-
-.challenge-player-meta .player-name {
-  font-size: 0.84rem;
-  font-weight: 700;
-  color: var(--text-main);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.player-role-badge {
-  font-size: 0.68rem;
-  color: var(--text-muted);
-}
-
-.challenge-vs-badge {
-  font-weight: 900;
-  font-size: 0.82rem;
-  letter-spacing: 1px;
-  color: var(--accent-cyan);
-  padding: 4px 8px;
-  border-radius: var(--radius-full);
-  background: rgba(0, 242, 254, 0.1);
-}
-
-.guest-waiting-slot {
-  display: flex;
-  align-items: center;
-  gap: 8px;
   width: 100%;
-}
-
-.waiting-label {
-  font-size: 0.74rem;
-  color: var(--text-muted);
-  flex: 1;
-}
-
-.no-challenge-hero {
-  text-align: center;
-  padding: 20px 10px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-}
-
-.hero-icon-bubble {
-  width: 52px;
-  height: 52px;
-  border-radius: 16px;
-  background: rgba(168, 85, 247, 0.15);
-  border: 1px solid rgba(168, 85, 247, 0.3);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-bottom: 4px;
-}
-
-.no-challenge-hero h3 {
-  margin: 0;
-  font-size: 1.1rem;
-  font-weight: 700;
-  color: var(--text-main);
-}
-
-.no-challenge-hero p {
-  margin: 0 0 8px;
-  font-size: 0.8rem;
-  color: var(--text-muted);
-  max-width: 320px;
+  overflow: hidden;
 }
 
 /* In-Game Ephemeral Chat */
@@ -191,27 +17,32 @@
   display: flex;
   flex-direction: column;
   min-height: 0;
-  background: #030508;
+  height: 100%;
+  background: var(--bg-primary, #030508);
+  overflow: hidden;
 }
 
 .game-chat-header {
-  padding: 6px 14px;
+  padding: 8px 14px;
   display: flex;
   align-items: center;
-  gap: 6px;
+  justify-content: space-between;
   font-size: 0.74rem;
   font-weight: 600;
   color: var(--text-muted);
   border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  background: rgba(14, 19, 32, 0.4);
+  flex-shrink: 0;
 }
 
 .game-chat-messages {
   flex: 1;
   overflow-y: auto;
-  padding: 10px 14px;
+  overscroll-behavior: contain;
+  padding: 12px 14px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
 }
 
 .empty-game-chat {
@@ -222,7 +53,7 @@
   text-align: center;
   font-size: 0.74rem;
   color: var(--text-dim);
-  padding: 16px;
+  padding: 20px;
 }
 
 .game-msg-row {
@@ -236,36 +67,40 @@
 }
 
 .game-msg-avatar {
-  width: 24px;
-  height: 24px;
-  border-radius: 6px;
-  font-size: 0.7rem;
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  font-size: 0.72rem;
   font-weight: 700;
   color: #fff;
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
 }
 
 .game-msg-bubble {
-  max-width: 75%;
-  padding: 6px 12px;
-  border-radius: 12px;
-  font-size: 0.82rem;
-  line-height: 1.35;
+  max-width: 78%;
+  padding: 8px 14px;
+  border-radius: 14px;
+  font-size: 0.84rem;
+  line-height: 1.4;
+  word-break: break-word;
 }
 
 .game-msg-bubble.mine {
   background: linear-gradient(135deg, #00f2fe, #4facfe);
   color: #000;
   font-weight: 600;
-  border-bottom-right-radius: 2px;
+  border-bottom-right-radius: 3px;
+  box-shadow: 0 2px 10px rgba(0, 242, 254, 0.2);
 }
 
 .game-msg-bubble.theirs {
   background: rgba(255, 255, 255, 0.08);
   color: var(--text-main);
-  border-bottom-left-radius: 2px;
+  border-bottom-left-radius: 3px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .game-quick-chips {
@@ -274,6 +109,8 @@
   padding: 6px 12px;
   overflow-x: auto;
   scrollbar-width: none;
+  flex-shrink: 0;
+  background: rgba(0, 0, 0, 0.15);
 }
 
 .game-quick-chips::-webkit-scrollbar {
@@ -281,17 +118,15 @@
 }
 
 .chip-btn {
-  white-space: nowrap;
-  font-size: 0.76rem;
-  font-weight: 600;
-  padding: 6px 12px;
-  min-height: 32px;
   display: inline-flex;
   align-items: center;
+  padding: 4px 10px;
   border-radius: var(--radius-full);
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.04);
   border: 1px solid var(--border-subtle);
   color: var(--text-muted);
+  font-size: 0.74rem;
+  white-space: nowrap;
   cursor: pointer;
   transition: all 0.15s ease;
 }
@@ -308,23 +143,55 @@
   padding: 8px 12px;
   border-top: 1px solid var(--border-subtle);
   background: var(--bg-card);
+  align-items: center;
+  flex-shrink: 0;
 }
 
-/* ==========================================
-   Mobile Ergonomics (< 768px)
-   ========================================== */
+.game-add-card-btn {
+  background: rgba(0, 242, 254, 0.1) !important;
+  border: 1px solid rgba(0, 242, 254, 0.3) !important;
+  color: var(--accent-cyan) !important;
+  box-shadow: 0 0 10px rgba(0, 242, 254, 0.15);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: all 0.2s ease;
+}
+
+.game-add-card-btn:hover {
+  background: rgba(0, 242, 254, 0.2) !important;
+  border-color: #00f2fe !important;
+  box-shadow: 0 0 14px rgba(0, 242, 254, 0.35);
+  transform: translateY(-1px);
+}
+
+/* Mobile Ergonomics (< 768px) */
 @media (max-width: 768px) {
-  .challenge-players-grid {
-    grid-template-columns: 1fr;
-    gap: 8px;
+  .game-chat-input-bar {
+    padding: 6px 8px;
+    padding-bottom: max(10px, env(safe-area-inset-bottom, 10px));
+    gap: 6px;
   }
 
-  .challenge-vs-badge {
-    align-self: center;
-    justify-self: center;
+  .game-chat-input-bar input {
+    font-size: 16px !important;
+    height: 38px;
   }
 
-  .game-header {
+  .game-add-card-btn {
+    height: 38px !important;
+    padding: 0 10px !important;
+  }
+
+  .game-chat-send-btn {
+    height: 38px !important;
+    width: 38px !important;
+    min-width: 38px !important;
+  }
+
+  .game-chat-messages {
     padding: 8px 10px;
+    gap: 8px;
   }
 }

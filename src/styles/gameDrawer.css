@@ -233,3 +233,69 @@
   color: #00f2fe !important;
   box-shadow: 0 0 10px rgba(0, 242, 254, 0.4);
 }
+
+.drawer-drag-pill {
+  display: none;
+}
+
+.game-add-chat-btn {
+  background: linear-gradient(135deg, #00f2fe, #4facfe) !important;
+  color: #000 !important;
+  font-weight: 700 !important;
+  border: none !important;
+  box-shadow: 0 0 12px rgba(0, 242, 254, 0.35);
+  border-radius: var(--radius-sm);
+  transition: all 0.2s ease;
+}
+
+.game-add-chat-btn:hover {
+  box-shadow: 0 0 16px rgba(0, 242, 254, 0.55);
+  transform: translateY(-1px);
+}
+
+/* ==========================================
+   Mobile Slide-Up Bottom Sheet (Layout 2)
+   ========================================== */
+@media (max-width: 640px) {
+  .game-drawer-backdrop {
+    align-items: flex-end;
+    justify-content: center;
+  }
+
+  .game-drawer-panel {
+    max-width: 100%;
+    width: 100%;
+    height: auto;
+    max-height: 84dvh;
+    border-radius: 20px 20px 0 0;
+    border-left: none;
+    border-top: 1px solid rgba(0, 242, 254, 0.35);
+    box-shadow: 0 -12px 40px rgba(0, 0, 0, 0.8);
+    animation: slideUpSheet 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+    padding-bottom: max(16px, env(safe-area-inset-bottom, 16px));
+  }
+
+  .drawer-drag-pill {
+    display: block;
+    width: 40px;
+    height: 4px;
+    border-radius: 2px;
+    background: rgba(255, 255, 255, 0.3);
+    margin: 10px auto 2px;
+    flex-shrink: 0;
+  }
+
+  .game-drawer-header {
+    padding: 12px 16px;
+  }
+
+  .game-drawer-body {
+    padding: 10px 14px;
+    gap: 10px;
+  }
+
+  .game-drawer-card {
+    padding: 10px 12px;
+  }
+}
+
