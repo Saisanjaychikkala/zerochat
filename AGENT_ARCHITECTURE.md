@@ -18,28 +18,49 @@
 ```
 src/
 ├── services/
-│   ├── peerService.js                     # Unified Facade singleton (PeerJS lifecycle, heartbeat, reconnect loop)
+│   ├── peerService.js                     # Unified Facade singleton (PeerJS lifecycle, heartbeat, reconnect loop, mic authority)
 │   └── webrtc/
 │       ├── constants.js                   # ICE_SERVERS, CHUNK_SIZE (16KB), ROOM_WORDS, generateRoomId()
 │       ├── fileStreamEngine.js            # 16KB ArrayBuffer streaming, assembler, progress & cancellation
-│       └── mediaCallEngine.js             # Voice/video calling, dummy track, camera upgrade, screen sharing
+│       ├── mediaCallEngine.js             # Voice/video calling, dummy track, camera upgrade, screen sharing, setAudioMute
+│       └── streamHelpers.js               # Media track handling, dummy track generator, screen share detection
+├── hooks/
+│   ├── usePreferences.js                  # Display name, avatar background, sound toggles, theme
+│   ├── usePeerSession.js                  # PeerJS connection state, room lifecycle, typing indicators
+│   ├── useCallSession.js                  # Media call ringing, audio/video toggling, screen share, direct mic mute
+│   ├── useChatTransfers.js                # In-memory messages, 16KB file transfers, panic session burn
+│   └── useInChatGames.js                  # In-chat game drawer, challenge cards, cardId isolation, match state caching
 ├── components/
-│   ├── ChatArea.jsx                       # Main chat orchestrator (drag-drop, typing debounce, auto-scroll)
+│   ├── ChatArea.jsx                       # Main chat orchestrator (drag-drop, typing debounce, auto-scroll, match dock)
+│   ├── HomeScreen.jsx                     # Central navigation hub (True Private, Universal, Game Arena)
+│   ├── P2PGameArena.jsx                   # Standalone WebRTC Game Arena (#game-xxx)
+│   ├── FileTransferArea.jsx               # Drag-and-drop file drop zone & transfer progress list
+│   ├── AppModals.jsx                      # Central modal coordinator
 │   ├── chat/
 │   │   ├── ChatHeader.jsx                 # Remote peer status, E2EE badge, call trigger buttons
 │   │   ├── RoomHeroCard.jsx               # QR code, 3-word code box, copy link, quick guide
-│   │   ├── MessageItem.jsx                # Single message row, code block, image preview, delivery status
+│   │   ├── MessageItem.jsx                # Single message row, code block, image preview, game card
 │   │   ├── ReplyQuoteBox.jsx              # In-bubble quoted card with click-to-scroll trigger
 │   │   ├── ReplyPreviewDock.jsx           # Floating active reply dock above input
-│   │   └── ChatInputBar.jsx               # Text input, voice recorder, emoji picker, send button
-│   ├── FileTransferArea.jsx               # Drag-and-drop file drop zone & transfer progress list
-│   ├── CallModal.jsx                      # Active audio/video call UI, visualizer & floating pill dock
-│   ├── RoomModal.jsx                      # Join room by 3-word code or share invite link
-│   ├── InfoModal.jsx                      # 30-second quick start guide & security explanation
-│   ├── NicknameModal.jsx                  # Custom nickname modal
-│   ├── ImageLightboxModal.jsx             # Full-screen image zoom viewer
-│   ├── AudioPlayerBubble.jsx              # Custom animated audio waveform player
-│   └── Header.jsx                         # App top bar, ping latency monitor, room burn button
+│   │   ├── ChatInputBar.jsx               # Text input, voice recorder, game drawer button, send button
+│   │   └── ChatWorkspace.jsx              # Mobile/desktop layout coordinator
+│   ├── call/
+│   │   ├── CallModal.jsx                  # Active audio/video call modal wrapper
+│   │   ├── CallHeaderBar.jsx              # Call duration, encryption badge, quick hangup
+│   │   ├── CallControlsDock.jsx           # Floating pill dock: mic, camera, screen share, flip
+│   │   ├── VideoViewport.jsx              # Local & remote video stream renderers
+│   │   ├── ZoomControls.jsx               # 1.0x - 4.0x pan & pinch zoom controls
+│   │   └── IncomingCallDialog.jsx         # Procedural ringing & incoming call banner
+│   └── game/
+│       ├── GameDrawer.jsx                 # Slide-up bottom sheet drawer with 60 FPS games
+│       ├── ActiveMatchStage.jsx           # Universal match stage with "Return to Chat" and nudge
+│       ├── InChatGameCard.jsx             # In-stream challenge card with status, resume, and [x End]
+│       ├── CyberConnectFour.jsx           # 7x6 Holographic Connect 4 matrix
+│       ├── CyberPongGame.jsx              # Real-time 60 FPS HTML5 canvas pong duel
+│       ├── CyberGridGame.jsx              # 3x3 Cyber Grid Tic-Tac-Toe duel
+│       ├── GameLobbyChat.jsx              # Side chat for standalone game arena
+│       ├── GameVoiceDock.jsx              # Full-duplex voice chat dock for arena
+│       └── GameArenaHeader.jsx            # Standalone arena top navigation & QR invite
 ├── styles/
 │   ├── variables.css                      # Design tokens (colors, gradients, radii, glass-blur)
 │   ├── base.css                           # Reset, ambient background, scrollbars, toasts, buttons
@@ -47,15 +68,22 @@ src/
 │   ├── chat.css                           # Message list, bubbles, threaded quotes, reply dock, typing dots
 │   ├── media.css                          # Audio bubbles, code blocks, drag overlay, inputs, emojis
 │   ├── call.css                           # Floating pill controls dock, video viewports, audio visualizer, PIP
+│   ├── zoom.css                           # Zoom controls badge and gesture styling
 │   ├── modals.css                         # Modal overlays, room code display, guide steps
-│   └── responsive.css                     # Tablet (769-1024px) & Mobile (<=768px) layout rules
+│   ├── responsive.css                     # Tablet (769-1024px) & Mobile (<=768px) layout rules
+│   ├── gameDrawer.css                     # Game selector drawer styles
+│   ├── inChatGameCard.css                 # In-chat interactive challenge card styling
+│   ├── activeMatchStage.css               # Embedded match stage & floating return-to-chat dock
+│   ├── connect4.css                       # Illuminated 7x6 cyber matrix & neon disc drop styling
+│   ├── gameLobby.css                      # Standalone game arena lobby styling
+│   └── gameShelf.css                      # Arena game selector grid styles
 ├── index.css                              # Master stylesheet barrel importing styles/*.css
 ├── utils/
 │   ├── clipboard.js                       # Universal clipboard copying with LAN IP fallback
 │   ├── crypto.js                          # Cryptographic room ID generation & hashing
 │   ├── soundEffects.js                    # Web Audio API procedural sound synthesis (0 audio files)
 │   └── voiceRecorder.js                   # MediaRecorder audio capture with iOS Safari webm/mp4 fallback
-└── App.jsx                                # Root application state & modal coordinator
+└── App.jsx                                # Root application state & router coordinator
 ```
 
 ---
@@ -77,7 +105,9 @@ All structured communication across the WebRTC `RTCDataChannel` uses JSON packet
 | `pong` | `{ type: 'pong', sendTime: number }` | Heartbeat response used to calculate round-trip latency. |
 | `nickname_update` | `{ type: 'nickname_update', nickname }` | Emitted when user updates their display name. |
 | `room_occupied` | `{ type: 'room_occupied', reason }` | Sent by host to reject a 3rd peer from a full room. |
-| `disconnect` | `{ type: 'disconnect' }` | Sent when user explicitly clicks "Burn Chat" or closes session. |
+| `peer_nudge` | `{ type: 'peer_nudge', message, senderNickname, nudgeType }` | High-priority toast alert & turn notification. |
+| `session_burned` | `{ type: 'session_burned' }` | Complete volatile RAM purge broadcast to peer. |
+| `game_event` | `{ type: 'game_event', data: { game, cardId, type, ...payload } }` | Isolated game state events (`c4_drop`, `grid_move`, `pong_paddle`, `pong_sync`, `game_emote`, `game_nudge`, `game_card_post`, `game_card_join`, `game_card_start`, `game_card_conclude`). |
 | `file_meta` | `{ type: 'file_meta', fileId, fileName, fileSize, fileType, totalChunks, isVoiceNote, durationSec }` | Header initiating file transfer. |
 | `file_chunk_meta`| `{ type: 'file_chunk_meta', fileId, chunkIndex }` | Precedes each raw binary `ArrayBuffer` chunk. |
 | `file_cancel` | `{ type: 'file_cancel', fileId }` | Bi-directional file transfer cancellation. |

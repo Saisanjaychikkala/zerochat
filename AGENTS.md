@@ -29,12 +29,14 @@ ZeroChat is maintained using **Direct Pragmatic Engineering**. The AI agent oper
 - **`src/hooks/`**: React custom hooks decomposing application lifecycle:
   - `usePreferences.js`: Display name, sound toggles.
   - `usePeerSession.js`: PeerJS connection state, room lifecycle, typing indicators.
-  - `useCallSession.js`: Media call ringing, audio/video toggling, screen share.
+  - `useCallSession.js`: Media call ringing, audio/video toggling, screen share, direct mic mute.
   - `useChatTransfers.js`: In-memory messages, 16KB file transfers, panic session burn.
-- **`src/components/chat/`**: Deconstructed chat subcomponents (`ChatHeader`, `RoomHeroCard`, `MessageItem`, `ReplyPreviewDock`, `ReplyQuoteBox`, `ChatInputBar`).
+  - `useInChatGames.js`: In-chat game drawer, challenge cards, cardId isolation, match state caching.
+- **`src/components/chat/`**: Deconstructed chat subcomponents (`ChatHeader`, `RoomHeroCard`, `MessageItem`, `ReplyPreviewDock`, `ReplyQuoteBox`, `ChatInputBar`, `ChatWorkspace`).
 - **`src/components/call/`**: Deconstructed call subcomponents (`CallHeaderBar`, `CallControlsDock`, `VideoViewport`, `ZoomControls`, `IncomingCallDialog`).
-- **`src/styles/`**: Modular CSS files loaded via `index.css` (`variables.css`, `base.css`, `layout.css`, `chat.css`, `media.css`, `call.css`, `zoom.css`, `modals.css`, `responsive.css`).
-- **`scripts/`**: Verification and QA automation (`verify-all.js`).
+- **`src/components/game/`**: P2P gaming subcomponents (`GameDrawer`, `ActiveMatchStage`, `InChatGameCard`, `CyberPongGame`, `CyberGridGame`, `CyberConnectFour`, `GameLobbyChat`, `GameVoiceDock`, `GameArenaHeader`).
+- **`src/styles/`**: Modular CSS files loaded via `index.css` (`variables.css`, `base.css`, `layout.css`, `chat.css`, `media.css`, `call.css`, `zoom.css`, `modals.css`, `responsive.css`, `gameDrawer.css`, `inChatGameCard.css`, `activeMatchStage.css`, `connect4.css`).
+- **`scripts/`**: Verification and QA automation (`verify-all.js`, `capture-c4-and-file.js`).
 
 ---
 
@@ -43,7 +45,7 @@ ZeroChat is maintained using **Direct Pragmatic Engineering**. The AI agent oper
 1. **Root Cause Analysis**: Inspect real source code, state hooks, and DOM elements directly. Do not guess or rely on superficial string-matching tests.
 2. **Surgical Implementation**: Make minimal, robust changes in the dedicated modular file within the <350 line budget.
 3. **Automated Verification**:
-   - Run `npm test` to verify all 64 regression checks.
+   - Run `npm test` to verify all 135 regression checks.
    - Run `npm run build` to verify the production bundle remains <150KB gzipped.
 4. **Git Hygiene**:
    - Commit with conventional commit messages (`feat: ...`, `fix: ...`, `refactor: ...`).

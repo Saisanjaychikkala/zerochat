@@ -8,12 +8,16 @@ ZeroChat is a 100% serverless, private browser-to-browser communication platform
 
 ## 🌟 Key Features
 
-* **🔒 100% Serverless & Private**: Direct browser-to-browser WebRTC DataChannel connection. Messages and files never touch a central server or database.
-* **⚡ Unlimited P2P AirDrop**: Drag-and-drop send files of any size (gigabytes supported) at full LAN/Wi-Fi speed without uploading to cloud storage.
+* **🔒 100% Serverless & Private**: Direct browser-to-browser WebRTC DataChannel connection. Messages, calls, and files never touch a central server or database.
+* **🎮 In-Chat Interactive Gaming Engine**: Challenge peers directly in chat (Telegram/Plato model) or enter the dedicated `#game-xxx` Arena. Includes real-time 60 FPS Cyber Pong, Cyber Grid Tic-Tac-Toe, and a 7x6 Holographic Connect 4 Matrix with AI practice bot fallback and multi-game `cardId` isolation.
+* **📞 Full-Duplex Audio & Video Calling**: Instant WebRTC media calling with 1.0x - 4.0x pan & pinch zoom, hardware-level microphone mute authority, and OnePlus/legacy Android camera flip protection.
+* **⚡ Unlimited P2P AirDrop**: Drag-and-drop send files of any size (gigabytes supported) at full LAN/Wi-Fi speed with 16KB backpressure chunking and real-time MB/s throughput gauges.
+* **🎨 8 High-Contrast Cyber-Glass Themes**: Tailored neon aesthetic with ambient glow (Cyber Cyan, Matrix Emerald, Synthwave Purple, Solar Amber, Crimson Red, Midnight Blue, Monolith Slate, Tokyo Neon).
 * **📱 Instant Mobile Pairing**: Shareable room links and automatically generated live QR codes for phone-to-desktop or phone-to-phone pairing.
 * **📡 Real-Time Latency Monitor**: Live ping monitoring (in milliseconds) and peer connection health indicators.
-* **💬 Real-Time Chat Features**: Delivery receipts (ACK), typing indicators, quick emoji reactions, and synthesized Web Audio sound effects.
-* **🔥 Ephemeral Burn Session**: 1-click panic button that tears down the WebRTC connection and completely wipes all local memory.
+* **💬 Rich Chat Features**: Quoted replies, syntax-highlighted code snippets with 1-click copy, delivery receipts (ACK), typing indicators, and synthesized Web Audio sound effects.
+* **🔥 Ephemeral Burn Session**: 1-click panic button that tears down the WebRTC connection, terminates media calls, and completely wipes all local memory.
+* **🧪 135 Automated Regression Tests**: Rigorous test runner verifying WebRTC signaling, file streaming, zoom clamps, memory leak prevention, and state persistence.
 * **💸 $0 Cost Forever**: Runs entirely in the client's browser, hosted for free on GitHub Pages, with automated CI/CD deployment.
 
 ---

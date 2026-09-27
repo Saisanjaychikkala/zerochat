@@ -41,6 +41,13 @@ All CSS rules are modularized under `src/styles/`:
 - `chat.css`: Messages, bubbles, replies, quotes, typing dots.
 - `media.css`: Audio bubbles, code blocks, drag overlays, inputs.
 - `call.css`: Floating pill dock, video viewports, audio visualizer, PIP.
+- `zoom.css`: Pan & pinch zoom controls and badge styling.
 - `modals.css`: Modals, room codes, guide cards.
 - `responsive.css`: Media queries for tablet and mobile viewports.
+- `gameDrawer.css`: Slide-up game drawer sheet and 60 FPS pills.
+- `inChatGameCard.css`: In-chat challenge card layout and status badges.
+- `activeMatchStage.css`: Universal match container & floating return-to-chat dock.
+- `connect4.css`: High-contrast illuminated 7x6 matrix chassis & cyan/magenta tokens.
+- `gameLobby.css`: Standalone arena lobby chat and voice dock.
+- `gameShelf.css`: Game selector grid.
 - `index.css`: Master barrel file importing the modules in order.

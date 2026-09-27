@@ -50,12 +50,12 @@
 - [x] **Cross-Platform Voice Notes**: Safe MediaRecorder codecs for iOS (`audio/mp4`) and Android/Desktop (`audio/webm`).
 - [x] **Mobile Tap-to-Dismiss Keyboard**: Tapping outside input / message list background blurs active input and closes soft keyboard.
 - [x] **Dynamic visualViewport Auto-Scroll**: `interactive-widget=resizes-content` and `visualViewport` resize listener smoothly scroll messages into view without pushing them out of reach.
+- [x] **Inline Markdown & Code Block Formatter**:
+  - Auto-formats markdown, multi-line code snippets, and syntax blocks with a one-click "Copy Code" clipboard button.
 - [ ] **Voice Note Waveform Scrubber**:
   - Replace flat progress bar with interactive visual waveform bars (canvas/SVG) that users can drag to seek through audio.
 - [ ] **Message Emoji Reactions (Confetti Bursts)**:
   - Quick emoji reactions (`👍`, `❤️`, `🔥`, `😂`) over DataChannel floating up on recipient screen.
-- [ ] **Inline Markdown & Code Block Formatter**:
-  - Format bold, code snippets, and syntax blocks with a one-click "Copy Code" action.
 
 ---
 
@@ -63,6 +63,8 @@
 - [x] **Voice & Video Media Calling**: Full duplex audio/video pipeline.
 - [x] **Dummy Canvas Video Track**: 1x1 black canvas track allowing zero-renegotiation audio-to-video upgrades.
 - [x] **Interactive Pan & Pinch-to-Zoom**: 1x to 4x remote video zoom for desktop and touch screens.
+- [x] **Hardware Microphone Mute Authority (`setAudioMute`)**:
+  - Direct hardware control setting `audioTrack.enabled = !isMuted`, eliminating mute desync traps across calls and games.
 - [x] **OnePlus & Legacy Android Camera Flip Bug Fix**:
   - Explicitly stops front camera track *before* requesting new camera sensor, releasing kernel hardware lock on Snapdragon 820/legacy chips, with `enumerateDevices()` fallback.
 - [x] **Call Glare Resolution (Simultaneous Calling Conflict)**:
@@ -76,13 +78,18 @@
 
 ---
 
-### Category D: Homescreen & Multi-Tool Suite
+### Category D: Homescreen & In-Chat Gaming Multi-Tool Suite
 - [x] **Homescreen Command Hub (`HomeScreen.jsx`)**:
   - Central dashboard featuring True Private, Universal Private, P2P Game Arena, and locked feature preview cards.
-- [x] **P2P Cyber Game Arena (`P2PGameArena.jsx`)**:
+- [x] **In-Chat Game Ecosystem (Plato & Telegram Bot Model)**:
+  - **Slide-up Game Drawer (`GameDrawer.jsx`)**: Compact 60 FPS badges for instant duel selection.
+  - **In-Chat Challenge Cards (`InChatGameCard.jsx`)**: Interactive challenge cards inside chat stream with live participant status, `[Resume]` button, and `[x End]` conclusion.
+  - **Card ID Packet Routing**: Every packet carries a unique `cardId` allowing multiple concurrent matches without crosstalk.
+  - **Background Match Persistence**: "Return to Chat" dock keeps games running in background without DOM destruction or state loss.
+- [x] **P2P Cyber Game Suite**:
   - **Game 1: Cyber Pong Duel**: Real-time 60fps 2-player Cyber Pong duel over WebRTC DataChannel (<30ms latency) with Practice Bot AI mode and live Audio/Video Face-Off PIP window!
   - **Game 2: Cyber Grid (3x3)**: 2-player high-tech Tic-Tac-Toe duel with turn tracking, win streak confetti, and single-player Bot AI.
-  - **Game 3: Cyber Connect Four (Drop 4)**: 7x6 gravity drop connect-four strategy duel with column hover, victory detector, and Practice Bot AI.
+  - **Game 3: Cyber Connect Four (Holographic Matrix)**: 7x6 gravity drop connect-four strategy duel with illuminated navy cyber chassis, column hover, victory detector, and Practice Bot AI.
 - [x] **8 High-Contrast Cyber-Glass Themes with Ambient Background Lighting**:
   - **Cyber Cyan (Default)**: Vivid neon cyan & electric purple.
   - **Matrix Emerald**: Terminal hacker green & matrix mesh ambient glow.
@@ -99,8 +106,10 @@
 
 ### Category E: File Transfers (AirDrop Engine)
 - [x] **16KB AirDrop Chunking with Backpressure**: Streams files of any size without buffer bloat or memory crashes.
-- [ ] **Live Transfer Speed & ETA Metrics**:
-  - Real-time throughput gauge (e.g. `45.2 MB/s`, `ETA: 12s`) inside transfer cards.
+- [x] **Live Transfer Speed & Status Indicator**:
+  - Real-time throughput gauge (e.g. `24.5 MB/s`) and streaming progress indicators inside transfer cards.
+- [x] **Save to Device Mobile Ergonomics**:
+  - High-visibility action button with `nowrap` flex-shrink protection and non-obtrusive security reminder.
 - [ ] **Global Drag-and-Drop Dropzone**:
   - Full-window glowing neon dropzone overlay to queue files instantly from anywhere on the screen.
 - [ ] **Folder & Multi-File Batch Transfer**:

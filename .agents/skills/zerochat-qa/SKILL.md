@@ -42,3 +42,11 @@ npm run build
 - [ ] **Floating Pill Controls Dock**: Controls dock is centered at `bottom: 24px` with a high `z-index`, ensuring it is never pushed offscreen or obscured by browser fullscreen banners.
 - [ ] **Header Quick End Call**: A dedicated red `PhoneOff` button in the header bar allows exiting calls even if bottom controls are shifted.
 - [ ] **Procedural Ringtones**: Incoming and outgoing ringtones synthesize dynamically via Web Audio API; sound toggle silences ringtones immediately.
+- [ ] **Hardware Mic Mute Authority**: Calling `peerService.setAudioMute(isMuted)` directly sets `audioTrack.enabled = !isMuted`. Verify user is never trapped in a muted state across calls or arena entries.
+
+### 2.5 In-Chat Gaming & Multi-Match Isolation
+- [ ] **Connect 4 Matrix Layout**: Verify board renders as a crisp 7x6 matrix with cyan outer chassis, hollow illuminated empty slots, and animated cyan/magenta disc drops.
+- [ ] **Cyber Pong 60 FPS Canvas**: Verify smooth 60 FPS canvas loop, host physics authority, paddle drag controls, and confetti celebrations.
+- [ ] **Card ID Event Isolation**: Verify game moves, nudges, and emotes carry `cardId` tags so multiple challenges in the same chat never cross-talk or interfere.
+- [ ] **Return to Chat & State Persistence**: Verify clicking "Return to Chat" leaves the active match running in background via CSS `display: none` and floating action dock. Tapping "Resume" restores the exact board state without resets.
+- [ ] **Explicit Match Conclusion**: Verify clicking `[x End]` on the card or floating dock broadcasts `game_card_conclude` and clears volatile memory.

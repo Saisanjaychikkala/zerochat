@@ -75,6 +75,30 @@ All DataChannel packets are JSON objects (or binary `ArrayBuffer` instances prec
   isVideoActive: true,
   callerNickname: 'Alice'
 }
+
+// Peer Nudge Alert
+{
+  type: 'peer_nudge',
+  message: "Alice is nudging you! It's your turn in Connect 4!",
+  senderNickname: 'Alice',
+  nudgeType: 'game_turn' | 'calling_soon'
+}
+
+// Game Event (Multi-Match Isolated by cardId)
+{
+  type: 'game_event',
+  data: {
+    game: 'c4' | 'grid' | 'pong',
+    cardId: 'gc_abc123_1727000000000',
+    type: 'c4_drop' | 'grid_move' | 'pong_paddle' | 'pong_sync' | 'game_emote' | 'game_nudge',
+    token?: 'C' | 'M',
+    col?: number,
+    sender?: 'Alice'
+  }
+}
+
+// Remote Session Burn
+{ type: 'session_burned' }
 ```
 
 ## 3. Backpressure Rule for 16KB Streaming
@@ -105,4 +129,17 @@ const realStream = await navigator.mediaDevices.getUserMedia({ video: true });
 const realTrack = realStream.getVideoTracks()[0];
 const videoSender = pc.getSenders().find(s => s.track && s.track.kind === 'video');
 await videoSender.replaceTrack(realTrack);
+```
+
+## 5. Hardware Microphone Mute Authority (`setAudioMute`)
+Never rely on boolean inversion flags that can desync across call renegotiations or game transitions. Always set `audioTrack.enabled = !isMuted` directly:
+```javascript
+setAudioMute(isMuted, emit = true) {
+  this.isAudioMuted = !!isMuted;
+  if (this.currentStream) {
+    this.currentStream.getAudioTracks().forEach((track) => {
+      track.enabled = !isMuted;
+    });
+  }
+}
 ```
