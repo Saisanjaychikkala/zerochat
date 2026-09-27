@@ -27,7 +27,7 @@
 .mobile-menu-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 999;
+  z-index: 999999;
   background: rgba(4, 7, 15, 0.75);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
@@ -35,6 +35,7 @@
   align-items: flex-end;
   justify-content: center;
   animation: fadeIn 0.2s ease-out;
+  pointer-events: auto;
 }
 
 @keyframes fadeIn {
@@ -51,18 +52,21 @@
 .mobile-menu-sheet {
   width: 100%;
   max-width: 500px;
-  background: rgba(12, 18, 32, 0.96);
+  background: rgba(12, 18, 32, 0.98);
   border: 1px solid var(--border-accent);
   border-bottom: none;
   border-radius: var(--radius-lg) var(--radius-lg) 0 0;
   padding: 16px 18px;
-  padding-bottom: max(20px, env(safe-area-inset-bottom, 20px));
+  padding-bottom: max(24px, env(safe-area-inset-bottom, 24px));
   box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.8), 0 0 25px var(--accent-cyan-glow);
   display: flex;
   flex-direction: column;
   gap: 14px;
   animation: slideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1);
   box-sizing: border-box;
+  max-height: 85vh;
+  overflow-y: auto;
+  pointer-events: auto;
 }
 
 /* Header */

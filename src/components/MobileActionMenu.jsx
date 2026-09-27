@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { 
   X, 
   Copy, 
@@ -58,11 +59,11 @@ export default function MobileActionMenu({
     };
   }, [isOpen, onClose]);
 
-  if (!isOpen) return null;
+  if (!isOpen || typeof document === 'undefined') return null;
 
   const isConnected = status === 'connected';
 
-  return (
+  return createPortal(
     <div className="mobile-menu-backdrop" role="dialog" aria-modal="true" aria-label="Quick Actions">
       <div className="mobile-menu-sheet glass-panel" ref={menuRef}>
         {/* Header */}
@@ -207,6 +208,7 @@ export default function MobileActionMenu({
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

@@ -119,14 +119,24 @@ async function testMobileViewport(page, width, height, name) {
   }
   console.log(`  ✓ Mobile Action Menu drawer opened smoothly.`);
 
-  // 5. Check items inside drawer
+  // 5. Check portal attachment directly to document.body (free from header stacking context)
+  const isDirectBodyChild = await page.evaluate(() => {
+    const backdrop = document.querySelector('.mobile-menu-backdrop');
+    return backdrop && backdrop.parentElement === document.body;
+  });
+  if (!isDirectBodyChild) {
+    throw new Error(`Mobile Action Menu is not attached to document.body via Portal on ${name}`);
+  }
+  console.log(`  ✓ Mobile Action Menu is rendered directly on document.body (free from header containing block).`);
+
+  // 6. Check items inside drawer
   const drawerItems = await page.evaluate(() => {
     const labels = Array.from(document.querySelectorAll('.grid-label')).map(el => el.textContent.trim());
     return labels;
   });
   console.log(`  ✓ Drawer options detected: ${drawerItems.join(', ')}`);
 
-  // 6. Close menu
+  // 7. Close menu
   await page.evaluate(() => {
     const btn = document.querySelector('.close-menu-btn');
     if (btn) btn.click();

@@ -141,6 +141,7 @@ class PeerService {
 
     try {
       if (this.peer && !this.peer.destroyed) {
+        this.peer.removeAllListeners();
         this.peer.destroy();
       }
     } catch (e) {}
@@ -939,6 +940,7 @@ class PeerService {
     this.mediaCall.cleanupCall((e, d) => this.emit(e, d));
     if (this.peer) {
       try {
+        this.peer.removeAllListeners();
         this.peer.destroy();
       } catch (e) {}
       this.peer = null;
