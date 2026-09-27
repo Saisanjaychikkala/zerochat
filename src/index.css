@@ -16,6 +16,7 @@
 @import './styles/game.css';
 @import './styles/gameLobby.css';
 @import './styles/gameShelf.css';
+@import './styles/inChatGameCard.css';
 @import './styles/gameDrawer.css';
 @import './styles/connect4.css';
 @import './styles/responsive.css';

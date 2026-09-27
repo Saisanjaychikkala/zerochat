@@ -232,7 +232,7 @@ export default function CyberPongGame({
               </button>
               {onExitMatch && (
                 <button onClick={onExitMatch} className="btn btn-secondary">
-                  <span>Return to Lobby</span>
+                  <span>Return to Chat</span>
                 </button>
               )}
             </div>

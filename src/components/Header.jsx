@@ -220,14 +220,14 @@ export default function Header({
           </button>
         )}
 
-        {/* Panic / Burn Button (Always Visible) */}
+        {/* Clear Chat / Wipe & Leave */}
         <button 
           onClick={onBurnSession} 
           className="btn btn-danger text-xs font-semibold"
-          title="Immediately wipe all messages, files, and disconnect"
+          title="Clear conversation: wipe all messages, files, and disconnect"
         >
           <Flame size={14} />
-          <span className="burn-text">Burn</span>
+          <span className="burn-text">Clear Chat</span>
         </button>
 
         {/* Mobile Quick Action Menu Trigger */}

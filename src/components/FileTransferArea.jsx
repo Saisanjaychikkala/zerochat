@@ -177,9 +177,9 @@ export default function FileTransferArea({
       {/* Transfers Activity Feed */}
       <div className="glass-panel" style={{ flex: 1, padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px', minHeight: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <h4 style={{ fontSize: '0.88rem', fontWeight: 700 }}>File Transfers ({transfers.length})</h4>
+          <h4 style={{ fontSize: '0.88rem', fontWeight: 700 }}>Files ({transfers.length})</h4>
           <span style={{ fontSize: '0.72rem', color: 'var(--accent-cyan)', fontFamily: 'var(--font-mono)' }}>
-            16KB Buffered Stream
+            Direct File Share
           </span>
         </div>
 
@@ -234,17 +234,22 @@ export default function FileTransferArea({
                           </button>
                         )}
 
-                        {item.downloadUrl && (
-                          <a 
-                            href={item.downloadUrl} 
-                            download={item.fileName} 
-                            className="btn btn-primary"
-                            style={{ padding: '5px 10px', fontSize: '0.75rem' }}
-                          >
-                            <Download size={13} />
-                            <span>Save</span>
-                          </a>
-                        )}
+                    {item.downloadUrl && (
+                        <a 
+                          href={item.downloadUrl} 
+                          download={item.fileName} 
+                          className="btn btn-primary"
+                          style={{ padding: '5px 10px', fontSize: '0.75rem' }}
+                        >
+                          <Download size={13} />
+                          <span>Save to Device</span>
+                        </a>
+                      )}
+                      {!item.isSender && item.downloadUrl && (
+                        <p style={{ fontSize: '0.68rem', color: '#f59e0b', marginTop: '3px', fontWeight: 600 }}>
+                          ⚠️ Tap Save now — file lost if you close the tab!
+                        </p>
+                      )}
                       </div>
                     ) : (
                       <>

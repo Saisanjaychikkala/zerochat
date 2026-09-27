@@ -211,8 +211,8 @@ export default function CyberConnectFour({ status, remotePeerNickname, onExitMat
       <div className="c4-status-bar">
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           {onExitMatch && (
-            <button onClick={onExitMatch} className="btn btn-secondary btn-xs" title="Return to Game Lobby">
-              <span>Lobby</span>
+            <button onClick={onExitMatch} className="btn btn-secondary btn-xs" title="Return to Chat">
+              <span>Chat</span>
             </button>
           )}
           <div className="grid-score-pills">
@@ -278,7 +278,7 @@ export default function CyberConnectFour({ status, remotePeerNickname, onExitMat
           </button>
           {onExitMatch && (
             <button onClick={onExitMatch} className="btn btn-secondary">
-              <span>Return to Lobby</span>
+              <span>Return to Chat</span>
             </button>
           )}
         </div>

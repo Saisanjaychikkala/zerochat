@@ -1,5 +1,5 @@
 import React from 'react';
-import { Gamepad2, CircleDot, Disc, X, Play, Zap, Flame, Trophy } from 'lucide-react';
+import { Gamepad2, CircleDot, Disc, X, Plus, Zap, Flame, Trophy } from 'lucide-react';
 
 const GAMES_LIST = [
   {
@@ -53,8 +53,8 @@ export default function GameDrawer({
               <Zap size={18} color="#00f2fe" />
             </div>
             <div>
-              <h3>P2P Game Library</h3>
-              <p>Select a duel to challenge your opponent</p>
+              <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 700 }}>Add Game to Chat</h3>
+              <p style={{ margin: 0, fontSize: '0.72rem', color: 'var(--text-muted)' }}>Select a duel to post into conversation</p>
             </div>
           </div>
           <button onClick={onClose} className="btn btn-icon btn-xs" aria-label="Close drawer">
@@ -99,14 +99,16 @@ export default function GameDrawer({
                 </div>
 
                 <button 
-                  className="btn btn-primary btn-xs game-card-action"
-                  style={{ 
-                    background: isCurrent ? 'var(--accent-emerald)' : undefined,
-                    borderColor: isCurrent ? '#10b981' : undefined
+                  className="btn btn-primary btn-xs game-card-action game-add-chat-btn"
+                  style={{ gap: '4px', padding: '0 10px', height: '28px' }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onSelectGame(game.id);
+                    onClose();
                   }}
                 >
-                  <Play size={12} />
-                  <span>{isCurrent ? 'Active' : 'Play'}</span>
+                  <Plus size={13} />
+                  <span>Add to Chat</span>
                 </button>
               </div>
             );

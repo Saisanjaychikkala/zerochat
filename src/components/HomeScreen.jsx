@@ -13,7 +13,8 @@ import {
   QrCode, 
   Flame, 
   Radio,
-  Loader2
+  Loader2,
+  Share2
 } from 'lucide-react';
 import { normalizeRoomId } from '../services/webrtc/constants';
 
@@ -55,6 +56,23 @@ export default function HomeScreen({
     const clean = normalizeRoomId(inputCode);
     if (clean && onJoinRoom) {
       onJoinRoom(clean);
+    }
+  };
+
+  const handleNativeShare = async (roomId) => {
+    const shareUrl = typeof window !== 'undefined'
+      ? `${window.location.origin}${window.location.pathname}#${roomId}`
+      : `#${roomId}`;
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: 'Join my private ZeroChat room',
+          text: '100% private chat — nothing saved on servers. Join directly in your browser!',
+          url: shareUrl,
+        });
+      } catch (_) { /* user cancelled */ }
+    } else if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(shareUrl);
     }
   };
 
@@ -100,14 +118,14 @@ export default function HomeScreen({
             <QrCode size={16} />
           </button>
 
-          {/* Burn Session */}
+          {/* Clear Chat */}
           <button 
             onClick={onBurnSession} 
             className="btn btn-danger text-xs font-semibold"
-            title="Wipe volatile RAM memory completely"
+            title="Wipe & Leave: clear conversation and leave room"
           >
             <Flame size={14} />
-            <span>Burn</span>
+            <span>Clear</span>
           </button>
         </div>
 
@@ -144,17 +162,17 @@ export default function HomeScreen({
 
             <div className="connecting-banner-info">
               <div className="connecting-banner-header">
-                <span className="connecting-banner-title">Establishing Direct P2P Channel</span>
-                <span className="connecting-timer-badge">{connectingSeconds}s elapsed</span>
+                <span className="connecting-banner-title">Connecting directly to your friend...</span>
+                <span className="connecting-timer-badge">{connectingSeconds}s</span>
               </div>
               <p className="connecting-banner-sub">
-                Negotiating encrypted WebRTC handshake with peer in room #{myRoomId}. Zero servers in between.
+                Setting up a private, encrypted channel. No servers in between.
               </p>
               <div className="connecting-banner-hint">
                 {connectingSeconds < 5 ? (
-                  <span>⚡ Discovering peer on decentralized broker...</span>
+                  <span>⚡ Finding your friend's device...</span>
                 ) : (
-                  <span>🌐 Direct NAT/STUN traversal in progress (cellular networks may take 5–8s)...</span>
+                  <span>🌐 Working through firewall... this takes 5–8s on mobile data</span>
                 )}
               </div>
             </div>
@@ -162,7 +180,7 @@ export default function HomeScreen({
 
           <div className="connecting-banner-actions">
             <button onClick={onLaunchRoom} className="btn btn-primary text-xs">
-              <span>Open Chat View</span>
+              <span>Open Chat</span>
               <ArrowRight size={13} />
             </button>
           </div>
@@ -171,8 +189,8 @@ export default function HomeScreen({
 
       {/* Hero Welcome */}
       <div className="home-hero-section">
-        <h2>Direct Peer-to-Peer Ephemeral Channel</h2>
-        <p>Zero databases. Zero cloud storage. Everything exists strictly in browser RAM.</p>
+        <h2>100% Private · Nothing Saved on Servers</h2>
+        <p>Chat, call, share files, and play games — directly with your friend. Everything disappears when you close the tab.</p>
       </div>
 
       {/* Feature Cards Grid */}
@@ -193,16 +211,27 @@ export default function HomeScreen({
             </div>
           </div>
           <p className="card-desc">
-            Direct, serverless 1-on-1 communications over WebRTC. Zero databases, zero cloud storage, zero message logs. High-speed encrypted messaging, voice notes, and 16KB AirDrop transfers strictly in volatile RAM.
+            1-on-1 private chat, voice calls, and direct file sharing — over an encrypted connection. Nothing is ever saved on a server. Your conversation vanishes completely when you close the tab.
           </p>
           <div className="card-action-bar">
             <button 
               onClick={onLaunchRoom} 
               className="btn btn-primary w-full"
             >
-              <span>{isConnected ? 'Enter Active Room' : isConnecting ? 'View Connecting Channel' : 'Launch Chat Room'}</span>
+              <span>{isConnected ? 'Return to Chat' : isConnecting ? 'View Connecting...' : 'Start Private Chat'}</span>
               <ArrowRight size={15} />
             </button>
+            {myRoomId && !isConnected && (
+              <button
+                type="button"
+                onClick={() => handleNativeShare(myRoomId)}
+                className="btn btn-secondary w-full"
+                style={{ marginTop: '6px', gap: '6px' }}
+              >
+                <Share2 size={14} />
+                <span>Invite Friend via WhatsApp / SMS</span>
+              </button>
+            )}
           </div>
         </div>
 
@@ -222,7 +251,7 @@ export default function HomeScreen({
             </div>
           </div>
           <p className="card-desc">
-            Play real-time 2-player Cyber Pong, Cyber Grid, and Connect 4 over direct WebRTC DataChannels (&lt;30ms latency) with an integrated live Face-Off PIP window while you duel!
+            Challenge your friend to Cyber Pong, Tic-Tac-Toe, or Connect 4 — right inside your private chat room. Games run directly over your encrypted connection with zero lag.
           </p>
           <div className="card-action-bar">
             <button 
@@ -292,7 +321,7 @@ export default function HomeScreen({
       <div className="home-quick-join glass-panel">
         <form onSubmit={handleJoinSubmit} className="quick-join-form">
           <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-main)' }}>
-            Have a 3-word room code?
+            Got a room code from a friend?
           </span>
           <div className="quick-join-input-group">
             <input 
@@ -307,7 +336,7 @@ export default function HomeScreen({
               spellCheck="false"
             />
             <button type="submit" className="btn btn-primary text-xs font-semibold" disabled={!inputCode.trim()}>
-              <span>Join Peer</span>
+              <span>Join</span>
               <ArrowRight size={14} />
             </button>
           </div>

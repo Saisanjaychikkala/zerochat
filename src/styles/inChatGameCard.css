@@ -1,0 +1,211 @@
+/* ==========================================================================
+   ZeroChat - In-Chat Interactive Game Challenge Card Styles
+   ========================================================================== */
+
+.in-chat-game-card {
+  width: 100%;
+  max-width: 440px;
+  margin: 8px auto;
+  padding: 12px 14px;
+  border-radius: var(--radius-md);
+  background: rgba(14, 19, 32, 0.78);
+  border: 1px solid rgba(0, 242, 254, 0.25);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.45);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  transition: all 0.2s ease;
+}
+
+/* Concluded (Grayed Out & Disabled) State */
+.in-chat-game-card.concluded {
+  background: rgba(255, 255, 255, 0.02) !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+  box-shadow: none !important;
+  opacity: 0.55;
+  filter: grayscale(0.9);
+}
+
+.in-chat-game-card.concluded * {
+  cursor: not-allowed;
+}
+
+.in-chat-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.in-chat-card-title-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.in-chat-card-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid;
+}
+
+.in-chat-card-title {
+  margin: 0;
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.in-chat-card-tag {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+}
+
+.in-chat-card-badge span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: var(--radius-full);
+}
+
+.badge-waiting {
+  background: rgba(0, 242, 254, 0.12);
+  color: var(--accent-cyan);
+  border: 1px solid rgba(0, 242, 254, 0.3);
+}
+
+.badge-ready {
+  background: rgba(16, 185, 129, 0.12);
+  color: var(--accent-emerald);
+  border: 1px solid rgba(16, 185, 129, 0.35);
+  animation: pulse-ring 1.8s infinite;
+}
+
+.badge-concluded {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-dim);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Players Slot Row */
+.in-chat-players-row {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  background: rgba(0, 0, 0, 0.28);
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.in-chat-player-slot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.in-chat-player-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 7px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: #fff;
+  flex-shrink: 0;
+}
+
+.in-chat-player-avatar.empty {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px dashed var(--border-subtle);
+}
+
+.in-chat-player-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+
+.in-chat-player-name {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--text-main);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.in-chat-player-name.empty {
+  color: var(--text-dim);
+  font-style: italic;
+}
+
+.in-chat-player-role {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+}
+
+.in-chat-ready-dot {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: rgba(16, 185, 129, 0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.in-chat-vs-label {
+  font-size: 0.7rem;
+  font-weight: 800;
+  color: var(--accent-purple, #c084fc);
+  padding: 0 4px;
+}
+
+/* Card Actions */
+.in-chat-card-actions {
+  display: flex;
+  width: 100%;
+}
+
+.in-chat-waiting-msg {
+  width: 100%;
+  text-align: center;
+  font-size: 0.72rem;
+  color: var(--accent-cyan);
+  padding: 4px;
+}
+
+.concluded-btn {
+  opacity: 0.6;
+  font-size: 0.72rem !important;
+  color: var(--text-dim) !important;
+}
+
+@media (max-width: 480px) {
+  .in-chat-game-card {
+    padding: 10px;
+    margin: 6px 0;
+  }
+
+  .in-chat-players-row {
+    padding: 6px 8px;
+    gap: 4px;
+  }
+
+  .in-chat-player-name {
+    font-size: 0.74rem;
+  }
+}

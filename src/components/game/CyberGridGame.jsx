@@ -152,8 +152,8 @@ export default function CyberGridGame({
       <div className="grid-status-bar">
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           {onExitMatch && (
-            <button onClick={onExitMatch} className="btn btn-secondary btn-xs" title="Return to Game Lobby">
-              <span>Lobby</span>
+            <button onClick={onExitMatch} className="btn btn-secondary btn-xs" title="Return to Chat">
+              <span>Chat</span>
             </button>
           )}
           <div className="grid-score-pills">
@@ -209,7 +209,7 @@ export default function CyberGridGame({
           </button>
           {onExitMatch && (
             <button onClick={onExitMatch} className="btn btn-secondary">
-              <span>Return to Lobby</span>
+              <span>Return to Chat</span>
             </button>
           )}
         </div>

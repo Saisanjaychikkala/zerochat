@@ -58,7 +58,7 @@ export default function RoomHeroCard({
             Room is Full (2/2 Peers Connected)
           </h3>
           <p style={{ fontSize: '0.84rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>
-            ZeroChat rooms are strictly private 1-to-1 direct tunnels. This room already has two peers actively communicating. Third-party connections are blocked for privacy.
+            This chat room already has 2 people. ZeroChat is strictly private 1-to-1. Try creating your own room or join a different one.
           </p>
         </div>
 
@@ -100,7 +100,7 @@ export default function RoomHeroCard({
         <div>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginBottom: '4px' }}>
             <h3 style={{ fontSize: '1.18rem', fontWeight: 700 }}>
-              Connecting to #{roomId}...
+              Connecting to your friend...
             </h3>
             <span style={{
               fontSize: '0.68rem',
@@ -115,11 +115,10 @@ export default function RoomHeroCard({
             </span>
           </div>
           <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', lineHeight: 1.45, maxWidth: '380px', margin: '0 auto' }}>
-            Establishing encrypted direct WebRTC channel. No servers in between — pure memory link.
+            Setting up an encrypted, direct connection. No servers store your messages.
           </p>
         </div>
 
-        {/* Live Step Progress Box */}
         <div style={{
           width: '100%',
           maxWidth: '380px',
@@ -132,20 +131,20 @@ export default function RoomHeroCard({
         }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
             <span style={{ fontSize: '0.68rem', color: 'var(--text-dim)', textTransform: 'uppercase', fontWeight: 700 }}>
-              Live P2P Handshake
+              Connecting
             </span>
             <span style={{ fontSize: '0.68rem', color: 'var(--accent-cyan)', fontFamily: 'var(--font-mono)' }}>
-              {elapsedSecs < 4 ? 'Phase 1/3' : elapsedSecs < 8 ? 'Phase 2/3' : 'Phase 3/3'}
+              {elapsedSecs < 4 ? 'Step 1/3' : elapsedSecs < 8 ? 'Step 2/3' : 'Step 3/3'}
             </span>
           </div>
           <div style={{ fontSize: '0.78rem', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '6px' }}>
             <RefreshCw size={13} className="animate-spin text-cyan-400" />
             <span>
               {elapsedSecs < 4 
-                ? 'Discovering peer on encrypted broker...' 
+                ? 'Finding your friend...' 
                 : elapsedSecs < 8 
-                ? 'Negotiating WebRTC ICE & NAT traversal...' 
-                : 'Direct channel link finalizing...'}
+                ? 'Getting through firewalls... hang tight' 
+                : 'Almost there — finalizing connection...'}
             </span>
           </div>
         </div>
@@ -224,10 +223,10 @@ export default function RoomHeroCard({
 
       <div>
         <h3 style={{ fontSize: '1.12rem', fontWeight: 700, marginBottom: '3px' }}>
-          Private 1-on-1 Peer Room
+          Waiting for your friend...
         </h3>
         <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', lineHeight: 1.45 }}>
-          Share your invite link or code with 1 friend. Direct browser-to-browser encrypted pipe.
+          Share the code or link below. As soon as they open it, you'll be connected!
         </p>
       </div>
 
@@ -290,7 +289,7 @@ export default function RoomHeroCard({
                 textDecoration: 'underline'
               }}
             >
-              How does serverless zero-database chat work?
+              How does 100% private chat work?
             </button>
           </div>
         )}

@@ -203,7 +203,7 @@ export default function MobileActionMenu({
               className="btn btn-danger mobile-footer-btn"
             >
               <Flame size={15} />
-              <span>Burn Memory Session</span>
+              <span>Wipe &amp; Leave</span>
             </button>
           )}
         </div>

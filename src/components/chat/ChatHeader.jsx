@@ -68,14 +68,14 @@ export default function ChatHeader({
           </div>
           <p className="peer-subtitle-text" style={{ color: roomFullError && !isConnected ? '#f87171' : 'var(--text-muted)' }}>
             {roomFullError && !isConnected
-              ? 'Session is occupied by 2 peers. Direct 1-to-1 tunnel.'
+              ? 'This room is full. Start a new private chat.'
               : isConnected 
-              ? 'Encrypted memory channel active' 
+              ? 'Private encrypted connection active' 
               : status === 'connecting'
-              ? 'Negotiating peer handshake...'
+              ? 'Connecting to your friend...'
               : status === 'reconnecting'
-              ? 'Reconnecting in background...'
-              : 'Scan QR or share link to connect'}
+              ? 'Reconnecting...'
+              : 'Scan QR or share link to invite a friend'}
           </p>
         </div>
       </div>

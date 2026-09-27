@@ -1,20 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { 
-  ArrowLeft, 
-  Gamepad2, 
-  Copy, 
-  Check, 
-  Radio, 
-  Share2, 
-  QrCode
-} from 'lucide-react';
-import CyberPongGame from './game/CyberPongGame';
-import CyberGridGame from './game/CyberGridGame';
-import CyberConnectFour from './game/CyberConnectFour';
+import { Share2, Copy, QrCode } from 'lucide-react';
 import GameDrawer from './game/GameDrawer';
 import GameLobbyChat from './game/GameLobbyChat';
-import GameVoiceDock from './game/GameVoiceDock';
 import GameQrModal from './game/GameQrModal';
+import GameArenaHeader from './game/GameArenaHeader';
+import ActiveMatchStage from './game/ActiveMatchStage';
 import { peerService } from '../services/peerService';
 
 export default function P2PGameArena({
@@ -34,20 +24,25 @@ export default function P2PGameArena({
   onExit,
   showToast,
 }) {
-  const [activeGame, setActiveGame] = useState('grid'); // 'grid' | 'pong' | 'c4'
+  const [activeGame, setActiveGame] = useState('grid');
+  const [activeCardId, setActiveCardId] = useState(null);
   const [isMatchActive, setIsMatchActive] = useState(false);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isQrModalOpen, setIsQrModalOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [chatMessages, setChatMessages] = useState([]);
-  const [activeChallenge, setActiveChallenge] = useState(null);
 
   const gameAudioRef = useRef(null);
   const isConnected = status === 'connected';
   const isConnecting = status === 'connecting';
   const isVoiceConnected = callState?.status === 'connected';
 
-  // Autoplay incoming remote voice stream without blocking modal overlay
+  const chatMessagesRef = useRef(chatMessages);
+  chatMessagesRef.current = chatMessages;
+  const activeCardIdRef = useRef(activeCardId);
+  activeCardIdRef.current = activeCardId;
+
+  // Autoplay incoming remote voice stream without blocking gameplay
   useEffect(() => {
     if (gameAudioRef.current && callState?.remoteStream) {
       gameAudioRef.current.srcObject = callState.remoteStream;
@@ -62,120 +57,156 @@ export default function P2PGameArena({
     const unsub = peerService.on('game_event', (event) => {
       if (!event) return;
 
-      if (event.type === 'game_challenge') {
-        setActiveChallenge(event.challenge);
-        setActiveGame(event.challenge.gameId);
-        setIsMatchActive(false);
-        if (showToast) showToast(`${event.challenge.hostNickname} proposed a ${event.challenge.gameName} duel!`, 'info');
-      } else if (event.type === 'game_join') {
-        setActiveChallenge((prev) => {
-          if (!prev) return null;
-          return {
-            ...prev,
-            isGuestJoined: true,
-            guestNickname: event.nickname,
-            guestAvatarBg: event.avatarBg,
-          };
-        });
+      if (event.type === 'game_card_post') {
+        setChatMessages((prev) => [...prev, event.card]);
+        if (showToast) showToast(`${event.card.hostNickname} added a ${event.card.gameName} challenge to chat!`, 'info');
+      } else if (event.type === 'game_card_join') {
+        setChatMessages((prev) => prev.map((msg) => {
+          if (msg.cardId === event.cardId) {
+            return {
+              ...msg,
+              isGuestJoined: true,
+              guestNickname: event.nickname,
+              guestAvatarBg: event.avatarBg,
+            };
+          }
+          return msg;
+        }));
         if (showToast) showToast(`${event.nickname} joined the match!`, 'success');
-      } else if (event.type === 'game_start') {
-        setIsMatchActive(true);
-      } else if (event.type === 'game_exit_match') {
+      } else if (event.type === 'game_card_start') {
+        setChatMessages((prev) => {
+          const target = prev.find((m) => m.cardId === event.cardId);
+          if (target) {
+            setActiveGame(target.gameId);
+            setActiveCardId(target.cardId);
+            setIsMatchActive(true);
+          }
+          return prev.map((m) => (m.cardId === event.cardId ? { ...m, isPlaying: true } : m));
+        });
+      } else if (event.type === 'game_card_conclude') {
+        setChatMessages((prev) => prev.map((m) => (m.cardId === event.cardId ? { ...m, isConcluded: true, isPlaying: false } : m)));
         setIsMatchActive(false);
-        if (showToast) showToast(`${remotePeerNickname || 'Opponent'} returned to Game Lobby`, 'info');
+        setActiveCardId(null);
+        if (showToast) showToast('Match concluded. Card closed in chat.', 'info');
       } else if (event.type === 'game_chat_msg') {
         setChatMessages((prev) => [...prev, { text: event.text, sender: 'theirs', senderName: event.senderName, avatarBg: event.avatarBg }]);
       }
     });
 
     return () => unsub();
-  }, [remotePeerNickname, showToast]);
+  }, [showToast]);
 
   const handleCopyLink = () => {
     const inviteUrl = typeof window !== 'undefined' 
-      ? `${window.location.origin}${window.location.pathname}#/game/${gameRoomId}`
-      : `#/game/${gameRoomId}`;
+      ? `${window.location.origin}${window.location.pathname}#${gameRoomId}`
+      : `#${gameRoomId}`;
 
     if (navigator?.clipboard?.writeText) {
       navigator.clipboard.writeText(inviteUrl).then(() => {
         setCopied(true);
-        if (showToast) showToast('Match invite copied! Send to opponent.', 'success');
+        if (showToast) showToast('Match invite copied!', 'success');
         setTimeout(() => setCopied(false), 2400);
       }).catch(() => {
         if (showToast) showToast(`Match Code: ${gameRoomId}`, 'info');
       });
-    } else if (showToast) {
-      showToast(`Match Code: ${gameRoomId}`, 'info');
     }
   };
 
-  const handleSelectGame = (gameId, isSolo = false) => {
-    if (!gameId) {
-      setActiveChallenge(null);
-      setIsMatchActive(false);
-      return;
-    }
-
-    setActiveGame(gameId);
-
-    if (isSolo) {
-      setActiveChallenge(null);
-      setIsMatchActive(true);
-      return;
-    }
-
+  // Add interactive game card into chat
+  const handleAddGameToChat = (gameId) => {
     const gameNames = { pong: 'Cyber Pong', grid: 'Cyber Grid (3x3)', c4: 'Connect 4' };
-    const challenge = {
+    const cardId = 'gc_' + Math.random().toString(36).substring(2, 9) + '_' + Date.now();
+    const newCard = {
+      type: 'game_card',
+      cardId,
       gameId,
       gameName: gameNames[gameId] || gameId,
-      hostNickname: myNickname || 'Host',
+      hostNickname: myNickname || 'Player 1',
       hostAvatarBg: myAvatarBg,
-      guestNickname: isConnected ? remotePeerNickname : null,
-      guestAvatarBg: remoteAvatarBg,
-      isGuestJoined: !isConnected, // if offline, auto-ready
+      guestNickname: isConnected ? null : 'AI Bot',
+      guestAvatarBg: null,
+      isGuestJoined: !isConnected, // offline auto-readies bot
+      isConcluded: false,
+      isPlaying: false,
     };
 
-    setActiveChallenge(challenge);
-    setIsMatchActive(!isConnected);
+    setChatMessages((prev) => [...prev, newCard]);
+    setIsDrawerOpen(false);
 
     if (isConnected) {
       peerService.sendGameEvent({
-        type: 'game_challenge',
-        challenge,
+        type: 'game_card_post',
+        card: newCard,
       });
     }
+
+    if (showToast) showToast(`Added ${newCard.gameName} challenge to chat!`, 'success');
   };
 
-  const handleJoinChallenge = () => {
-    if (!activeChallenge) return;
-    setActiveChallenge((prev) => ({
-      ...prev,
-      isGuestJoined: true,
-      guestNickname: myNickname,
-      guestAvatarBg: myAvatarBg,
+  // Player 2 joins game card and starts the game
+  const handleJoinCard = (cardId) => {
+    setChatMessages((prev) => prev.map((msg) => {
+      if (msg.cardId === cardId) {
+        return {
+          ...msg,
+          isGuestJoined: true,
+          guestNickname: myNickname || 'Player 2',
+          guestAvatarBg: myAvatarBg,
+        };
+      }
+      return msg;
     }));
 
     if (isConnected) {
       peerService.sendGameEvent({
-        type: 'game_join',
-        nickname: myNickname,
+        type: 'game_card_join',
+        cardId,
+        nickname: myNickname || 'Player 2',
         avatarBg: myAvatarBg,
+      });
+    }
+
+    // Auto-launch match for both players when 2/2 joined
+    setTimeout(() => {
+      handleLaunchCard(cardId);
+    }, 600);
+  };
+
+  // Launch game when ready
+  const handleLaunchCard = (cardId) => {
+    const card = chatMessagesRef.current.find((m) => m.cardId === cardId);
+    if (!card) return;
+
+    setActiveGame(card.gameId);
+    setActiveCardId(cardId);
+    setIsMatchActive(true);
+
+    setChatMessages((prev) => prev.map((m) => (m.cardId === cardId ? { ...m, isPlaying: true } : m)));
+
+    if (isConnected) {
+      peerService.sendGameEvent({
+        type: 'game_card_start',
+        cardId,
       });
     }
   };
 
-  const handleStartMatch = () => {
-    setIsMatchActive(true);
-    if (isConnected) {
-      peerService.sendGameEvent({ type: 'game_start' });
-    }
-  };
-
-  const handleExitActiveMatch = () => {
+  // Conclude match, free resources, and gray out card in chat
+  const handleExitMatch = () => {
     setIsMatchActive(false);
-    if (isConnected) {
-      peerService.sendGameEvent({ type: 'game_exit_match' });
+    const cId = activeCardIdRef.current;
+    if (cId) {
+      setActiveCardId(null);
+      setChatMessages((prev) => prev.map((m) => (m.cardId === cId ? { ...m, isConcluded: true, isPlaying: false } : m)));
+
+      if (isConnected) {
+        peerService.sendGameEvent({
+          type: 'game_card_conclude',
+          cardId: cId,
+        });
+      }
     }
+    if (showToast) showToast('Match finished. Resources cleared.', 'info');
   };
 
   const handleSendChatMessage = (text) => {
@@ -198,64 +229,36 @@ export default function P2PGameArena({
 
   return (
     <div className="game-arena-container glass-panel">
-      {/* Background audio element for remote player's voice */}
       <audio ref={gameAudioRef} autoPlay playsInline style={{ display: 'none' }} />
 
       {/* Top Header Bar */}
-      <div className="game-header">
-        <div className="game-header-left">
-          <button onClick={onExit} className="btn btn-secondary text-xs game-nav-btn" title="Return to ZeroChat Home">
-            <ArrowLeft size={14} />
-            <span className="game-nav-label">Home</span>
-          </button>
-
-          {gameRoomId && (
-            <div className="game-room-pill" title="Unified Game Room Code">
-              <Radio size={12} className={isConnected ? "text-emerald-400 animate-pulse" : isConnecting ? "text-cyan-400 animate-spin" : "text-amber-400"} />
-              <span className="game-room-code font-mono">#{gameRoomId}</span>
-              <span className={`status-dot ${status}`} />
-              <button onClick={handleCopyLink} className="btn btn-icon btn-xs" title="Copy Invite Link">
-                {copied ? <Check size={12} color="#10b981" /> : <Copy size={12} />}
-              </button>
-              <button onClick={() => setIsQrModalOpen(true)} className="btn btn-icon btn-xs" title="Scan QR Code to Join Match">
-                <QrCode size={12} />
-              </button>
-            </div>
-          )}
-        </div>
-
-        {/* Action Controls: Game Selector Drawer & Voice Deck */}
-        <div className="game-header-right">
-          <GameVoiceDock 
-            status={status}
-            callState={callState}
-            isVoiceConnected={isVoiceConnected}
-            isAudioMuted={callState?.isAudioMuted || false}
-            onConnectVoice={() => onStartCall && onStartCall(false)}
-            onAnswerVoice={onAnswerCall}
-            onDisconnectVoice={callState?.status === 'incoming' ? onRejectCall : onEndCall}
-            onToggleMute={onToggleAudio}
-            onSetMute={handleSetMute}
-            remotePeerNickname={remotePeerNickname}
-          />
-
-          <button 
-            onClick={() => setIsDrawerOpen(true)} 
-            className="btn btn-primary btn-xs game-drawer-btn"
-            title="Browse All Games"
-          >
-            <Gamepad2 size={13} />
-            <span className="game-drawer-btn-label">Games</span>
-          </button>
-        </div>
-      </div>
+      <GameArenaHeader 
+        onExit={onExit}
+        gameRoomId={gameRoomId}
+        status={status}
+        isConnected={isConnected}
+        isConnecting={isConnecting}
+        copied={copied}
+        onCopyLink={handleCopyLink}
+        onOpenQr={() => setIsQrModalOpen(true)}
+        callState={callState}
+        isVoiceConnected={isVoiceConnected}
+        onStartCall={onStartCall}
+        onAnswerCall={onAnswerCall}
+        onRejectCall={onRejectCall}
+        onEndCall={onEndCall}
+        onToggleAudio={onToggleAudio}
+        onSetMute={handleSetMute}
+        remotePeerNickname={remotePeerNickname}
+        onOpenDrawer={() => setIsDrawerOpen(true)}
+      />
 
       {/* Opponent Status Banner when waiting */}
       {!isConnected && (
         <div className="game-waiting-banner">
           <span className="game-waiting-text">
             <Share2 size={13} color="var(--accent-purple, #c084fc)" />
-            {isConnecting ? 'Traversing WebRTC NAT channels...' : 'Waiting for opponent to connect...'}
+            {isConnecting ? 'Connecting to peer...' : 'Waiting for opponent to connect...'}
           </span>
           <div style={{ display: 'flex', gap: '6px' }}>
             <button onClick={handleCopyLink} className="btn btn-primary text-xs" style={{ height: '26px', padding: '0 8px', gap: '4px' }}>
@@ -270,31 +273,18 @@ export default function P2PGameArena({
         </div>
       )}
 
-      {/* Main Workspace: Active Match vs Game Lobby Chat */}
+      {/* Main Stage: Active Playing Match vs Unified Chat Feed */}
       <div className="game-stage-wrapper">
         {isMatchActive ? (
-          activeGame === 'pong' ? (
-            <CyberPongGame 
-              status={status}
-              isHost={isHost}
-              myNickname={myNickname}
-              remotePeerNickname={remotePeerNickname}
-              onExitMatch={handleExitActiveMatch}
-            />
-          ) : activeGame === 'grid' ? (
-            <CyberGridGame 
-              status={status} 
-              remotePeerNickname={remotePeerNickname} 
-              showToast={showToast}
-              onExitMatch={handleExitActiveMatch}
-            />
-          ) : (
-            <CyberConnectFour
-              status={status}
-              remotePeerNickname={remotePeerNickname}
-              onExitMatch={handleExitActiveMatch}
-            />
-          )
+          <ActiveMatchStage 
+            activeGame={activeGame}
+            status={status}
+            isHost={isHost}
+            myNickname={myNickname}
+            remotePeerNickname={remotePeerNickname}
+            showToast={showToast}
+            onExitMatch={handleExitMatch}
+          />
         ) : (
           <GameLobbyChat 
             status={status}
@@ -302,27 +292,25 @@ export default function P2PGameArena({
             myAvatarBg={myAvatarBg}
             remotePeerNickname={remotePeerNickname}
             remoteAvatarBg={remoteAvatarBg}
-            activeChallenge={activeChallenge}
-            onJoinChallenge={handleJoinChallenge}
-            onStartMatch={handleStartMatch}
-            onSelectGame={handleSelectGame}
-            onOpenDrawer={() => setIsDrawerOpen(true)}
             chatMessages={chatMessages}
             onSendChatMessage={handleSendChatMessage}
+            onOpenDrawer={() => setIsDrawerOpen(true)}
+            onJoinCard={handleJoinCard}
+            onLaunchCard={handleLaunchCard}
             isHost={isHost}
           />
         )}
       </div>
 
-      {/* Mobile & Desktop Slide-out Game Drawer */}
+      {/* Game Drawer with "Add to Chat" button */}
       <GameDrawer 
         isOpen={isDrawerOpen}
         onClose={() => setIsDrawerOpen(false)}
-        onSelectGame={(gId) => handleSelectGame(gId, false)}
+        onSelectGame={handleAddGameToChat}
         activeGame={activeGame}
       />
 
-      {/* Scannable Match QR Code Modal */}
+      {/* Match QR Code Modal */}
       <GameQrModal 
         isOpen={isQrModalOpen}
         onClose={() => setIsQrModalOpen(false)}
