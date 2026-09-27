@@ -30,6 +30,12 @@ async function waitForServer(url, timeout = 15000) {
 }
 
 async function testHostRefreshWhileConnected() {
+  const watchdog = setTimeout(() => {
+    console.error('Watchdog timeout: terminating test after 45s');
+    process.exit(1);
+  }, 45000);
+  watchdog.unref();
+
   console.log('--- Test Host Refresh While Connected ---');
   const serverProcess = spawn('cmd.exe', ['/c', 'npm.cmd', 'run', 'preview', '--', '--port', '4177'], {
     cwd: ROOT,
@@ -102,11 +108,20 @@ async function testHostRefreshWhileConnected() {
 
     await browser.close();
   } finally {
-    serverProcess.kill();
+    try {
+      if (serverProcess?.pid) {
+        spawn('taskkill', ['/pid', String(serverProcess.pid), '/f', '/t']);
+        serverProcess.kill('SIGTERM');
+      }
+    } catch (_) {}
   }
 }
 
-testHostRefreshWhileConnected().catch(e => {
-  console.error('Fatal error:', e);
-  process.exit(1);
-});
+testHostRefreshWhileConnected()
+  .then(() => {
+    process.exit(0);
+  })
+  .catch(e => {
+    console.error('Fatal error:', e);
+    process.exit(1);
+  });

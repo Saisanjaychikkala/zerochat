@@ -143,6 +143,9 @@ export default function App() {
     handleEndCall();
     handleDisconnect();
     setViewMode('home');
+    if (typeof window !== 'undefined' && window.location.hash) {
+      window.history.replaceState(null, '', window.location.pathname);
+    }
   };
 
   return (
@@ -220,7 +223,7 @@ export default function App() {
             onRejectCall={callSession.handleRejectCall}
             onEndCall={callSession.handleEndCall}
             onToggleAudio={callSession.handleToggleAudio}
-            onExit={() => setViewMode('room')}
+            onExit={onDisconnect}
             showToast={showToast}
           />
         ) : (

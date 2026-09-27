@@ -30,6 +30,12 @@ async function waitForServer(url, timeout = 15000) {
 }
 
 async function testRealConnections() {
+  const watchdog = setTimeout(() => {
+    console.error('Watchdog timeout: terminating test after 45s');
+    process.exit(1);
+  }, 45000);
+  watchdog.unref();
+
   console.log('--- Testing Real WebRTC Scenarios ---');
   const serverProcess = spawn('cmd.exe', ['/c', 'npm.cmd', 'run', 'preview', '--', '--port', '4176'], {
     cwd: ROOT,
@@ -139,11 +145,21 @@ async function testRealConnections() {
 
     await browser.close();
   } finally {
-    serverProcess.kill();
+    try {
+      if (serverProcess?.pid) {
+        spawn('taskkill', ['/pid', String(serverProcess.pid), '/f', '/t']);
+        serverProcess.kill('SIGTERM');
+      }
+    } catch (_) {}
   }
 }
 
-testRealConnections().catch(e => {
-  console.error('Fatal test error:', e);
-  process.exit(1);
-});
+testRealConnections()
+  .then(() => {
+    console.log('Real connections test completed successfully.');
+    process.exit(0);
+  })
+  .catch(e => {
+    console.error('Fatal test error:', e);
+    process.exit(1);
+  });

@@ -31,6 +31,12 @@ async function waitForServer(url, timeout = 15000) {
 }
 
 async function testJoinFlow() {
+  const watchdog = setTimeout(() => {
+    console.error('Watchdog timeout: terminating test after 45s');
+    process.exit(1);
+  }, 45000);
+  watchdog.unref();
+
   const serverProcess = spawn('cmd.exe', ['/c', 'npm.cmd', 'run', 'preview', '--', '--port', '4175'], {
     cwd: ROOT,
     stdio: 'pipe',
@@ -91,11 +97,20 @@ async function testJoinFlow() {
     console.log('\n✓ SUCCESS! Both peers connected cleanly via UI Quick Join!');
     await browser.close();
   } finally {
-    serverProcess.kill();
+    try {
+      if (serverProcess?.pid) {
+        spawn('taskkill', ['/pid', String(serverProcess.pid), '/f', '/t']);
+        serverProcess.kill('SIGTERM');
+      }
+    } catch (_) {}
   }
 }
 
-testJoinFlow().catch(err => {
-  console.error('\nTest Join Flow FAILED:', err);
-  process.exit(1);
-});
+testJoinFlow()
+  .then(() => {
+    process.exit(0);
+  })
+  .catch(err => {
+    console.error('\nTest Join Flow FAILED:', err);
+    process.exit(1);
+  });

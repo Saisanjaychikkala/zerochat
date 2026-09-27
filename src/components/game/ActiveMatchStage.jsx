@@ -89,10 +89,10 @@ export default function ActiveMatchStage({
           type="button"
           onClick={onReturnToChat || onExitMatch} 
           className="btn btn-secondary text-xs return-to-chat-btn" 
-          title="Return to Chat Window (Keep Game Running in Background)"
+          title={onReturnToChat ? "Return to Chat Window (Keep Game Running in Background)" : "Exit Active Match to Arena Lobby"}
         >
           <ArrowLeft size={15} />
-          <span>Return to Chat</span>
+          <span>{onReturnToChat ? "Return to Chat" : "Back to Lobby"}</span>
         </button>
 
         <div className="active-match-title-pill">

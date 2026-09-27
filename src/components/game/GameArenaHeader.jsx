@@ -25,9 +25,9 @@ export default function GameArenaHeader({
   return (
     <div className="game-header">
       <div className="game-header-left">
-        <button onClick={onExit} className="btn btn-secondary text-xs game-nav-btn" title="Return to Chat Window">
+        <button onClick={onExit} className="btn btn-secondary text-xs game-nav-btn" title="Leave Game Arena & Return Home">
           <ArrowLeft size={14} />
-          <span className="game-nav-label">Return to Chat</span>
+          <span className="game-nav-label">Leave Arena</span>
         </button>
 
         {gameRoomId && (

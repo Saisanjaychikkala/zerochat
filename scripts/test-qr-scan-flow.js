@@ -30,6 +30,12 @@ async function waitForServer(url, timeout = 15000) {
 }
 
 async function testQRScanFlow() {
+  const watchdog = setTimeout(() => {
+    console.error('Watchdog timeout: terminating test after 45s');
+    process.exit(1);
+  }, 45000);
+  watchdog.unref();
+
   console.log('--- Testing QR Code / Direct URL Scan Flow ---');
   const serverProcess = spawn('cmd.exe', ['/c', 'npm.cmd', 'run', 'preview', '--', '--port', '4178'], {
     cwd: ROOT,
@@ -88,11 +94,20 @@ async function testQRScanFlow() {
     console.log('\n✓ SUCCESS! Peer connected immediately upon scanning QR code URL!');
     await browser.close();
   } finally {
-    serverProcess.kill();
+    try {
+      if (serverProcess?.pid) {
+        spawn('taskkill', ['/pid', String(serverProcess.pid), '/f', '/t']);
+        serverProcess.kill('SIGTERM');
+      }
+    } catch (_) {}
   }
 }
 
-testQRScanFlow().catch(err => {
-  console.error('\n❌ QR Scan Flow FAILED:', err);
-  process.exit(1);
-});
+testQRScanFlow()
+  .then(() => {
+    process.exit(0);
+  })
+  .catch(err => {
+    console.error('\n❌ QR Scan Flow FAILED:', err);
+    process.exit(1);
+  });
