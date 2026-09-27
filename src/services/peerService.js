@@ -130,15 +130,11 @@ class PeerService {
       this.currentRoomId = targetRoom;
       this.connectAttempts = 0;
 
-      if (normalizedRoom && !asHost) {
-        // Invite link / QR code scanned: register unique Guest ID and connect to Host
-        const guestId = `${targetRoom}-g-${Math.floor(1000 + Math.random() * 9000)}`;
-        console.log(`[ZeroChat] Joining room "${targetRoom}" via invite/QR as Guest: ${guestId}`);
-        this.setupPeerInstance(guestId, targetRoom, true, resolve, reject);
-      } else {
-        // Fresh room initialization or explicit Host: register as Host
-        this.setupPeerInstance(targetRoom, targetRoom, false, resolve, reject);
-      }
+      // Optimistic Room Claim: Register as targetRoom (Host) first.
+      // If the room is already hosted by a peer, PeerJS emits 'unavailable-id' (~150ms),
+      // which immediately and seamlessly converts this peer to Guest mode and connects!
+      // This completely eliminates the multi-second deadlock where both peers become Guests waiting for a non-existent host.
+      this.setupPeerInstance(targetRoom, targetRoom, false, resolve, reject);
     });
   }
 
@@ -146,7 +142,7 @@ class PeerService {
     const config = {
       config: {
         iceServers: ICE_SERVERS,
-        iceCandidatePoolSize: 10,
+        iceCandidatePoolSize: 4,
       },
       debug: 1,
     };
@@ -293,7 +289,8 @@ class PeerService {
       if (err.type === 'peer-unavailable') {
         if (this.targetPeerId && this.connectAttempts < this.maxConnectAttempts && !this.isConnected()) {
           this.connectAttempts += 1;
-          const delay = Math.min(this.connectAttempts * 1200, 3000);
+          const FAST_PROBE_DELAYS = [350, 750, 1200, 1800, 2400, 3000];
+          const delay = FAST_PROBE_DELAYS[this.connectAttempts - 1] || 2500;
           console.warn(`[ZeroChat] Peer ${this.targetPeerId} not ready yet. Retrying (${this.connectAttempts}/${this.maxConnectAttempts}) in ${delay}ms...`);
           this.emit('status', 'connecting');
           if (this.connectRetryTimer) clearTimeout(this.connectRetryTimer);
