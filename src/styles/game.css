@@ -54,11 +54,11 @@
   .game-room-pill {
     padding: 2px 6px;
     font-size: 0.72rem;
-    max-width: 140px;
+    max-width: 160px;
   }
 
   .game-room-code {
-    max-width: 65px;
+    max-width: 105px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -69,6 +69,10 @@
     font-size: 0.72rem;
     flex-wrap: wrap;
     gap: 6px;
+  }
+
+  .grid-score-pills {
+    gap: 4px;
   }
 
   .cyber-board {
@@ -239,21 +243,14 @@
   border-radius: var(--radius-full);
   border: 1px solid var(--border-subtle);
   background: rgba(255, 255, 255, 0.04);
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
 }
-
-.score-pill.you {
-  color: var(--accent-cyan);
-  border-color: rgba(0, 242, 254, 0.25);
-}
-
-.score-pill.ties {
-  color: var(--text-dim);
-}
-
-.score-pill.peer {
-  color: var(--accent-emerald);
-  border-color: rgba(16, 185, 129, 0.25);
-}
+.score-pill.you { color: var(--accent-cyan); border-color: rgba(0, 242, 254, 0.25); }
+.score-pill.ties { color: var(--text-dim); }
+.score-pill.peer { color: var(--accent-emerald); border-color: rgba(16, 185, 129, 0.25); }
 
 .grid-turn-indicator {
   font-size: 0.85rem;

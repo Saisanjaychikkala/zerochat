@@ -72,7 +72,7 @@ body::before {
 /* Toast Notifications */
 .toast-notification {
   position: fixed;
-  top: 18px;
+  top: 60px;
   left: 50%;
   transform: translateX(-50%);
   padding: 9px 20px;

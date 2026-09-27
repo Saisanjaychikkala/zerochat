@@ -58,7 +58,7 @@ export default function ChatHeader({
                 ? remotePeerNickname || `Peer (${remotePeerId?.substring(0, 8)})` 
                 : status === 'connecting'
                 ? 'Connecting...'
-                : 'Ready for Connection'}
+                : 'Waiting for Friend'}
             </span>
             {getStatusBadge()}
             <span className="e2ee-tag" style={roomFullError && !isConnected ? { borderColor: 'rgba(239, 68, 68, 0.3)', color: '#f87171' } : {}}>
