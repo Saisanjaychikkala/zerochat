@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { Copy, Check, X, ArrowRight, ShieldCheck, Radio, Share2 } from 'lucide-react';
 import { copyToClipboard } from '../utils/clipboard';
+import { normalizeRoomId } from '../services/webrtc/constants';
 
 export default function RoomModal({ 
   isOpen, 
@@ -18,7 +19,8 @@ export default function RoomModal({
 
   if (!isOpen) return null;
 
-  const inviteUrl = `${window.location.origin}${window.location.pathname}#${roomId}`;
+  const normalizedRoomId = normalizeRoomId(roomId);
+  const inviteUrl = `${window.location.origin}${window.location.pathname}#${normalizedRoomId}`;
 
   const handleCopyLink = async () => {
     const success = await copyToClipboard(inviteUrl);
@@ -29,8 +31,8 @@ export default function RoomModal({
   };
 
   const handleCopyCode = async () => {
-    if (!roomId) return;
-    const success = await copyToClipboard(roomId);
+    if (!normalizedRoomId) return;
+    const success = await copyToClipboard(normalizedRoomId);
     if (success) {
       setCopiedCode(true);
       setTimeout(() => setCopiedCode(false), 2000);
@@ -42,7 +44,7 @@ export default function RoomModal({
       try {
         await navigator.share({
           title: 'Join my ZeroChat Room',
-          text: `Connect with me on ZeroChat (Room: ${roomId}):`,
+          text: `Connect with me on ZeroChat (Room: ${normalizedRoomId}):`,
           url: inviteUrl,
         });
       } catch (err) {
@@ -55,14 +57,10 @@ export default function RoomModal({
 
   const handleJoinSubmit = (e) => {
     e.preventDefault();
-    const raw = joinCode.trim();
-    if (raw) {
-      // Support pasting full invite URLs, hashes, or plain IDs
-      const clean = raw.replace(/^.*#/, '').split('?')[0].replace(/\/+$/, '').trim();
-      if (clean) {
-        onJoinRoom(clean);
-        onClose();
-      }
+    const clean = normalizeRoomId(joinCode);
+    if (clean) {
+      onJoinRoom(clean);
+      onClose();
     }
   };
 

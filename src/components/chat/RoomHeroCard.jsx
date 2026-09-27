@@ -6,11 +6,15 @@ import {
   ArrowRight, 
   Share2, 
   Copy, 
-  Check 
+  Check,
+  RefreshCw,
+  Radio
 } from 'lucide-react';
 
 export default function RoomHeroCard({
   roomId,
+  isHost = true,
+  onRetryConnection,
   inviteUrl,
   status,
   isConnected,
@@ -73,6 +77,78 @@ export default function RoomHeroCard({
     );
   }
 
+  // Joiner Connecting View
+  if (!isHost && !isConnected) {
+    return (
+      <div className="waiting-hero-card">
+        {/* Pulsing Cyber Radar Animation */}
+        <div style={{
+          width: '120px',
+          height: '120px',
+          borderRadius: '50%',
+          background: 'radial-gradient(circle, rgba(0,242,254,0.15) 0%, rgba(79,172,254,0.03) 70%, transparent 100%)',
+          border: '2px solid rgba(0,242,254,0.4)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          margin: '0 auto',
+          position: 'relative',
+          boxShadow: '0 0 30px rgba(0,242,254,0.25)'
+        }}>
+          <Radio size={44} color="var(--accent-cyan)" className="animate-pulse" />
+        </div>
+
+        <div>
+          <h3 style={{ fontSize: '1.2rem', fontWeight: 700, marginBottom: '6px' }}>
+            {status === 'connecting' ? `Connecting to Room #${roomId}...` : `Ready to Join #${roomId}`}
+          </h3>
+          <p style={{ fontSize: '0.84rem', color: 'var(--text-muted)', lineHeight: 1.5, maxWidth: '380px', margin: '0 auto' }}>
+            Establishing encrypted direct WebRTC channel. Please ensure the host peer has this room open.
+          </p>
+        </div>
+
+        {/* Room Code Badge */}
+        <div className="room-code-display">
+          <div className="room-code-box" style={{ padding: '6px 12px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+              <span style={{ fontSize: '0.62rem', color: 'var(--text-dim)', fontWeight: 700, textTransform: 'uppercase' }}>Active Room Code</span>
+              <span className="room-code-text" style={{ fontSize: '0.96rem' }}>{roomId}</span>
+            </div>
+            <button onClick={onCopyCode} className="btn btn-secondary text-xs" style={{ padding: '5px 10px' }} title="Copy 3-word code">
+              {copiedCode ? <Check size={12} color="var(--accent-emerald)" /> : <Copy size={12} />}
+              <span>{copiedCode ? 'Copied' : 'Copy Code'}</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Action Buttons for Joiner */}
+        <div style={{ display: 'flex', gap: '8px', width: '100%', justifyContent: 'center' }}>
+          {onRetryConnection && (
+            <button 
+              onClick={onRetryConnection}
+              className="btn btn-primary"
+              style={{ flex: 1, padding: '10px 14px', fontSize: '0.84rem' }}
+              title="Retry direct connection to host peer"
+            >
+              <RefreshCw size={15} className={status === 'connecting' ? 'animate-spin' : ''} />
+              <span>{status === 'connecting' ? 'Connecting...' : 'Retry Connection'}</span>
+            </button>
+          )}
+
+          <button 
+            onClick={onCreateNewRoom}
+            className="btn btn-secondary"
+            style={{ padding: '10px 14px', fontSize: '0.84rem' }}
+            title="Start your own private room"
+          >
+            <PlusCircle size={14} />
+            <span>Create New Room</span>
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="waiting-hero-card">
       {/* QR Code */}
@@ -99,7 +175,7 @@ export default function RoomHeroCard({
           width: '135px', 
           height: '135px', 
           borderRadius: '16px', 
-          border: '1px dashed var(--border-subtle)',
+          border: '1px dashed var(--border-subtle)', 
           display: 'flex', 
           alignItems: 'center', 
           justifyContent: 'center',

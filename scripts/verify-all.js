@@ -30,12 +30,21 @@ console.log(' ZeroChat Autonomous Verification & QA Suite');
 console.log('====================================================\n');
 
 async function runTests() {
-  // 1. Verify Room ID Generation
+  // 1. Verify Room ID Generation & Normalization
   console.log('[Test Suite 1] Room ID Generation & Entropy');
-  const { generateRoomId, ROOM_WORDS, CHUNK_SIZE } = await import('../src/services/webrtc/constants.js');
+  const { generateRoomId, normalizeRoomId, ROOM_WORDS, CHUNK_SIZE } = await import('../src/services/webrtc/constants.js');
   assert(typeof generateRoomId === 'function', 'generateRoomId is exported');
+  assert(typeof normalizeRoomId === 'function', 'normalizeRoomId is exported');
   assert(Array.isArray(ROOM_WORDS) && ROOM_WORDS.length >= 20, 'ROOM_WORDS dictionary has sufficient entropy');
   assert(CHUNK_SIZE === 16384, 'CHUNK_SIZE is standard 16KB (16384 bytes)');
+
+  // Room ID Sanitization & Normalization
+  assert(normalizeRoomId('nexus lunar 155') === 'nexus-lunar-155', 'normalizeRoomId converts spaces to hyphens');
+  assert(normalizeRoomId('#nexus-lunar-155') === 'nexus-lunar-155', 'normalizeRoomId strips leading hash');
+  assert(normalizeRoomId('nexus%20lunar-155') === 'nexus-lunar-155', 'normalizeRoomId decodes percent-encoded spaces');
+  assert(normalizeRoomId('https://site.com/#nexus-lunar-155') === 'nexus-lunar-155', 'normalizeRoomId extracts hash from full URL');
+  assert(normalizeRoomId('  NEXUS_LUNAR_155  ') === 'nexus-lunar-155', 'normalizeRoomId handles uppercase and underscores');
+  assert(normalizeRoomId('nexus--lunar---155/') === 'nexus-lunar-155', 'normalizeRoomId collapses multiple hyphens and trailing slash');
 
   const sampleId = generateRoomId();
   const parts = sampleId.split('-');

@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 
 import { copyToClipboard } from '../utils/clipboard';
+import { normalizeRoomId } from '../services/webrtc/constants';
 
 export default function Header({ 
   status, 
@@ -42,7 +43,7 @@ export default function Header({
   onLaunchGame
 }) {
   const [copied, setCopied] = useState(false);
-  const activeRoomId = roomId || myRoomId;
+  const activeRoomId = normalizeRoomId(roomId || myRoomId);
   const handleRoomModal = onShowRoomModal || onOpenRoomModal;
   const handleNicknameModal = onShowNicknameModal || onOpenNicknameModal;
   const handleInfoModal = onShowInfoModal || onOpenInfoModal;

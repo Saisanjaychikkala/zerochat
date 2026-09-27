@@ -14,6 +14,7 @@ import {
   Flame,
   Radio
 } from 'lucide-react';
+import { normalizeRoomId } from '../services/webrtc/constants';
 
 export default function HomeScreen({
   myRoomId,
@@ -34,8 +35,9 @@ export default function HomeScreen({
 
   const handleJoinSubmit = (e) => {
     e.preventDefault();
-    if (inputCode.trim() && onJoinRoom) {
-      onJoinRoom(inputCode.trim());
+    const clean = normalizeRoomId(inputCode);
+    if (clean && onJoinRoom) {
+      onJoinRoom(clean);
     }
   };
 

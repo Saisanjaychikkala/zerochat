@@ -45,3 +45,22 @@ export function generateRoomId() {
   const num = Math.floor(100 + Math.random() * 900);
   return `${w1}-${w2}-${num}`;
 }
+
+export function normalizeRoomId(raw) {
+  if (!raw || typeof raw !== 'string') return '';
+  let str = raw.trim();
+  if (str.includes('#')) {
+    str = str.split('#').pop();
+  }
+  try {
+    str = decodeURIComponent(str);
+  } catch (e) {}
+
+  str = str.split('?')[0].replace(/\/+$/, '').trim();
+  str = str.toLowerCase();
+  str = str.replace(/[-_\s+]+/g, '-');
+  str = str.replace(/[^a-z0-9-]/g, '');
+  str = str.replace(/^-+|-+$/g, '');
+  return str;
+}
+

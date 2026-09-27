@@ -21,6 +21,8 @@ export default function ChatArea({
   onOpenRoomModal,
   onOpenLightbox,
   roomId,
+  isHost,
+  onRetryConnection,
   roomFullError,
   onCreateNewRoom,
   onOpenInfoModal,
@@ -235,6 +237,8 @@ export default function ChatArea({
         {((roomFullError && !isConnected) || (messages.length === 0 && !isConnected)) && (
           <RoomHeroCard 
             roomId={roomId}
+            isHost={isHost}
+            onRetryConnection={onRetryConnection}
             inviteUrl={inviteUrl}
             status={status}
             isConnected={isConnected}

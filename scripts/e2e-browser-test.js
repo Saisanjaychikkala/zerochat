@@ -111,8 +111,18 @@ async function runE2ETest() {
     console.log('\n[Step 1] Loading Peer A...');
     await pageA.goto(appUrl, { waitUntil: 'networkidle0' });
 
-    // Wait for Peer A room ID to appear in Hero card
-    await pageA.waitForSelector('.room-code-text', { timeout: 10000 });
+    // If on homescreen, enter room
+    const launchBtn = await pageA.waitForSelector('.active-room-pill, .card-action-bar button, .room-code-text', { timeout: 10000 });
+    const isRoomCode = await pageA.$('.room-code-text');
+    if (!isRoomCode && launchBtn) {
+      await launchBtn.click();
+    }
+
+    // Wait for Peer A room ID to appear and populate in Hero card
+    await pageA.waitForFunction(() => {
+      const el = document.querySelector('.room-code-text');
+      return el && el.textContent.trim().length > 3;
+    }, { timeout: 15000 });
     const roomIdText = await pageA.$eval('.room-code-text', (el) => el.textContent.trim());
     console.log(`Peer A Room Created: ${roomIdText}`);
 
@@ -145,11 +155,11 @@ async function runE2ETest() {
     }, { timeout: 5000 });
     console.log('✓ Text message arrived at Peer B via direct RTCDataChannel.');
 
-    // 4. Test Voice Call & Answer ("Lift the Call")
-    console.log('\n[Step 4] Testing Voice Call Initiation from Peer A...');
-    const callButton = await pageA.waitForSelector('.call-trigger-btn', { timeout: 5000 });
+    // 4. Test Video Call & Answer ("Lift the Call")
+    console.log('\n[Step 4] Testing Video Call Initiation from Peer A...');
+    const callButton = await pageA.waitForSelector('.btn-call-video', { timeout: 5000 });
     await callButton.click();
-    console.log('Peer A clicked Voice Call button.');
+    console.log('Peer A clicked Video Call button.');
 
     // Wait for Incoming Call Dialog on Peer B
     console.log('Waiting for Incoming Call Dialog to appear on Peer B...');
@@ -226,7 +236,10 @@ async function runE2ETest() {
 
     await browser.close();
   } finally {
-    serverProcess.kill();
+    try {
+      serverProcess.kill();
+    } catch (e) {}
+    process.exit(0);
   }
 }
 

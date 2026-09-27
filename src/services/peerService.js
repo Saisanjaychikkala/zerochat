@@ -9,7 +9,7 @@
  */
 
 import Peer from 'peerjs';
-import { ICE_SERVERS, STUN_ONLY_ICE_SERVERS, UNIVERSAL_ICE_SERVERS, generateRoomId } from './webrtc/constants';
+import { ICE_SERVERS, STUN_ONLY_ICE_SERVERS, UNIVERSAL_ICE_SERVERS, generateRoomId, normalizeRoomId } from './webrtc/constants';
 import { FileStreamEngine } from './webrtc/fileStreamEngine';
 import { MediaCallEngine } from './webrtc/mediaCallEngine';
 
@@ -18,6 +18,8 @@ class PeerService {
     this.peer = null;
     this.conn = null;
     this.myPeerId = null;
+    this.currentRoomId = null;
+    this.isHost = false;
     this.remotePeerId = null;
     this.targetPeerId = null;
     this.myNickname = 'Anonymous';
@@ -29,7 +31,7 @@ class PeerService {
     this.connectRetryTimer = null;
     this.connectionTimeout = null;
     this.connectAttempts = 0;
-    this.maxConnectAttempts = 4;
+    this.maxConnectAttempts = 6;
     this.isIntentionalDisconnect = false;
     this.isRoomFull = false;
 
@@ -97,8 +99,13 @@ class PeerService {
   // ==========================================
 
   async init(customId = null) {
+    const normalizedRoom = normalizeRoomId(customId);
+
     if (this.peer && !this.peer.destroyed && this.myPeerId) {
-      return this.myPeerId;
+      if (!normalizedRoom || this.currentRoomId === normalizedRoom) {
+        return this.myPeerId;
+      }
+      this.cleanup();
     }
 
     if (this.isInitializing) {
@@ -115,177 +122,197 @@ class PeerService {
     this.isInitializing = true;
 
     return new Promise((resolve, reject) => {
-      const config = {
-        config: {
-          iceServers: ICE_SERVERS,
-          iceCandidatePoolSize: 10,
-        },
-        debug: 1,
-      };
+      const targetRoom = normalizedRoom || this.generateRoomId();
+      this.currentRoomId = targetRoom;
+      this.connectAttempts = 0;
 
-      const peerId = customId || this.generateRoomId();
+      this.setupPeerInstance(targetRoom, targetRoom, false, resolve, reject);
+    });
+  }
 
-      try {
-        if (this.peer && !this.peer.destroyed) {
-          this.peer.destroy();
-        }
-        this.peer = new Peer(peerId, config);
-      } catch (err) {
-        this.isInitializing = false;
-        return reject(err);
+  setupPeerInstance(peerId, targetRoom, isGuestAttempt, resolve, reject) {
+    const config = {
+      config: {
+        iceServers: ICE_SERVERS,
+        iceCandidatePoolSize: 10,
+      },
+      debug: 1,
+    };
+
+    try {
+      if (this.peer && !this.peer.destroyed) {
+        this.peer.destroy();
+      }
+    } catch (e) {}
+
+    try {
+      this.peer = new Peer(peerId, config);
+    } catch (err) {
+      this.isInitializing = false;
+      return reject(err);
+    }
+
+    this.peer.on('open', (id) => {
+      this.myPeerId = id;
+      this.isInitializing = false;
+      this.currentRoomId = targetRoom;
+      this.isHost = !isGuestAttempt;
+      console.log(`[ZeroChat] Peer online as ${this.isHost ? 'Host' : 'Guest'}: ${id} (Room: ${targetRoom})`);
+      this.emit('ready', { id, roomId: targetRoom, isHost: this.isHost });
+
+      if (isGuestAttempt) {
+        console.log('[ZeroChat] Auto-connecting Guest to Host room:', targetRoom);
+        this.connectToPeer(targetRoom);
+      } else if (this.targetPeerId && this.targetPeerId !== id && !this.isConnected()) {
+        console.log('[ZeroChat] Executing queued connection to:', this.targetPeerId);
+        this.executeConnect(this.targetPeerId);
       }
 
-      this.peer.on('open', (id) => {
-        this.myPeerId = id;
-        this.isInitializing = false;
-        console.log('[ZeroChat] Peer online:', id);
-        this.emit('ready', id);
+      resolve(id);
+    });
 
-        if (this.targetPeerId && this.targetPeerId !== id && !this.isConnected()) {
-          console.log('[ZeroChat] Executing queued connection to:', this.targetPeerId);
-          this.executeConnect(this.targetPeerId);
-        }
+    // Handle incoming connection (Receiver side)
+    this.peer.on('connection', (connection) => {
+      console.log('[ZeroChat] Incoming peer connection from:', connection.peer);
 
-        resolve(id);
-      });
+      // Strict 1-on-1 Guard: If room already occupied by another ACTIVE peer, reject 3rd peer
+      const pc = this.conn?.peerConnection;
+      const isIceDead = pc && (
+        pc.iceConnectionState === 'disconnected' ||
+        pc.iceConnectionState === 'failed' ||
+        pc.iceConnectionState === 'closed' ||
+        pc.connectionState === 'disconnected' ||
+        pc.connectionState === 'failed' ||
+        pc.connectionState === 'closed'
+      );
+      const isInactive = !this.lastActiveTime || (Date.now() - this.lastActiveTime > 8000);
 
-      // Handle incoming connection (Receiver side)
-      this.peer.on('connection', (connection) => {
-        console.log('[ZeroChat] Incoming peer connection from:', connection.peer);
+      if (this.conn && this.conn.open && this.conn.peer !== connection.peer && !isIceDead && !isInactive) {
+        console.warn(`[ZeroChat] Room full (2/2 peers connected). Rejecting 3rd peer: ${connection.peer}`);
 
-        // Strict 1-on-1 Guard: If room already occupied by another ACTIVE peer, reject 3rd peer
-        const pc = this.conn?.peerConnection;
-        const isIceDead = pc && (
-          pc.iceConnectionState === 'disconnected' ||
-          pc.iceConnectionState === 'failed' ||
-          pc.iceConnectionState === 'closed' ||
-          pc.connectionState === 'disconnected' ||
-          pc.connectionState === 'failed' ||
-          pc.connectionState === 'closed'
-        );
-        const isInactive = !this.lastActiveTime || (Date.now() - this.lastActiveTime > 8000);
-
-        if (this.conn && this.conn.open && this.conn.peer !== connection.peer && !isIceDead && !isInactive) {
-          console.warn(`[ZeroChat] Room full (2/2 peers connected). Rejecting 3rd peer: ${connection.peer}`);
-
-          const sendRoomFullAndClose = () => {
+        const sendRoomFullAndClose = () => {
+          try {
+            connection.send({
+              type: 'room_occupied',
+              reason: 'Room is full (2/2 peers connected)',
+            });
+          } catch (e) {
+            console.warn('[ZeroChat] Error sending room_occupied packet:', e);
+          }
+          setTimeout(() => {
             try {
-              connection.send({
-                type: 'room_occupied',
-                reason: 'Room is full (2/2 peers connected)',
-              });
-            } catch (e) {
-              console.warn('[ZeroChat] Error sending room_occupied packet:', e);
-            }
-            setTimeout(() => {
-              try {
-                connection.close();
-              } catch (e) {}
-            }, 350);
-          };
+              connection.close();
+            } catch (e) {}
+          }, 350);
+        };
 
-          if (connection.open) {
-            sendRoomFullAndClose();
-          } else {
-            connection.on('open', sendRoomFullAndClose);
-            setTimeout(() => {
-              try {
-                connection.close();
-              } catch (e) {}
-            }, 3000);
-          }
-          return;
-        }
-
-        // If existing connection is stale/dead/reconnecting, replace cleanly
-        if (this.conn && this.conn !== connection) {
-          try {
-            this.conn.close();
-          } catch (e) {}
-          this.conn = null;
-        }
-
-        this.handleConnection(connection);
-      });
-
-      // Handle incoming WebRTC media call
-      this.peer.on('call', (mediaConn) => {
-        console.log('[ZeroChat] Incoming WebRTC media call from:', mediaConn.peer);
-
-        if (this.mediaCall.currentCall || this.mediaCall.incomingCallData) {
-          console.warn('[ZeroChat] Already on call or call pending. Rejecting call from:', mediaConn.peer);
-          try {
-            mediaConn.close();
-          } catch (e) {}
-          this.sendJson({
-            type: 'call_signal',
-            signal: 'busy',
-          });
-          return;
-        }
-
-        const metadata = mediaConn.metadata || {};
-        const isVideo = metadata.isVideo !== undefined ? metadata.isVideo : true;
-        const callerNickname = metadata.callerNickname || this.remoteNickname || 'Peer';
-
-        this.mediaCall.incomingCallData = { mediaConn, callerNickname, isVideo };
-        this.emit('call_incoming', {
-          mediaConn,
-          callerNickname,
-          isVideo,
-          peerId: mediaConn.peer,
-        });
-      });
-
-      this.peer.on('error', (err) => {
-        console.error('[ZeroChat] Peer error:', err);
-        this.isInitializing = false;
-
-        if (err.type === 'unavailable-id') {
-          console.warn('[ZeroChat] Room ID taken, retrying with new ID...');
-          resolve(this.init(null));
-          return;
-        }
-
-        if (err.type === 'peer-unavailable') {
-          if (this.targetPeerId && this.connectAttempts < this.maxConnectAttempts && !this.isConnected()) {
-            this.connectAttempts += 1;
-            const delay = this.connectAttempts * 1200;
-            console.warn(`[ZeroChat] Peer ${this.targetPeerId} not ready yet. Retrying (${this.connectAttempts}/${this.maxConnectAttempts}) in ${delay}ms...`);
-            this.emit('status', 'connecting');
-            if (this.connectRetryTimer) clearTimeout(this.connectRetryTimer);
-            this.connectRetryTimer = setTimeout(() => {
-              if (this.targetPeerId && !this.isConnected()) {
-                this.executeConnect(this.targetPeerId);
-              }
-            }, delay);
-            return;
-          }
-
-          this.emit('peer_not_found', err);
-          this.emit('status', 'disconnected');
+        if (connection.open) {
+          sendRoomFullAndClose();
         } else {
-          this.emit('error', err);
+          connection.on('open', sendRoomFullAndClose);
+          setTimeout(() => {
+            try {
+              connection.close();
+            } catch (e) {}
+          }, 3000);
         }
+        return;
+      }
 
-        if (!this.myPeerId) {
-          reject(err);
-        }
-      });
-
-      this.peer.on('disconnected', () => {
-        console.warn('[ZeroChat] Peer broker link disconnected, reconnecting...');
+      // If existing connection is stale/dead/reconnecting, replace cleanly
+      if (this.conn && this.conn !== connection) {
         try {
-          if (this.peer && !this.peer.destroyed) {
-            this.peer.reconnect();
-          }
+          this.conn.close();
         } catch (e) {}
-      });
+        this.conn = null;
+      }
 
-      this.peer.on('close', () => {
-        this.myPeerId = null;
-        this.isInitializing = false;
+      this.handleConnection(connection);
+    });
+
+    // Handle incoming WebRTC media call
+    this.peer.on('call', (mediaConn) => {
+      console.log('[ZeroChat] Incoming WebRTC media call from:', mediaConn.peer);
+
+      if (this.mediaCall.currentCall || this.mediaCall.incomingCallData) {
+        console.warn('[ZeroChat] Already on call or call pending. Rejecting call from:', mediaConn.peer);
+        try {
+          mediaConn.close();
+        } catch (e) {}
+        this.sendJson({
+          type: 'call_signal',
+          signal: 'busy',
+        });
+        return;
+      }
+
+      const metadata = mediaConn.metadata || {};
+      const isVideo = metadata.isVideo !== undefined ? metadata.isVideo : true;
+      const callerNickname = metadata.callerNickname || this.remoteNickname || 'Peer';
+
+      this.mediaCall.incomingCallData = { mediaConn, callerNickname, isVideo };
+      this.emit('call_incoming', {
+        mediaConn,
+        callerNickname,
+        isVideo,
+        peerId: mediaConn.peer,
       });
+    });
+
+    this.peer.on('error', (err) => {
+      console.error('[ZeroChat] Peer error:', err);
+      this.isInitializing = false;
+
+      if (err.type === 'unavailable-id') {
+        if (!isGuestAttempt && targetRoom) {
+          console.warn(`[ZeroChat] Room ID "${targetRoom}" already hosted. Switching to Guest mode...`);
+          const guestId = `${targetRoom}-g-${Math.floor(1000 + Math.random() * 9000)}`;
+          return this.setupPeerInstance(guestId, targetRoom, true, resolve, reject);
+        } else {
+          console.warn('[ZeroChat] Random ID collision, generating fresh room...');
+          const freshRoom = this.generateRoomId();
+          return this.setupPeerInstance(freshRoom, freshRoom, false, resolve, reject);
+        }
+      }
+
+      if (err.type === 'peer-unavailable') {
+        if (this.targetPeerId && this.connectAttempts < this.maxConnectAttempts && !this.isConnected()) {
+          this.connectAttempts += 1;
+          const delay = Math.min(this.connectAttempts * 1200, 3000);
+          console.warn(`[ZeroChat] Peer ${this.targetPeerId} not ready yet. Retrying (${this.connectAttempts}/${this.maxConnectAttempts}) in ${delay}ms...`);
+          this.emit('status', 'connecting');
+          if (this.connectRetryTimer) clearTimeout(this.connectRetryTimer);
+          this.connectRetryTimer = setTimeout(() => {
+            if (this.targetPeerId && !this.isConnected()) {
+              this.executeConnect(this.targetPeerId);
+            }
+          }, delay);
+          return;
+        }
+
+        this.emit('peer_not_found', err);
+        this.emit('status', 'disconnected');
+      } else {
+        this.emit('error', err);
+      }
+
+      if (!this.myPeerId) {
+        reject(err);
+      }
+    });
+
+    this.peer.on('disconnected', () => {
+      console.warn('[ZeroChat] Peer broker link disconnected, reconnecting...');
+      try {
+        if (this.peer && !this.peer.destroyed) {
+          this.peer.reconnect();
+        }
+      } catch (e) {}
+    });
+
+    this.peer.on('close', () => {
+      this.myPeerId = null;
+      this.isInitializing = false;
     });
   }
 
@@ -294,19 +321,20 @@ class PeerService {
   // ==========================================
 
   connectToPeer(remoteId) {
-    const cleanId = remoteId ? remoteId.trim() : '';
+    const cleanId = normalizeRoomId(remoteId);
     if (!cleanId || cleanId === this.myPeerId) {
       return;
     }
 
     this.targetPeerId = cleanId;
+    this.currentRoomId = cleanId;
     this.connectAttempts = 0;
     this.isIntentionalDisconnect = false;
     this.isRoomFull = false;
 
     if (!this.peer || this.peer.destroyed) {
-      console.warn('[ZeroChat] Peer not ready, initializing first...');
-      this.init().then(() => this.executeConnect(cleanId)).catch(console.error);
+      console.warn('[ZeroChat] Peer not ready, initializing with room:', cleanId);
+      this.init(cleanId).then(() => this.executeConnect(cleanId)).catch(console.error);
       return;
     }
 
@@ -319,20 +347,34 @@ class PeerService {
       return;
     }
 
+    if (!this.peer.open) {
+      console.log('[ZeroChat] Peer opening, queued connectToPeer for:', cleanId);
+      return;
+    }
+
     this.executeConnect(cleanId);
   }
 
   executeConnect(cleanId) {
-    if (this.isConnected() && this.remotePeerId === cleanId) {
-      console.log('[ZeroChat] Already connected to peer:', cleanId);
+    const target = normalizeRoomId(cleanId);
+    if (!target) return;
+
+    if (this.isConnected() && this.remotePeerId === target) {
+      console.log('[ZeroChat] Already connected to peer:', target);
       return;
     }
 
-    console.log('[ZeroChat] Connecting to remote peer:', cleanId);
+    if (!this.peer || this.peer.destroyed || !this.peer.open) {
+      console.log('[ZeroChat] executeConnect waiting for peer open:', target);
+      this.targetPeerId = target;
+      return;
+    }
+
+    console.log('[ZeroChat] Connecting to remote peer:', target);
     this.emit('status', 'connecting');
 
     try {
-      const connection = this.peer.connect(cleanId, {
+      const connection = this.peer.connect(target, {
         reliable: true,
         serialization: 'binary',
       });
@@ -345,12 +387,12 @@ class PeerService {
 
       if (this.connectionTimeout) clearTimeout(this.connectionTimeout);
       this.connectionTimeout = setTimeout(() => {
-        if (!this.isConnected() && this.targetPeerId === cleanId) {
-          console.warn('[ZeroChat] Connection attempt timed out for peer:', cleanId);
+        if (!this.isConnected() && this.targetPeerId === target) {
+          console.warn('[ZeroChat] Connection attempt timed out for peer:', target);
           if (this.connectAttempts < this.maxConnectAttempts) {
             this.connectAttempts += 1;
             console.log(`[ZeroChat] Retrying connection (${this.connectAttempts}/${this.maxConnectAttempts})...`);
-            this.executeConnect(cleanId);
+            this.executeConnect(target);
           } else {
             this.emit('peer_not_found', new Error('Connection timed out'));
             this.emit('status', 'disconnected');
@@ -624,11 +666,12 @@ class PeerService {
   }
 
   sendNudge(message = "I'll be calling you in 5 seconds! Get ready.", nudgeType = 'calling_soon') {
+    const text = (typeof message === 'string' && message.trim()) ? message.trim() : "I'll be calling you in 5 seconds! Get ready.";
     this.sendJson({
       type: 'peer_nudge',
-      message,
+      message: text,
       senderNickname: this.myNickname,
-      nudgeType,
+      nudgeType: typeof nudgeType === 'string' ? nudgeType : 'calling_soon',
     });
   }
 
@@ -901,6 +944,8 @@ class PeerService {
       this.peer = null;
     }
     this.myPeerId = null;
+    this.currentRoomId = null;
+    this.isHost = false;
     this.isInitializing = false;
     this.fileStream.clear();
   }

@@ -85,8 +85,8 @@ export default function ChatHeader({
           <>
             {onSendNudge && (
               <button
-                onClick={onSendNudge}
-                className="btn btn-icon call-trigger-btn"
+                onClick={() => onSendNudge()}
+                className="btn btn-icon nudge-trigger-btn"
                 title="Ping Peer: 'Calling you soon!' (Avoids calling at the same time)"
                 style={{ width: '34px', height: '34px' }}
               >
@@ -98,7 +98,7 @@ export default function ChatHeader({
               <>
                 <button 
                   onClick={() => onStartCall(false)} 
-                  className="btn btn-icon call-trigger-btn"
+                  className="btn btn-icon call-trigger-btn voice-call-btn"
                   title={callStatus && callStatus !== 'idle' ? 'Call in progress' : 'Start Encrypted Voice Call'}
                   disabled={callStatus && callStatus !== 'idle'}
                   style={{ 
@@ -113,7 +113,7 @@ export default function ChatHeader({
 
                 <button 
                   onClick={() => onStartCall(true)} 
-                  className="btn btn-icon call-trigger-btn"
+                  className="btn btn-icon call-trigger-btn btn-call-video"
                   title={callStatus && callStatus !== 'idle' ? 'Call in progress' : 'Start Encrypted Video Call'}
                   disabled={callStatus && callStatus !== 'idle'}
                   style={{ 

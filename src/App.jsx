@@ -75,6 +75,8 @@ export default function App() {
   // Hook 3: PeerJS Session & Direct 1-on-1 Room Guard
   const {
     myRoomId,
+    roomId,
+    isHost,
     remotePeerId,
     remoteNickname,
     status,
@@ -83,6 +85,7 @@ export default function App() {
     isPeerTyping,
     peerTypingNickname,
     handleJoinRoom,
+    handleRetryConnection,
     handleDisconnect,
     handleCreateNewRoom,
     handleTyping,
@@ -271,12 +274,15 @@ export default function App() {
             onOpenRoomModal={() => setIsRoomModalOpen(true)}
             onOpenLightbox={(url, name) => setLightboxImage({ url, name })}
             roomId={myRoomId}
+            isHost={isHost}
+            onRetryConnection={handleRetryConnection}
             roomFullError={roomFullError}
             onCreateNewRoom={handleCreateNewRoom}
             onOpenInfoModal={() => setIsInfoModalOpen(true)}
             onStartCall={handleStartCall}
             callStatus={callState.status}
             onSendNudge={handleSendNudge}
+            latency={latency}
           />
 
           <FileTransferArea 

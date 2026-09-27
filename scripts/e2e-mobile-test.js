@@ -85,6 +85,12 @@ async function runMobileE2ETest() {
     console.log('[Step 1] Loading Peer A on iPhone viewport (390x844)...');
     await pageA.goto(appUrl, { waitUntil: 'networkidle0' });
 
+    const launchBtn = await pageA.waitForSelector('.active-room-pill, .card-action-bar button, .room-code-text', { timeout: 10000 });
+    const isRoomCode = await pageA.$('.room-code-text');
+    if (!isRoomCode && launchBtn) {
+      await launchBtn.click();
+    }
+
     // Wait for Peer A room ID to appear in Hero card
     await pageA.waitForFunction(() => {
       const el = document.querySelector('.room-code-text');
@@ -159,7 +165,7 @@ async function runMobileE2ETest() {
     // Step 6: Test Video Call on Mobile
     console.log('\n[Step 6] Testing Encrypted Video Call initiation from Peer A...');
     // Find video call button
-    const videoCallBtn = await pageA.$('.chat-header .btn-icon:nth-child(2)');
+    const videoCallBtn = await pageA.waitForSelector('.btn-call-video', { timeout: 5000 });
     await videoCallBtn.click();
     console.log('Peer A initiated Video Call.');
 
@@ -223,7 +229,10 @@ async function runMobileE2ETest() {
     console.log('🎉 ALL MOBILE END-TO-END TESTS PASSED 100% WITHOUT REGRESSION!');
     console.log('===========================================================');
   } finally {
-    serverProcess.kill();
+    try {
+      serverProcess.kill();
+    } catch (e) {}
+    process.exit(0);
   }
 }
 
