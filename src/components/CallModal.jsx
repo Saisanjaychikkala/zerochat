@@ -29,6 +29,7 @@ export default function CallModal({
     localStream,
     remoteStream,
     isScreenSharing,
+    isRemoteScreenSharing = false,
     isAudioMuted,
     isVideoMuted,
     isRemoteCameraActive = false,
@@ -38,17 +39,18 @@ export default function CallModal({
     isVideo &&
     localStream &&
     localStream.getVideoTracks().some(
-      (t) => (!t.label || !t.label.includes('canvas')) && t.readyState === 'live' && t.enabled
+      (t) => t.readyState === 'live' && t.enabled
     )
   );
 
   const hasActiveRemoteVideo = !!(
     isVideo &&
-    ((remoteStream &&
-      remoteStream.getVideoTracks().some(
-        (t) => (!t.label || !t.label.includes('canvas')) && t.readyState === 'live' && t.enabled
-      )) ||
-    isRemoteCameraActive)
+    (isRemoteScreenSharing ||
+     isRemoteCameraActive ||
+     (remoteStream &&
+       remoteStream.getVideoTracks().some(
+         (t) => t.readyState === 'live' && t.enabled
+       )))
   );
 
   // Active call duration timer
@@ -156,6 +158,7 @@ export default function CallModal({
         hasActiveLocalVideo={hasActiveLocalVideo}
         isVideoMuted={isVideoMuted}
         isScreenSharing={isScreenSharing}
+        isRemoteScreenSharing={isRemoteScreenSharing}
         remoteNickname={remoteNickname}
         myNickname={myNickname}
       />

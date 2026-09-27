@@ -860,11 +860,17 @@ class PeerService {
   }
 
   startScreenShare() {
-    return this.mediaCall.startScreenShare((e, d) => this.emit(e, d));
+    return this.mediaCall.startScreenShare(
+      (data) => this.sendJson(data),
+      (e, d) => this.emit(e, d)
+    );
   }
 
   stopScreenShare() {
-    return this.mediaCall.stopScreenShare((e, d) => this.emit(e, d));
+    return this.mediaCall.stopScreenShare(
+      (data) => this.sendJson(data),
+      (e, d) => this.emit(e, d)
+    );
   }
 
   switchCamera() {

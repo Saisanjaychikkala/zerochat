@@ -116,9 +116,15 @@ export async function startScreenShareHelper(currentCall, localStream, onEnded) 
   });
 
   const screenTrack = screenStream.getVideoTracks()[0];
+  if (!screenTrack) {
+    throw new Error('No video track found in screen capture');
+  }
+  screenTrack.enabled = true;
+
   const pc = currentCall.peerConnection;
   const senders = pc.getSenders();
-  const videoSender = senders.find((s) => s.track && s.track.kind === 'video');
+  const videoSender = senders.find((s) => s.track && s.track.kind === 'video') ||
+    senders.find((s) => s.track === null);
 
   if (videoSender) {
     await videoSender.replaceTrack(screenTrack);
@@ -139,10 +145,12 @@ export async function stopScreenShareHelper(currentCall, localStream, screenStre
   }
 
   if (currentCall && currentCall.peerConnection && localStream) {
-    const cameraTrack = localStream.getVideoTracks()[0] || null;
+    const cameraTrack = localStream.getVideoTracks().find((t) => t.readyState === 'live') ||
+      localStream.getVideoTracks()[0] || null;
     const pc = currentCall.peerConnection;
     const senders = pc.getSenders();
-    const videoSender = senders.find((s) => s.track && s.track.kind === 'video');
+    const videoSender = senders.find((s) => s.track && s.track.kind === 'video') ||
+      senders.find((s) => s.track === null);
 
     if (videoSender) {
       await videoSender.replaceTrack(cameraTrack);

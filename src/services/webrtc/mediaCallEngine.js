@@ -53,16 +53,27 @@ export class MediaCallEngine {
         callerNickname: myNickname,
       });
 
-      if (mediaConn.remoteStream) {
-        this.remoteStream = mediaConn.remoteStream;
+      const handleRemoteStream = (remoteStream) => {
+        if (!remoteStream || remoteStream.getTracks().length === 0) return;
+        this.remoteStream = remoteStream;
         emit('remote_stream', this.remoteStream);
         emit('call_started', { role: 'caller', isVideo: activeIsVideo, remoteNickname });
+      };
+
+      if (mediaConn.remoteStream && mediaConn.remoteStream.getTracks().length > 0) {
+        handleRemoteStream(mediaConn.remoteStream);
       }
-      mediaConn.on('stream', (remoteStream) => {
-        this.remoteStream = remoteStream;
-        emit('remote_stream', remoteStream);
-        emit('call_started', { role: 'caller', isVideo: activeIsVideo, remoteNickname });
-      });
+      mediaConn.on('stream', handleRemoteStream);
+
+      if (mediaConn.peerConnection) {
+        mediaConn.peerConnection.addEventListener('track', (e) => {
+          const s = (e.streams && e.streams[0]) ? e.streams[0] : this.remoteStream;
+          if (s) {
+            this.remoteStream = s;
+            emit('remote_stream', s);
+          }
+        });
+      }
 
       mediaConn.on('close', () => this.cleanupCall(emit));
       mediaConn.on('error', (err) => {
@@ -98,16 +109,31 @@ export class MediaCallEngine {
       this.incomingCallData = null;
 
       emit('call_started', { role: 'receiver', isVideo: activeIsVideo, remoteNickname });
-      sendJson({ type: 'call_signal', signal: 'accepted' });
-
-      if (mediaConn.remoteStream) {
-        this.remoteStream = mediaConn.remoteStream;
-        emit('remote_stream', this.remoteStream);
+      sendJson({ type: 'call_signal', signal: 'accepted', isVideo: activeIsVideo });
+      if (callIsVideo) {
+        emit('remote_camera_toggle', { isVideoActive: true });
       }
-      mediaConn.on('stream', (remoteStream) => {
+
+      const handleRemoteStream = (remoteStream) => {
+        if (!remoteStream || remoteStream.getTracks().length === 0) return;
         this.remoteStream = remoteStream;
-        emit('remote_stream', remoteStream);
-      });
+        emit('remote_stream', this.remoteStream);
+      };
+
+      if (mediaConn.remoteStream && mediaConn.remoteStream.getTracks().length > 0) {
+        handleRemoteStream(mediaConn.remoteStream);
+      }
+      mediaConn.on('stream', handleRemoteStream);
+
+      if (mediaConn.peerConnection) {
+        mediaConn.peerConnection.addEventListener('track', (e) => {
+          const s = (e.streams && e.streams[0]) ? e.streams[0] : this.remoteStream;
+          if (s) {
+            this.remoteStream = s;
+            emit('remote_stream', s);
+          }
+        });
+      }
 
       mediaConn.on('close', () => this.cleanupCall(emit));
       mediaConn.on('error', (err) => {
@@ -217,15 +243,25 @@ export class MediaCallEngine {
     return false;
   }
 
-  async startScreenShare(emit) {
+  async startScreenShare(sendJsonOrEmit, maybeEmit) {
+    const emit = typeof maybeEmit === 'function' ? maybeEmit : sendJsonOrEmit;
+    const sendJson = typeof maybeEmit === 'function' ? sendJsonOrEmit : null;
+
     try {
       this.screenStream = await startScreenShareHelper(
         this.currentCall,
         this.localStream,
-        () => this.stopScreenShare(emit)
+        () => this.stopScreenShare(sendJsonOrEmit, maybeEmit)
       );
       this.isScreenSharing = true;
       emit('screen_share_status', { isSharing: true, stream: this.screenStream });
+      if (sendJson) {
+        sendJson({
+          type: 'call_signal',
+          signal: 'screen_share',
+          isSharing: true,
+        });
+      }
       return true;
     } catch (err) {
       if (err.name !== 'NotAllowedError') {
@@ -235,17 +271,34 @@ export class MediaCallEngine {
     }
   }
 
-  async stopScreenShare(emit) {
+  async stopScreenShare(sendJsonOrEmit, maybeEmit) {
     if (!this.isScreenSharing) return;
+    const emit = typeof maybeEmit === 'function' ? maybeEmit : sendJsonOrEmit;
+    const sendJson = typeof maybeEmit === 'function' ? sendJsonOrEmit : null;
+
     try {
       await stopScreenShareHelper(this.currentCall, this.localStream, this.screenStream);
       this.screenStream = null;
       this.isScreenSharing = false;
       emit('screen_share_status', { isSharing: false });
+      if (sendJson) {
+        sendJson({
+          type: 'call_signal',
+          signal: 'screen_share',
+          isSharing: false,
+        });
+      }
     } catch (err) {
       console.warn('[ZeroChat] Error stopping screen share:', err);
       this.isScreenSharing = false;
       emit('screen_share_status', { isSharing: false });
+      if (sendJson) {
+        sendJson({
+          type: 'call_signal',
+          signal: 'screen_share',
+          isSharing: false,
+        });
+      }
     }
   }
 
@@ -266,17 +319,22 @@ export class MediaCallEngine {
   }
 
   handleCallSignal(packet, remoteNickname, emit) {
-    const { signal, isVideo, callerNickname, isVideoActive } = packet;
+    const { signal, isVideo, callerNickname, isVideoActive, isSharing } = packet;
     if (signal === 'offer') {
       emit('call_signal_offer', { isVideo, callerNickname: callerNickname || remoteNickname || 'Peer' });
     } else if (signal === 'accepted') {
       emit('call_signal_accepted');
-      emit('call_started', { role: 'caller', isVideo: this.currentCall?.metadata?.isVideo, remoteNickname });
+      emit('call_started', { role: 'caller', isVideo: packet.isVideo ?? this.currentCall?.metadata?.isVideo, remoteNickname });
+      if (packet.isVideo !== undefined) {
+        emit('remote_camera_toggle', { isVideoActive: !!packet.isVideo });
+      }
     } else if (signal === 'rejected' || signal === 'busy' || signal === 'ended') {
       emit(`call_signal_${signal}`);
       this.cleanupCall(emit);
     } else if (signal === 'camera_toggle') {
       emit('remote_camera_toggle', { isVideoActive: !!isVideoActive });
+    } else if (signal === 'screen_share') {
+      emit('remote_screen_share', { isSharing: !!isSharing });
     }
   }
 }

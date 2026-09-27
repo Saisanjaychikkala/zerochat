@@ -12,6 +12,7 @@ export function useCallSession({ status, remoteNickname, soundEnabled, showToast
     localStream: null,
     remoteStream: null,
     isScreenSharing: false,
+    isRemoteScreenSharing: false,
     isAudioMuted: false,
     isVideoMuted: false,
     isRemoteCameraActive: false,
@@ -189,6 +190,16 @@ export function useCallSession({ status, remoteNickname, soundEnabled, showToast
       }
     });
 
+    const unsubRemoteScreenShare = peerService.on('remote_screen_share', ({ isSharing }) => {
+      setCallState((prev) => ({
+        ...prev,
+        isRemoteScreenSharing: isSharing,
+      }));
+      if (showToast) {
+        showToast(isSharing ? 'Peer started sharing screen' : 'Peer stopped sharing screen', 'info');
+      }
+    });
+
     return () => {
       stopActiveRingtones();
       unsubCallIncoming();
@@ -202,6 +213,7 @@ export function useCallSession({ status, remoteNickname, soundEnabled, showToast
       unsubScreenShareStatus();
       unsubCallBusy();
       unsubRemoteCameraToggle();
+      unsubRemoteScreenShare();
       try {
         peerService.endCall();
       } catch (e) {}
@@ -224,6 +236,7 @@ export function useCallSession({ status, remoteNickname, soundEnabled, showToast
       localStream: null,
       remoteStream: null,
       isScreenSharing: false,
+      isRemoteScreenSharing: false,
       isAudioMuted: false,
       isVideoMuted: false,
       isRemoteCameraActive: false,

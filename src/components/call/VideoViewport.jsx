@@ -1,7 +1,7 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Monitor, VideoOff } from 'lucide-react';
+import React, { useRef, useEffect, useState } from 'react';
+import { Monitor } from 'lucide-react';
 import ZoomControls from './ZoomControls';
-import { clampZoomScale } from '../../services/webrtc/streamHelpers';
+import { useVideoZoomPan } from '../../hooks/useVideoZoomPan';
 
 export default function VideoViewport({
   isVideo = true,
@@ -11,6 +11,7 @@ export default function VideoViewport({
   hasActiveLocalVideo,
   isVideoMuted,
   isScreenSharing,
+  isRemoteScreenSharing = false,
   remoteNickname,
   myNickname,
 }) {
@@ -18,214 +19,121 @@ export default function VideoViewport({
   const localVideoRef = useRef(null);
   const remoteAudioRef = useRef(null);
   const viewportRef = useRef(null);
+  const [, setTrackVersion] = useState(0);
 
-  // Zoom & Pan interactive state
-  const [zoomScale, setZoomScale] = useState(1.0);
-  const [pan, setPan] = useState({ x: 0, y: 0 });
-  const [fitMode, setFitMode] = useState('contain');
-  const [isDragging, setIsDragging] = useState(false);
+  const {
+    zoomScale,
+    pan,
+    fitMode,
+    isDragging,
+    isZoomed,
+    handleZoomIn,
+    handleZoomOut,
+    handleResetZoom,
+    handleToggleFitMode,
+    handleDoubleClick,
+    handleMouseDown,
+    handleTouchStart,
+    handleTouchMove,
+    handleTouchEnd,
+  } = useVideoZoomPan({
+    hasActiveRemoteVideo,
+    isScreenSharing,
+    isRemoteScreenSharing,
+    viewportRef,
+  });
 
-  // Refs for tracking drag coordinates without re-triggering effects
-  const dragStartRef = useRef({ mouseX: 0, mouseY: 0, panX: 0, panY: 0 });
-  const pinchStartRef = useRef({ distance: 0, scale: 1.0 });
-
-  // Reset zoom & pan when video stream stops or changes
+  // Track addition listener: re-evaluates when late-arriving video tracks land
   useEffect(() => {
-    if (!hasActiveRemoteVideo) {
-      setZoomScale(1.0);
-      setPan({ x: 0, y: 0 });
-    }
-  }, [hasActiveRemoteVideo, remoteStream]);
+    if (!remoteStream) return;
+    const onTrack = () => setTrackVersion((v) => v + 1);
+    remoteStream.addEventListener('addtrack', onTrack);
+    remoteStream.getVideoTracks().forEach((t) => t.addEventListener('unmute', onTrack));
+    return () => {
+      remoteStream.removeEventListener('addtrack', onTrack);
+      remoteStream.getVideoTracks().forEach((t) => t.removeEventListener('unmute', onTrack));
+    };
+  }, [remoteStream]);
 
-  // Bind remote stream whenever remote stream or active state mounts the <video> element
+  // Bind remote stream with hardware decoder synchronization & play() queue safety
   useEffect(() => {
-    if (remoteVideoRef.current) {
-      if (remoteStream && hasActiveRemoteVideo) {
-        remoteVideoRef.current.srcObject = remoteStream;
-        remoteVideoRef.current.play().catch((err) => {
-          console.warn('[ZeroChat] Remote video playback caught:', err);
-        });
-      } else {
-        remoteVideoRef.current.srcObject = null;
+    const videoEl = remoteVideoRef.current;
+    if (!videoEl) return;
+
+    if (remoteStream && hasActiveRemoteVideo) {
+      if (videoEl.srcObject !== remoteStream) {
+        videoEl.srcObject = remoteStream;
       }
+      videoEl.defaultMuted = true;
+      videoEl.muted = true;
+
+      const playRemote = () => {
+        if (videoEl && videoEl.paused) {
+          videoEl.play().catch((err) => {
+            console.warn('[ZeroChat] Remote video playback caught:', err);
+          });
+        }
+      };
+
+      videoEl.onloadedmetadata = playRemote;
+      videoEl.oncanplay = playRemote;
+      videoEl.onloadeddata = playRemote;
+
+      const vTracks = remoteStream.getVideoTracks();
+      vTracks.forEach((t) => {
+        t.onunmute = playRemote;
+      });
+
+      playRemote();
+
+      return () => {
+        videoEl.onloadedmetadata = null;
+        videoEl.oncanplay = null;
+        videoEl.onloadeddata = null;
+        vTracks.forEach((t) => {
+          if (t.onunmute === playRemote) t.onunmute = null;
+        });
+      };
+    } else {
+      videoEl.srcObject = null;
     }
   }, [remoteStream, hasActiveRemoteVideo]);
 
   // Bind local stream to local camera preview
   useEffect(() => {
-    if (localVideoRef.current) {
-      if (localStream && hasActiveLocalVideo && !isVideoMuted && !isScreenSharing) {
-        localVideoRef.current.srcObject = localStream;
-        localVideoRef.current.play().catch((err) => {
-          console.warn('[ZeroChat] Local video playback caught:', err);
-        });
-      } else {
-        localVideoRef.current.srcObject = null;
+    const videoEl = localVideoRef.current;
+    if (!videoEl) return;
+
+    if (localStream && hasActiveLocalVideo && !isVideoMuted && !isScreenSharing) {
+      if (videoEl.srcObject !== localStream) {
+        videoEl.srcObject = localStream;
       }
+      videoEl.defaultMuted = true;
+      videoEl.muted = true;
+      videoEl.play().catch((err) => {
+        console.warn('[ZeroChat] Local video playback caught:', err);
+      });
+    } else {
+      videoEl.srcObject = null;
     }
   }, [localStream, hasActiveLocalVideo, isVideoMuted, isScreenSharing]);
 
   // Dedicated audio binding ensuring incoming peer voice is ALWAYS audible
   useEffect(() => {
-    if (remoteAudioRef.current) {
-      if (remoteStream) {
-        remoteAudioRef.current.srcObject = remoteStream;
-        remoteAudioRef.current.play().catch((err) => {
-          console.warn('[ZeroChat] Remote audio playback caught:', err);
-        });
-      } else {
-        remoteAudioRef.current.srcObject = null;
+    const audioEl = remoteAudioRef.current;
+    if (!audioEl) return;
+
+    if (remoteStream) {
+      if (audioEl.srcObject !== remoteStream) {
+        audioEl.srcObject = remoteStream;
       }
+      audioEl.play().catch((err) => {
+        console.warn('[ZeroChat] Remote audio playback caught:', err);
+      });
+    } else {
+      audioEl.srcObject = null;
     }
   }, [remoteStream]);
-
-  // Zoom control callbacks
-  const handleZoomIn = useCallback(() => {
-    setZoomScale((prev) => clampZoomScale(prev + 0.25));
-  }, []);
-
-  const handleZoomOut = useCallback(() => {
-    setZoomScale((prev) => {
-      const next = clampZoomScale(prev - 0.25);
-      if (next <= 1.01) setPan({ x: 0, y: 0 });
-      return next;
-    });
-  }, []);
-
-  const handleResetZoom = useCallback(() => {
-    setZoomScale(1.0);
-    setPan({ x: 0, y: 0 });
-  }, []);
-
-  const handleToggleFitMode = useCallback(() => {
-    setFitMode((prev) => (prev === 'contain' ? 'cover' : 'contain'));
-  }, []);
-
-  // Double-click / Double-tap toggles between 1x and 2x zoom
-  const handleDoubleClick = useCallback((e) => {
-    if (zoomScale > 1.05) {
-      setZoomScale(1.0);
-      setPan({ x: 0, y: 0 });
-    } else {
-      setZoomScale(2.0);
-    }
-  }, [zoomScale]);
-
-  // Mouse wheel zoom
-  const handleWheel = useCallback((e) => {
-    if (!hasActiveRemoteVideo) return;
-    e.preventDefault();
-    const delta = -Math.sign(e.deltaY) * 0.2;
-    setZoomScale((prev) => {
-      const next = clampZoomScale(prev + delta);
-      if (next <= 1.01) setPan({ x: 0, y: 0 });
-      return next;
-    });
-  }, [hasActiveRemoteVideo]);
-
-  // Attach non-passive wheel listener to allow e.preventDefault()
-  useEffect(() => {
-    const el = viewportRef.current;
-    if (!el) return;
-    const onWheel = (e) => {
-      if (hasActiveRemoteVideo) {
-        e.preventDefault();
-        const delta = -Math.sign(e.deltaY) * 0.25;
-        setZoomScale((prev) => {
-          const next = clampZoomScale(prev + delta);
-          if (next <= 1.01) setPan({ x: 0, y: 0 });
-          return next;
-        });
-      }
-    };
-    el.addEventListener('wheel', onWheel, { passive: false });
-    return () => el.removeEventListener('wheel', onWheel);
-  }, [hasActiveRemoteVideo]);
-
-  // Mouse pan & drag when zoomed in
-  const handleMouseDown = useCallback((e) => {
-    if (zoomScale <= 1.01 || !hasActiveRemoteVideo) return;
-    setIsDragging(true);
-    dragStartRef.current = {
-      mouseX: e.clientX,
-      mouseY: e.clientY,
-      panX: pan.x,
-      panY: pan.y,
-    };
-  }, [zoomScale, hasActiveRemoteVideo, pan]);
-
-  useEffect(() => {
-    if (!isDragging) return;
-
-    const handleMouseMove = (e) => {
-      const dx = e.clientX - dragStartRef.current.mouseX;
-      const dy = e.clientY - dragStartRef.current.mouseY;
-      // Max boundary calculation based on zoom level
-      const maxPan = (zoomScale - 1) * 350;
-      setPan({
-        x: Math.min(Math.max(dragStartRef.current.panX + dx, -maxPan), maxPan),
-        y: Math.min(Math.max(dragStartRef.current.panY + dy, -maxPan), maxPan),
-      });
-    };
-
-    const handleMouseUp = () => {
-      setIsDragging(false);
-    };
-
-    window.addEventListener('mousemove', handleMouseMove);
-    window.addEventListener('mouseup', handleMouseUp);
-    return () => {
-      window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('mouseup', handleMouseUp);
-    };
-  }, [isDragging, zoomScale]);
-
-  // Touch gestures: Pinch-to-zoom & Touch pan
-  const handleTouchStart = useCallback((e) => {
-    if (!hasActiveRemoteVideo) return;
-    if (e.touches.length === 1 && zoomScale > 1.01) {
-      setIsDragging(true);
-      dragStartRef.current = {
-        mouseX: e.touches[0].clientX,
-        mouseY: e.touches[0].clientY,
-        panX: pan.x,
-        panY: pan.y,
-      };
-    } else if (e.touches.length === 2) {
-      const dx = e.touches[0].clientX - e.touches[1].clientX;
-      const dy = e.touches[0].clientY - e.touches[1].clientY;
-      const dist = Math.hypot(dx, dy);
-      pinchStartRef.current = { distance: dist, scale: zoomScale };
-    }
-  }, [hasActiveRemoteVideo, zoomScale, pan]);
-
-  const handleTouchMove = useCallback((e) => {
-    if (!hasActiveRemoteVideo) return;
-    if (e.touches.length === 2 && pinchStartRef.current.distance > 0) {
-      const dx = e.touches[0].clientX - e.touches[1].clientX;
-      const dy = e.touches[0].clientY - e.touches[1].clientY;
-      const dist = Math.hypot(dx, dy);
-      const ratio = dist / pinchStartRef.current.distance;
-      const newScale = clampZoomScale(pinchStartRef.current.scale * ratio);
-      setZoomScale(newScale);
-      if (newScale <= 1.01) setPan({ x: 0, y: 0 });
-    } else if (e.touches.length === 1 && isDragging && zoomScale > 1.01) {
-      const dx = e.touches[0].clientX - dragStartRef.current.mouseX;
-      const dy = e.touches[0].clientY - dragStartRef.current.mouseY;
-      const maxPan = (zoomScale - 1) * 350;
-      setPan({
-        x: Math.min(Math.max(dragStartRef.current.panX + dx, -maxPan), maxPan),
-        y: Math.min(Math.max(dragStartRef.current.panY + dy, -maxPan), maxPan),
-      });
-    }
-  }, [hasActiveRemoteVideo, isDragging, zoomScale]);
-
-  const handleTouchEnd = useCallback(() => {
-    setIsDragging(false);
-    pinchStartRef.current = { distance: 0, scale: zoomScale };
-  }, [zoomScale]);
-
-  const isZoomed = zoomScale > 1.01;
 
   return (
     <div
@@ -264,6 +172,34 @@ export default function VideoViewport({
             />
           </div>
 
+          {/* Screen Share Indicator Badge */}
+          {isRemoteScreenSharing && (
+            <div
+              className="remote-sharing-badge"
+              style={{
+                position: 'absolute',
+                top: '16px',
+                left: '20px',
+                zIndex: 70,
+                padding: '5px 12px',
+                background: 'rgba(10, 14, 24, 0.84)',
+                border: '1px solid var(--accent-cyan)',
+                borderRadius: 'var(--radius-full)',
+                fontSize: '0.78rem',
+                color: 'var(--accent-cyan)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                backdropFilter: 'blur(12px)',
+                WebkitBackdropFilter: 'blur(12px)',
+                boxShadow: '0 4px 16px rgba(0, 0, 0, 0.5)',
+              }}
+            >
+              <Monitor size={14} />
+              <span>{remoteNickname || 'Peer'} is sharing screen</span>
+            </div>
+          )}
+
           {/* Floating Cyber-Glass Zoom Controls */}
           <ZoomControls
             zoomScale={zoomScale}
@@ -272,7 +208,7 @@ export default function VideoViewport({
             onResetZoom={handleResetZoom}
             fitMode={fitMode}
             onToggleFitMode={handleToggleFitMode}
-            isScreenSharing={isScreenSharing}
+            isScreenSharing={isScreenSharing || isRemoteScreenSharing}
           />
 
           {/* Subtle helper badge when zoomed */}
