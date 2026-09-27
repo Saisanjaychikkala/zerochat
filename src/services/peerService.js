@@ -120,6 +120,7 @@ class PeerService {
     }
 
     this.isInitializing = true;
+    this.isIntentionalDisconnect = false;
 
     return new Promise((resolve, reject) => {
       const targetRoom = normalizedRoom || this.generateRoomId();
@@ -291,6 +292,14 @@ class PeerService {
           return;
         }
 
+        // If target host is unavailable, and we were forced into guest mode by a ghost ID:
+        if (isGuestAttempt && targetRoom && this.targetPeerId === targetRoom) {
+          console.warn(`[ZeroChat] Host "${targetRoom}" offline or dead ghost. Reclaiming "${targetRoom}" as Host...`);
+          this.targetPeerId = null;
+          this.connectAttempts = 0;
+          return this.setupPeerInstance(targetRoom, targetRoom, false, resolve, reject);
+        }
+
         this.emit('peer_not_found', err);
         this.emit('status', 'disconnected');
       } else {
@@ -323,7 +332,17 @@ class PeerService {
 
   connectToPeer(remoteId) {
     const cleanId = normalizeRoomId(remoteId);
-    if (!cleanId || cleanId === this.myPeerId) {
+    if (!cleanId) return;
+
+    if (cleanId === this.myPeerId) {
+      console.log('[ZeroChat] Re-verifying broker connection for room:', cleanId);
+      if (!this.peer || this.peer.destroyed) {
+        this.init(cleanId).catch(console.error);
+      } else if (this.peer.disconnected) {
+        try { this.peer.reconnect(); } catch (e) {}
+      } else if (this.remotePeerId && !this.isConnected()) {
+        this.executeConnect(this.remotePeerId);
+      }
       return;
     }
 
@@ -420,6 +439,7 @@ class PeerService {
     this.targetPeerId = connection.peer;
 
     const onChannelOpen = () => {
+      if (this.conn !== connection) return;
       console.log('[ZeroChat] DataChannel is now ACTIVE with:', this.remotePeerId);
       this.lastActiveTime = Date.now();
       if (this.connectionTimeout) {
@@ -470,10 +490,12 @@ class PeerService {
     }
 
     connection.on('data', (data) => {
+      if (this.conn !== connection) return;
       this.handleIncomingPacket(data);
     });
 
     connection.on('close', () => {
+      if (this.conn !== connection) return;
       console.log('[ZeroChat] DataChannel closed with peer:', this.remotePeerId);
       this.stopPingMonitor();
       this.mediaCall.cleanupCall((e, d) => this.emit(e, d));
@@ -494,6 +516,7 @@ class PeerService {
     });
 
     connection.on('error', (err) => {
+      if (this.conn !== connection) return;
       console.error('[ZeroChat] Connection error:', err);
       this.emit('error', err);
     });
@@ -880,8 +903,8 @@ class PeerService {
     return !!(this.conn && this.conn.open);
   }
 
-  disconnect() {
-    this.isIntentionalDisconnect = true;
+  disconnect(explicit = false) {
+    this.isIntentionalDisconnect = explicit;
     this.isRoomFull = false;
     this.stopPingMonitor();
     if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
@@ -890,7 +913,9 @@ class PeerService {
 
     if (this.conn) {
       try {
-        this.sendJson({ type: 'disconnect' });
+        if (explicit) {
+          this.sendJson({ type: 'disconnect' });
+        }
         this.conn.close();
       } catch (e) {}
       this.conn = null;
@@ -936,7 +961,7 @@ class PeerService {
   }
 
   cleanup() {
-    this.disconnect();
+    this.disconnect(false);
     this.mediaCall.cleanupCall((e, d) => this.emit(e, d));
     if (this.peer) {
       try {
@@ -949,6 +974,7 @@ class PeerService {
     this.currentRoomId = null;
     this.isHost = false;
     this.isInitializing = false;
+    this.isIntentionalDisconnect = false;
     this.fileStream.clear();
   }
 }

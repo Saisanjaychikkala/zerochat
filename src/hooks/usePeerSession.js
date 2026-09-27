@@ -159,8 +159,30 @@ export function usePeerSession({ soundEnabled, showToast, onNewPeerConnection })
     peerService.connectToPeer(myRoomId);
   }, [myRoomId, showToast]);
 
+  // Synchronize room state when URL hash changes (pasting link, clicking invite link, browser navigation)
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const handleHashSync = () => {
+      const currentHashRoom = normalizeRoomId(window.location.hash);
+      if (!currentHashRoom) return;
+
+      if (currentHashRoom !== myRoomId) {
+        console.log(`[ZeroChat] URL hash changed to "${currentHashRoom}". Joining room...`);
+        handleJoinRoom(currentHashRoom);
+      }
+    };
+
+    window.addEventListener('hashchange', handleHashSync);
+    window.addEventListener('popstate', handleHashSync);
+    return () => {
+      window.removeEventListener('hashchange', handleHashSync);
+      window.removeEventListener('popstate', handleHashSync);
+    };
+  }, [myRoomId, handleJoinRoom]);
+
   const handleDisconnect = useCallback(() => {
-    peerService.disconnect();
+    peerService.disconnect(true);
     currentConnectedPeerRef.current = null;
     setRemotePeerId(null);
     setLatency(null);

@@ -128,9 +128,20 @@ export default function App() {
       // Auto-enter room when remote peer connects
       setViewMode('room');
     });
+
+    const onHashNav = () => {
+      if (window.location.hash && window.location.hash.length > 3) {
+        setViewMode('room');
+      }
+    };
+    window.addEventListener('hashchange', onHashNav);
+    window.addEventListener('popstate', onHashNav);
+
     return () => {
       unsubBurned();
       unsubPeerConnected();
+      window.removeEventListener('hashchange', onHashNav);
+      window.removeEventListener('popstate', onHashNav);
     };
   }, [handleEndCall, stopActiveRingtones]);
 
