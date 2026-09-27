@@ -426,7 +426,7 @@ class PeerService {
             this.emit('status', 'disconnected');
           }
         }
-      }, 10000);
+      }, 6500);
     } catch (err) {
       console.error('[ZeroChat] executeConnect error:', err);
       this.emit('error', err);

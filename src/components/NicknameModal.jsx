@@ -9,22 +9,27 @@ const AVATAR_COLORS = [
   'linear-gradient(135deg, #6366f1, #8b5cf6)',
 ];
 
-export default function NicknameModal({ isOpen, onClose, currentNickname, onSaveNickname }) {
+export default function NicknameModal({ isOpen, onClose, currentNickname, currentAvatarBg, onSave, onSaveNickname }) {
   const [nickname, setNickname] = useState(currentNickname || '');
-  const [selectedColor, setSelectedColor] = useState(AVATAR_COLORS[0]);
+  const [selectedColor, setSelectedColor] = useState(currentAvatarBg || AVATAR_COLORS[0]);
 
   React.useEffect(() => {
     if (isOpen) {
       setNickname(currentNickname || '');
+      setSelectedColor(currentAvatarBg || AVATAR_COLORS[0]);
     }
-  }, [isOpen, currentNickname]);
+  }, [isOpen, currentNickname, currentAvatarBg]);
 
   if (!isOpen) return null;
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (nickname.trim()) {
-      onSaveNickname(nickname.trim(), selectedColor);
+    const cleanName = nickname.trim();
+    if (cleanName) {
+      const saveHandler = onSave || onSaveNickname;
+      if (typeof saveHandler === 'function') {
+        saveHandler(cleanName, selectedColor);
+      }
       onClose();
     }
   };

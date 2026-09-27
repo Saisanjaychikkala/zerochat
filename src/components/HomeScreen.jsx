@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   ShieldCheck, 
   Zap, 
@@ -9,10 +9,11 @@ import {
   Sparkles, 
   ArrowRight, 
   Palette, 
-  Info,
-  QrCode,
-  Flame,
-  Radio
+  Info, 
+  QrCode, 
+  Flame, 
+  Radio,
+  Loader2
 } from 'lucide-react';
 import { normalizeRoomId } from '../services/webrtc/constants';
 
@@ -31,7 +32,23 @@ export default function HomeScreen({
   latency
 }) {
   const [inputCode, setInputCode] = useState('');
+  const [connectingSeconds, setConnectingSeconds] = useState(0);
   const isConnected = status === 'connected';
+  const isConnecting = status === 'connecting';
+
+  // Live timer for connection progress feedback
+  useEffect(() => {
+    let timer;
+    if (isConnecting) {
+      setConnectingSeconds(1);
+      timer = setInterval(() => {
+        setConnectingSeconds(s => s + 1);
+      }, 1000);
+    } else {
+      setConnectingSeconds(0);
+    }
+    return () => clearInterval(timer);
+  }, [isConnecting]);
 
   const handleJoinSubmit = (e) => {
     e.preventDefault();
@@ -56,22 +73,6 @@ export default function HomeScreen({
         </div>
 
         <div className="home-header-actions">
-          {/* Active Room Indicator */}
-          {myRoomId && (
-            <button 
-              onClick={onLaunchRoom} 
-              className="active-room-pill"
-              title="Return to your active chat session"
-            >
-              <Radio size={14} className={isConnected ? "text-emerald-400 animate-pulse" : "text-cyan-400"} />
-              <span>#{myRoomId}</span>
-              <span style={{ fontSize: '0.72rem', color: isConnected ? 'var(--accent-emerald)' : 'var(--text-muted)', marginLeft: '4px' }}>
-                {isConnected ? `Online (${latency !== null ? `${latency}ms` : '<10ms'})` : status === 'connecting' ? 'Connecting' : 'Ready'}
-              </span>
-              <span className={`status-dot ${status}`} />
-            </button>
-          )}
-
           {/* Theme Switcher Button */}
           <button 
             onClick={onToggleTheme} 
@@ -109,7 +110,64 @@ export default function HomeScreen({
             <span>Burn</span>
           </button>
         </div>
+
+        {/* Active Room Indicator (Desktop inline / Mobile full-width row) */}
+        {myRoomId && (
+          <div className="home-room-status-bar">
+            <button 
+              onClick={onLaunchRoom} 
+              className="active-room-pill"
+              title="Return to your active chat session"
+            >
+              <Radio size={14} className={isConnected ? "text-emerald-400 animate-pulse" : isConnecting ? "text-cyan-400 animate-spin" : "text-cyan-400"} />
+              <span>#{myRoomId}</span>
+              <span style={{ fontSize: '0.72rem', color: isConnected ? 'var(--accent-emerald)' : isConnecting ? 'var(--accent-cyan)' : 'var(--text-muted)', marginLeft: '4px' }}>
+                {isConnected ? `Online (${latency !== null ? `${latency}ms` : '<10ms'})` : isConnecting ? `Connecting (${connectingSeconds}s)...` : 'Room Ready'}
+              </span>
+              <span className={`status-dot ${status}`} />
+            </button>
+          </div>
+        )}
       </header>
+
+      {/* Cyber Connecting Live Banner */}
+      {isConnecting && (
+        <div className="home-connecting-banner glass-panel">
+          <div className="home-connecting-banner-top">
+            <div className="connecting-radar-wrap">
+              <div className="connecting-radar-core">
+                <Radio size={16} color="var(--accent-cyan)" className="animate-pulse" />
+              </div>
+              <div className="connecting-radar-ring" />
+              <div className="connecting-radar-ring ring-2" />
+            </div>
+
+            <div className="connecting-banner-info">
+              <div className="connecting-banner-header">
+                <span className="connecting-banner-title">Establishing Direct P2P Channel</span>
+                <span className="connecting-timer-badge">{connectingSeconds}s elapsed</span>
+              </div>
+              <p className="connecting-banner-sub">
+                Negotiating encrypted WebRTC handshake with peer in room #{myRoomId}. Zero servers in between.
+              </p>
+              <div className="connecting-banner-hint">
+                {connectingSeconds < 5 ? (
+                  <span>⚡ Discovering peer on decentralized broker...</span>
+                ) : (
+                  <span>🌐 Direct NAT/STUN traversal in progress (cellular networks may take 5–8s)...</span>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="connecting-banner-actions">
+            <button onClick={onLaunchRoom} className="btn btn-primary text-xs">
+              <span>Open Chat View</span>
+              <ArrowRight size={13} />
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Hero Welcome */}
       <div className="home-hero-section">
@@ -142,7 +200,7 @@ export default function HomeScreen({
               onClick={onLaunchRoom} 
               className="btn btn-primary w-full"
             >
-              <span>{isConnected ? 'Enter Active Room' : 'Launch Chat Room'}</span>
+              <span>{isConnected ? 'Enter Active Room' : isConnecting ? 'View Connecting Channel' : 'Launch Chat Room'}</span>
               <ArrowRight size={15} />
             </button>
           </div>
@@ -177,7 +235,7 @@ export default function HomeScreen({
           </div>
         </div>
 
-        {/* Card 4: Private Group Chat (Locked) */}
+        {/* Card 3: Private Group Mesh (Locked) */}
         <div className="feature-hub-card glass-panel locked-card">
           <div className="card-top-badge lock-badge">
             <Lock size={12} />
@@ -203,7 +261,7 @@ export default function HomeScreen({
           </div>
         </div>
 
-        {/* Card 5: Cloud Vault Chat (Locked) */}
+        {/* Card 4: Cloud Vault Chat (Locked) */}
         <div className="feature-hub-card glass-panel locked-card">
           <div className="card-top-badge lock-badge">
             <Lock size={12} />
@@ -243,6 +301,10 @@ export default function HomeScreen({
               value={inputCode}
               onChange={(e) => setInputCode(e.target.value)}
               className="chat-input text-sm font-mono"
+              autoComplete="off"
+              autoCorrect="off"
+              autoCapitalize="none"
+              spellCheck="false"
             />
             <button type="submit" className="btn btn-primary text-xs font-semibold" disabled={!inputCode.trim()}>
               <span>Join Peer</span>

@@ -16,16 +16,18 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 20px;
+  padding: 12px 18px;
   border-radius: var(--radius-lg);
   flex-shrink: 0;
   gap: 12px;
+  flex-wrap: wrap;
 }
 
 .home-logo-group {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
+  flex-shrink: 0;
 }
 
 .home-brand-title {
@@ -48,7 +50,18 @@
 .home-header-actions {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.home-header-actions .btn-danger {
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.home-room-status-bar {
+  display: flex;
+  align-items: center;
 }
 
 .active-room-pill {
@@ -64,6 +77,7 @@
   font-family: var(--font-mono);
   cursor: pointer;
   transition: all 0.2s ease;
+  white-space: nowrap;
 }
 
 .active-room-pill:hover {
@@ -73,33 +87,33 @@
 
 .home-hero-section {
   text-align: center;
-  padding: 12px 10px 4px 10px;
+  padding: 8px 10px 2px 10px;
 }
 
 .home-hero-section h2 {
-  font-size: 1.5rem;
+  font-size: 1.45rem;
   font-weight: 800;
-  margin-bottom: 6px;
+  margin-bottom: 4px;
   background: linear-gradient(135deg, #ffffff, #94a3b8);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 
 .home-hero-section p {
-  font-size: 0.85rem;
+  font-size: 0.84rem;
   color: var(--text-muted);
 }
 
 /* Feature Cards Grid */
 .home-cards-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
   gap: 16px;
   flex: 1;
 }
 
 .feature-hub-card {
-  padding: 20px;
+  padding: 18px;
   border-radius: var(--radius-lg);
   display: flex;
   flex-direction: column;
@@ -117,11 +131,6 @@
 .feature-hub-card.highlight-cyan:hover {
   border-color: var(--accent-cyan);
   box-shadow: 0 10px 30px -10px var(--accent-cyan-glow);
-}
-
-.feature-hub-card.highlight-emerald:hover {
-  border-color: var(--accent-emerald);
-  box-shadow: 0 10px 30px -10px var(--accent-emerald-glow);
 }
 
 .feature-hub-card.highlight-purple:hover {
@@ -144,12 +153,6 @@
   border: 1px solid rgba(0, 242, 254, 0.2);
 }
 
-.card-top-badge.emerald {
-  color: var(--accent-emerald);
-  background: rgba(16, 185, 129, 0.1);
-  border-color: rgba(16, 185, 129, 0.25);
-}
-
 .card-top-badge.purple {
   color: var(--accent-purple);
   background: rgba(157, 78, 221, 0.1);
@@ -169,8 +172,8 @@
 }
 
 .card-icon-box {
-  width: 44px;
-  height: 44px;
+  width: 42px;
+  height: 42px;
   border-radius: 12px;
   display: flex;
   align-items: center;
@@ -182,12 +185,6 @@
   background: rgba(0, 242, 254, 0.12);
   color: var(--accent-cyan);
   border: 1px solid rgba(0, 242, 254, 0.25);
-}
-
-.card-icon-box.emerald {
-  background: rgba(16, 185, 129, 0.12);
-  color: var(--accent-emerald);
-  border: 1px solid rgba(16, 185, 129, 0.25);
 }
 
 .card-icon-box.purple {
@@ -221,16 +218,6 @@
   flex: 1;
 }
 
-.emerald-border {
-  border-color: rgba(16, 185, 129, 0.35);
-  color: var(--accent-emerald);
-}
-
-.emerald-border:hover {
-  background: rgba(16, 185, 129, 0.12);
-  border-color: var(--accent-emerald);
-}
-
 .purple-bg {
   background: linear-gradient(135deg, var(--accent-purple), #ec4899);
 }
@@ -245,7 +232,7 @@
 
 /* Quick Join Bar */
 .home-quick-join {
-  padding: 16px 20px;
+  padding: 14px 18px;
   border-radius: var(--radius-lg);
   flex-shrink: 0;
 }
@@ -254,22 +241,32 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
+  gap: 14px;
   flex-wrap: wrap;
 }
 
 .quick-join-input-group {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   flex: 1;
   max-width: 440px;
 }
 
-@media (max-width: 768px) {
+/* Responsive Mobile Layout Standard */
+@media (max-width: 640px) {
   .home-header {
     padding: 8px 12px;
-    gap: 6px;
+    gap: 8px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  .home-logo-group {
+    order: 1;
+    flex: 1 1 auto;
+    gap: 8px;
+    min-width: 0;
   }
 
   .home-brand-title {
@@ -280,17 +277,9 @@
     display: none !important;
   }
 
-  .home-logo-group {
-    gap: 8px;
-  }
-
-  .active-room-pill {
-    padding: 4px 8px;
-    font-size: 0.7rem;
-    gap: 4px;
-  }
-
   .home-header-actions {
+    order: 2;
+    flex: 0 0 auto;
     gap: 4px;
   }
 
@@ -304,7 +293,55 @@
   .home-header-actions .btn-danger {
     padding: 4px 8px !important;
     height: 32px !important;
-    min-width: 32px !important;
+    font-size: 0.72rem !important;
+    min-width: auto !important;
+    white-space: nowrap !important;
+    flex-shrink: 0 !important;
+  }
+
+  .home-room-status-bar {
+    order: 3;
+    width: 100%;
+    margin-top: 2px;
+  }
+
+  .active-room-pill {
+    width: 100%;
+    justify-content: center;
+    padding: 6px 12px;
     font-size: 0.72rem;
+  }
+
+  .home-connecting-banner {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+    padding: 12px;
+  }
+
+  .home-connecting-banner-top {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .connecting-banner-actions .btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .quick-join-form {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .quick-join-input-group {
+    max-width: 100%;
+  }
+
+  .quick-join-input-group .btn {
+    white-space: nowrap;
+    flex-shrink: 0;
   }
 }
