@@ -86,10 +86,16 @@ export function generateGameRoomId() {
 }
 
 export function parseRoomHash(raw) {
+  if (!raw || typeof raw !== 'string') return { isGame: false, roomId: '' };
+  const lower = raw.toLowerCase();
+  const isExplicitGame = lower.includes('/game/') || lower.includes('game-');
   const normalized = normalizeRoomId(raw);
   if (!normalized) return { isGame: false, roomId: '' };
-  if (normalized.startsWith('game-')) {
-    return { isGame: true, roomId: normalized };
+  if (normalized.startsWith('game-') || isExplicitGame) {
+    const cleanGameId = normalized.startsWith('game-') 
+      ? normalized 
+      : `game-${normalized.replace(/^game-?/, '')}`;
+    return { isGame: true, roomId: cleanGameId };
   }
   return { isGame: false, roomId: normalized };
 }

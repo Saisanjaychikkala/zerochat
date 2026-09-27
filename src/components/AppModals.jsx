@@ -22,6 +22,7 @@ export default function AppModals({
   onConfirmEnterGame,
   myRoomId,
   status,
+  viewMode,
   myNickname,
   myAvatarBg,
   handleJoinRoom,
@@ -29,17 +30,19 @@ export default function AppModals({
 }) {
   return (
     <>
-      <CallModal
-        callState={callState}
-        myNickname={myNickname}
-        onAnswer={callHandlers.handleAnswerCall}
-        onReject={callHandlers.handleRejectCall}
-        onEndCall={callHandlers.handleEndCall}
-        onToggleAudio={callHandlers.handleToggleAudio}
-        onToggleVideo={callHandlers.handleToggleVideo}
-        onToggleScreenShare={callHandlers.handleToggleScreenShare}
-        onSwitchCamera={callHandlers.handleSwitchCamera}
-      />
+      {viewMode !== 'game' && (
+        <CallModal
+          callState={callState}
+          myNickname={myNickname}
+          onAnswer={callHandlers.handleAnswerCall}
+          onReject={callHandlers.handleRejectCall}
+          onEndCall={callHandlers.handleEndCall}
+          onToggleAudio={callHandlers.handleToggleAudio}
+          onToggleVideo={callHandlers.handleToggleVideo}
+          onToggleScreenShare={callHandlers.handleToggleScreenShare}
+          onSwitchCamera={callHandlers.handleSwitchCamera}
+        />
+      )}
 
       {lightboxImage && (
         <ImageLightboxModal 

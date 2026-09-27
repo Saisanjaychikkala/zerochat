@@ -81,6 +81,7 @@ export function usePeerSession({ soundEnabled, showToast, onNewPeerConnection })
 
     const unsubPeerDisconnected = peerService.on('peer_disconnected', () => {
       setLatency(null);
+      setRemotePeerId(null);
     });
 
     const unsubPeerNotFound = peerService.on('peer_not_found', () => {

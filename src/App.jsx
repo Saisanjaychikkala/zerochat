@@ -216,6 +216,8 @@ export default function App() {
             gameRoomId={myRoomId}
             callState={callSession.callState}
             onStartCall={callSession.handleStartCall}
+            onAnswerCall={callSession.handleAnswerCall}
+            onRejectCall={callSession.handleRejectCall}
             onEndCall={callSession.handleEndCall}
             onToggleAudio={callSession.handleToggleAudio}
             onExit={onDisconnect}
@@ -236,6 +238,7 @@ export default function App() {
         )}
 
         <AppModals 
+          viewMode={viewMode}
           callState={callSession.callState}
           callHandlers={callSession}
           isRoomModalOpen={isRoomModalOpen}

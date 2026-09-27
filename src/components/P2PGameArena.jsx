@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   ArrowLeft, 
   Gamepad2, 
@@ -6,8 +6,7 @@ import {
   Check, 
   Radio, 
   Share2, 
-  Menu,
-  Volume2
+  QrCode
 } from 'lucide-react';
 import CyberPongGame from './game/CyberPongGame';
 import CyberGridGame from './game/CyberGridGame';
@@ -15,6 +14,7 @@ import CyberConnectFour from './game/CyberConnectFour';
 import GameDrawer from './game/GameDrawer';
 import GameLobbyChat from './game/GameLobbyChat';
 import GameVoiceDock from './game/GameVoiceDock';
+import GameQrModal from './game/GameQrModal';
 import { peerService } from '../services/peerService';
 
 export default function P2PGameArena({
@@ -27,21 +27,35 @@ export default function P2PGameArena({
   gameRoomId,
   callState,
   onStartCall,
+  onAnswerCall,
+  onRejectCall,
   onEndCall,
   onToggleAudio,
   onExit,
   showToast,
 }) {
-  const [activeGame, setActiveGame] = useState('pong'); // 'pong' | 'grid' | 'c4'
+  const [activeGame, setActiveGame] = useState('grid'); // 'grid' | 'pong' | 'c4'
   const [isMatchActive, setIsMatchActive] = useState(false);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [isQrModalOpen, setIsQrModalOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [chatMessages, setChatMessages] = useState([]);
   const [activeChallenge, setActiveChallenge] = useState(null);
 
+  const gameAudioRef = useRef(null);
   const isConnected = status === 'connected';
   const isConnecting = status === 'connecting';
   const isVoiceConnected = callState?.status === 'connected';
+
+  // Autoplay incoming remote voice stream without blocking modal overlay
+  useEffect(() => {
+    if (gameAudioRef.current && callState?.remoteStream) {
+      gameAudioRef.current.srcObject = callState.remoteStream;
+      gameAudioRef.current.play().catch((err) => {
+        console.warn('[ZeroChat] Background voice autoplay blocked/waiting:', err);
+      });
+    }
+  }, [callState?.remoteStream]);
 
   // Listen for WebRTC in-game matchmaking and chat events
   useEffect(() => {
@@ -79,8 +93,8 @@ export default function P2PGameArena({
 
   const handleCopyLink = () => {
     const inviteUrl = typeof window !== 'undefined' 
-      ? `${window.location.origin}${window.location.pathname}#${gameRoomId}`
-      : `#${gameRoomId}`;
+      ? `${window.location.origin}${window.location.pathname}#/game/${gameRoomId}`
+      : `#/game/${gameRoomId}`;
 
     if (navigator?.clipboard?.writeText) {
       navigator.clipboard.writeText(inviteUrl).then(() => {
@@ -95,8 +109,21 @@ export default function P2PGameArena({
     }
   };
 
-  const handleSelectGame = (gameId) => {
+  const handleSelectGame = (gameId, isSolo = false) => {
+    if (!gameId) {
+      setActiveChallenge(null);
+      setIsMatchActive(false);
+      return;
+    }
+
     setActiveGame(gameId);
+
+    if (isSolo) {
+      setActiveChallenge(null);
+      setIsMatchActive(true);
+      return;
+    }
+
     const gameNames = { pong: 'Cyber Pong', grid: 'Cyber Grid (3x3)', c4: 'Connect 4' };
     const challenge = {
       gameId,
@@ -105,10 +132,11 @@ export default function P2PGameArena({
       hostAvatarBg: myAvatarBg,
       guestNickname: isConnected ? remotePeerNickname : null,
       guestAvatarBg: remoteAvatarBg,
-      isGuestJoined: !isConnected, // if offline bot, auto-join
+      isGuestJoined: !isConnected, // if offline, auto-ready
     };
+
     setActiveChallenge(challenge);
-    setIsMatchActive(!isConnected); // if offline, start immediately
+    setIsMatchActive(!isConnected);
 
     if (isConnected) {
       peerService.sendGameEvent({
@@ -170,34 +198,42 @@ export default function P2PGameArena({
 
   return (
     <div className="game-arena-container glass-panel">
+      {/* Background audio element for remote player's voice */}
+      <audio ref={gameAudioRef} autoPlay playsInline style={{ display: 'none' }} />
+
       {/* Top Header Bar */}
       <div className="game-header">
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <button onClick={onExit} className="btn btn-secondary text-xs" title="Leave Game Arena & Return Home">
+        <div className="game-header-left">
+          <button onClick={onExit} className="btn btn-secondary text-xs game-nav-btn" title="Return to ZeroChat Home">
             <ArrowLeft size={14} />
-            <span>Home</span>
+            <span className="game-nav-label">Home</span>
           </button>
 
           {gameRoomId && (
             <div className="game-room-pill" title="Unified Game Room Code">
-              <Radio size={13} className={isConnected ? "text-emerald-400 animate-pulse" : isConnecting ? "text-cyan-400 animate-spin" : "text-amber-400"} />
+              <Radio size={12} className={isConnected ? "text-emerald-400 animate-pulse" : isConnecting ? "text-cyan-400 animate-spin" : "text-amber-400"} />
               <span className="game-room-code font-mono">#{gameRoomId}</span>
               <span className={`status-dot ${status}`} />
               <button onClick={handleCopyLink} className="btn btn-icon btn-xs" title="Copy Invite Link">
                 {copied ? <Check size={12} color="#10b981" /> : <Copy size={12} />}
+              </button>
+              <button onClick={() => setIsQrModalOpen(true)} className="btn btn-icon btn-xs" title="Scan QR Code to Join Match">
+                <QrCode size={12} />
               </button>
             </div>
           )}
         </div>
 
         {/* Action Controls: Game Selector Drawer & Voice Deck */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div className="game-header-right">
           <GameVoiceDock 
             status={status}
+            callState={callState}
             isVoiceConnected={isVoiceConnected}
             isAudioMuted={callState?.isAudioMuted || false}
             onConnectVoice={() => onStartCall && onStartCall(false)}
-            onDisconnectVoice={onEndCall}
+            onAnswerVoice={onAnswerCall}
+            onDisconnectVoice={callState?.status === 'incoming' ? onRejectCall : onEndCall}
             onToggleMute={onToggleAudio}
             onSetMute={handleSetMute}
             remotePeerNickname={remotePeerNickname}
@@ -206,10 +242,10 @@ export default function P2PGameArena({
           <button 
             onClick={() => setIsDrawerOpen(true)} 
             className="btn btn-primary btn-xs game-drawer-btn"
-            title="Open P2P Game Library"
+            title="Browse All Games"
           >
-            <Gamepad2 size={14} />
-            <span>Games</span>
+            <Gamepad2 size={13} />
+            <span className="game-drawer-btn-label">Games</span>
           </button>
         </div>
       </div>
@@ -217,14 +253,20 @@ export default function P2PGameArena({
       {/* Opponent Status Banner when waiting */}
       {!isConnected && (
         <div className="game-waiting-banner">
-          <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Share2 size={14} color="var(--accent-purple, #a855f7)" />
-            {isConnecting ? 'Traversing WebRTC NAT channels...' : 'Waiting for opponent. Share match link to duel live!'}
+          <span className="game-waiting-text">
+            <Share2 size={13} color="var(--accent-purple, #c084fc)" />
+            {isConnecting ? 'Traversing WebRTC NAT channels...' : 'Waiting for opponent to connect...'}
           </span>
-          <button onClick={handleCopyLink} className="btn btn-primary text-xs" style={{ height: '26px', padding: '0 10px' }}>
-            <Copy size={12} />
-            <span>Copy Match Link</span>
-          </button>
+          <div style={{ display: 'flex', gap: '6px' }}>
+            <button onClick={handleCopyLink} className="btn btn-primary text-xs" style={{ height: '26px', padding: '0 8px', gap: '4px' }}>
+              <Copy size={11} />
+              <span>Copy Link</span>
+            </button>
+            <button onClick={() => setIsQrModalOpen(true)} className="btn btn-secondary text-xs" style={{ height: '26px', padding: '0 8px', gap: '4px' }}>
+              <QrCode size={11} />
+              <span>QR Code</span>
+            </button>
+          </div>
         </div>
       )}
 
@@ -263,6 +305,7 @@ export default function P2PGameArena({
             activeChallenge={activeChallenge}
             onJoinChallenge={handleJoinChallenge}
             onStartMatch={handleStartMatch}
+            onSelectGame={handleSelectGame}
             onOpenDrawer={() => setIsDrawerOpen(true)}
             chatMessages={chatMessages}
             onSendChatMessage={handleSendChatMessage}
@@ -275,8 +318,16 @@ export default function P2PGameArena({
       <GameDrawer 
         isOpen={isDrawerOpen}
         onClose={() => setIsDrawerOpen(false)}
-        onSelectGame={handleSelectGame}
+        onSelectGame={(gId) => handleSelectGame(gId, false)}
         activeGame={activeGame}
+      />
+
+      {/* Scannable Match QR Code Modal */}
+      <GameQrModal 
+        isOpen={isQrModalOpen}
+        onClose={() => setIsQrModalOpen(false)}
+        gameRoomId={gameRoomId}
+        showToast={showToast}
       />
     </div>
   );

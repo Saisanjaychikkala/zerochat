@@ -229,7 +229,9 @@ async function runTests() {
     { name: 'ConfirmGameModal.jsx', path: path.join(ROOT, 'src', 'components', 'ConfirmGameModal.jsx'), max: 350 },
     { name: 'usePeerSession.js', path: path.join(ROOT, 'src', 'hooks', 'usePeerSession.js'), max: 350 },
     { name: 'constants.js', path: path.join(ROOT, 'src', 'services', 'webrtc', 'constants.js'), max: 350 },
+    { name: 'GameQrModal.jsx', path: path.join(ROOT, 'src', 'components', 'game', 'GameQrModal.jsx'), max: 350 },
     { name: 'gameLobby.css', path: path.join(ROOT, 'src', 'styles', 'gameLobby.css'), max: 350 },
+    { name: 'gameShelf.css', path: path.join(ROOT, 'src', 'styles', 'gameShelf.css'), max: 350 },
     { name: 'gameDrawer.css', path: path.join(ROOT, 'src', 'styles', 'gameDrawer.css'), max: 350 }
   ];
 

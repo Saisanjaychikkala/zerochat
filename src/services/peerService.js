@@ -103,6 +103,9 @@ class PeerService {
 
     if (this.peer && !this.peer.destroyed && this.myPeerId) {
       if (!normalizedRoom || this.currentRoomId === normalizedRoom) {
+        if (!this.isHost && !this.isConnected() && normalizedRoom) {
+          this.connectToPeer(normalizedRoom);
+        }
         return this.myPeerId;
       }
       this.cleanup();
@@ -187,7 +190,9 @@ class PeerService {
 
       // Strict 1-on-1 Guard: If room already occupied by another ACTIVE peer, reject 3rd peer
       const pc = this.conn?.peerConnection;
-      const isIceDead = pc && (
+      const dc = this.conn?._dc || this.conn?.dataChannel;
+      const isChannelOpen = !!(this.conn && this.conn.open && (!dc || dc.readyState === 'open'));
+      const isIceDead = !pc || (
         pc.iceConnectionState === 'disconnected' ||
         pc.iceConnectionState === 'failed' ||
         pc.iceConnectionState === 'closed' ||
@@ -195,9 +200,9 @@ class PeerService {
         pc.connectionState === 'failed' ||
         pc.connectionState === 'closed'
       );
-      const isInactive = !this.lastActiveTime || (Date.now() - this.lastActiveTime > 8000);
+      const isInactive = !this.lastActiveTime || (Date.now() - this.lastActiveTime > 4000);
 
-      if (this.conn && this.conn.open && this.conn.peer !== connection.peer && !isIceDead && !isInactive) {
+      if (isChannelOpen && this.conn.peer !== connection.peer && !isIceDead && !isInactive) {
         console.warn(`[ZeroChat] Room full (2/2 peers connected). Rejecting 3rd peer: ${connection.peer}`);
 
         const sendRoomFullAndClose = () => {
@@ -508,18 +513,38 @@ class PeerService {
       this.stopPingMonitor();
       this.mediaCall.cleanupCall((e, d) => this.emit(e, d));
 
+      const oldRemotePeerId = this.remotePeerId;
+      this.conn = null;
+
       if (this.isRoomFull) {
         this.emit('status', 'disconnected');
         return;
       }
 
-      if (this.isIntentionalDisconnect) {
+      if (this.isHost) {
+        // Host remains waiting in the room for a new or returning guest. Never try to reconnect to an ephemeral guest ID.
+        console.log('[ZeroChat] Guest disconnected from host. Host reset to waiting state.');
+        if (this.reconnectTimer) {
+          clearTimeout(this.reconnectTimer);
+          this.reconnectTimer = null;
+        }
+        this.remotePeerId = null;
+        this.targetPeerId = null;
+        this.lastActiveTime = 0;
         this.emit('status', 'disconnected');
-        this.emit('peer_disconnected', { peerId: this.remotePeerId });
+        this.emit('peer_disconnected', { peerId: oldRemotePeerId });
+        return;
+      }
+
+      if (this.isIntentionalDisconnect) {
+        this.remotePeerId = null;
+        this.targetPeerId = null;
+        this.emit('status', 'disconnected');
+        this.emit('peer_disconnected', { peerId: oldRemotePeerId });
       } else {
         this.emit('status', 'reconnecting');
-        this.emit('peer_disconnected', { peerId: this.remotePeerId });
-        this.schedulePeerReconnect();
+        this.emit('peer_disconnected', { peerId: oldRemotePeerId });
+        this.schedulePeerReconnect(oldRemotePeerId);
       }
     });
 
@@ -530,15 +555,16 @@ class PeerService {
     });
   }
 
-  schedulePeerReconnect() {
-    if (this.isIntentionalDisconnect || this.isRoomFull || !this.remotePeerId) return;
+  schedulePeerReconnect(targetId = null) {
+    const target = targetId || this.remotePeerId;
+    if (this.isIntentionalDisconnect || this.isRoomFull || !target || this.isHost) return;
     if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
 
-    console.log('[ZeroChat] Scheduling auto-reconnect to peer:', this.remotePeerId);
+    console.log('[ZeroChat] Scheduling auto-reconnect to peer:', target);
     this.reconnectTimer = setTimeout(() => {
-      if (!this.isConnected() && !this.isIntentionalDisconnect && !this.isRoomFull && this.remotePeerId) {
-        console.log('[ZeroChat] Executing auto-reconnect to peer:', this.remotePeerId);
-        this.executeConnect(this.remotePeerId);
+      if (!this.isConnected() && !this.isIntentionalDisconnect && !this.isRoomFull && target && !this.isHost) {
+        console.log('[ZeroChat] Executing auto-reconnect to peer:', target);
+        this.executeConnect(target);
       }
     }, 2500);
   }
