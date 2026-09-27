@@ -144,6 +144,7 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  max-width: 120px;
 }
 
 .in-chat-player-name.empty {
@@ -277,6 +278,12 @@
   transform: scale(1.1);
 }
 
+.rematch-btn:hover {
+  background: rgba(0, 242, 254, 0.15) !important;
+  border-color: var(--accent-cyan) !important;
+  transform: translateY(-1px);
+}
+
 @media (max-width: 480px) {
   .in-chat-game-card {
     padding: 10px;
@@ -290,5 +297,6 @@
 
   .in-chat-player-name {
     font-size: 0.74rem;
+    max-width: 95px;
   }
 }

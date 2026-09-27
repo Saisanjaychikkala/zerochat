@@ -61,9 +61,10 @@ export class FileStreamEngine {
         return;
       }
 
-      // CRITICAL BACKPRESSURE: Wait until RTCDataChannel buffer drains below 64KB
+      // CRITICAL BACKPRESSURE & TRAFFIC PRIORITIZATION: 
+      // Keep DataChannel buffer below 48KB so interactive game moves and control packets interleave with sub-frame delivery
       const rawDc = conn?.dataChannel || conn?._dc;
-      if (rawDc && rawDc.bufferedAmount > 64 * 1024) {
+      if (rawDc && rawDc.bufferedAmount > 48 * 1024) {
         await new Promise((resolve) => setTimeout(resolve, 20));
         continue;
       }

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { RefreshCw, Trophy, Sparkles, ArrowLeft } from 'lucide-react';
+import { RefreshCw, Trophy, Sparkles, WifiOff } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { peerService } from '../../services/peerService';
 
@@ -11,17 +11,27 @@ const WINNING_LINES = [
 
 export default function CyberGridGame({
   status,
-  remotePeerNickname,
+  isHost = true,
+  myNickname = 'You',
+  remotePeerNickname = 'Peer',
   showToast,
-  onExitMatch
+  onExitMatch,
+  onEndRound,
 }) {
   const [board, setBoard] = useState(Array(9).fill(null));
-  const [turn, setTurn] = useState('X'); // 'X' (Local / Player 1) | 'O' (Remote / Player 2)
+  const [turn, setTurn] = useState('X'); // 'X' moves first
   const [winner, setWinner] = useState(null);
   const [winningLine, setWinningLine] = useState(null);
   const [scores, setScores] = useState({ x: 0, o: 0, ties: 0 });
 
   const isConnected = status === 'connected';
+  const isReconnecting = status === 'reconnecting';
+  const isSolo = !isConnected && status === 'disconnected';
+
+  // Role authority: Host is X (Cyan, moves first); Guest is O (Neon, moves second)
+  const mySymbol = (!isConnected || isHost) ? 'X' : 'O';
+  const opponentSymbol = mySymbol === 'X' ? 'O' : 'X';
+  const isMyTurn = turn === mySymbol;
 
   // Check victory condition
   const checkWinner = (squares) => {
@@ -46,19 +56,24 @@ export default function CyberGridGame({
         setBoard((prev) => {
           if (prev[event.index] || winner) return prev;
           const nextBoard = [...prev];
-          nextBoard[event.index] = 'O';
+          nextBoard[event.index] = event.symbol || opponentSymbol;
 
           const res = checkWinner(nextBoard);
           if (res) {
-            setWinner(res.winner);
-            setWinningLine(res.line);
-            if (res.winner === 'O') {
-              setScores((s) => ({ ...s, o: s.o + 1 }));
-            } else if (res.winner === 'Tie') {
+            if (res.winner === 'Tie') {
+              setWinner('Tie');
               setScores((s) => ({ ...s, ties: s.ties + 1 }));
+              if (onEndRound) onEndRound('Tie', `${scores.x} - ${scores.o}`);
+            } else {
+              const winnerName = res.winner === mySymbol ? myNickname : remotePeerNickname;
+              setWinner(winnerName);
+              setWinningLine(res.line);
+              if (res.winner === 'X') setScores((s) => ({ ...s, x: s.x + 1 }));
+              else setScores((s) => ({ ...s, o: s.o + 1 }));
+              if (onEndRound) onEndRound(winnerName, `${scores.x} - ${scores.o}`);
             }
           } else {
-            setTurn('X');
+            setTurn(mySymbol);
           }
           return nextBoard;
         });
@@ -71,11 +86,11 @@ export default function CyberGridGame({
     });
 
     return () => unsub();
-  }, [winner]);
+  }, [winner, mySymbol, opponentSymbol, myNickname, remotePeerNickname, onEndRound, scores]);
 
-  // AI Move (Practice Mode)
+  // AI Move (Strictly Practice / Solo Mode ONLY - Never during network reconnection)
   useEffect(() => {
-    if (!isConnected && turn === 'O' && !winner) {
+    if (isSolo && turn === 'O' && !winner) {
       const timer = setTimeout(() => {
         const available = board
           .map((val, idx) => (val === null ? idx : null))
@@ -91,10 +106,15 @@ export default function CyberGridGame({
           next[pick] = 'O';
           const res = checkWinner(next);
           if (res) {
-            setWinner(res.winner);
-            setWinningLine(res.line);
-            if (res.winner === 'O') setScores((s) => ({ ...s, o: s.o + 1 }));
-            if (res.winner === 'Tie') setScores((s) => ({ ...s, ties: s.ties + 1 }));
+            if (res.winner === 'Tie') {
+              setWinner('Tie');
+              setScores((s) => ({ ...s, ties: s.ties + 1 }));
+            } else {
+              setWinner(res.winner === mySymbol ? myNickname : 'AI Bot');
+              setWinningLine(res.line);
+              if (res.winner === 'X') setScores((s) => ({ ...s, x: s.x + 1 }));
+              else setScores((s) => ({ ...s, o: s.o + 1 }));
+            }
           } else {
             setTurn('X');
           }
@@ -104,13 +124,13 @@ export default function CyberGridGame({
 
       return () => clearTimeout(timer);
     }
-  }, [turn, isConnected, winner, board]);
+  }, [turn, isSolo, winner, board, mySymbol, myNickname]);
 
   const handleSquareClick = (index) => {
-    if (board[index] || winner || turn !== 'X') return;
+    if (board[index] || winner || !isMyTurn || isReconnecting) return;
 
     const nextBoard = [...board];
-    nextBoard[index] = 'X';
+    nextBoard[index] = mySymbol;
     setBoard(nextBoard);
 
     if (isConnected) {
@@ -118,21 +138,27 @@ export default function CyberGridGame({
         game: 'grid',
         type: 'grid_move',
         index,
+        symbol: mySymbol,
       });
     }
 
     const res = checkWinner(nextBoard);
     if (res) {
-      setWinner(res.winner);
-      setWinningLine(res.line);
-      if (res.winner === 'X') {
-        setScores((s) => ({ ...s, x: s.x + 1 }));
-        confetti({ particleCount: 80, spread: 70 });
-      } else if (res.winner === 'Tie') {
+      if (res.winner === 'Tie') {
+        setWinner('Tie');
         setScores((s) => ({ ...s, ties: s.ties + 1 }));
+        if (onEndRound) onEndRound('Tie', `${scores.x} - ${scores.o}`);
+      } else {
+        const winnerName = myNickname;
+        setWinner(winnerName);
+        setWinningLine(res.line);
+        if (mySymbol === 'X') setScores((s) => ({ ...s, x: s.x + 1 }));
+        else setScores((s) => ({ ...s, o: s.o + 1 }));
+        confetti({ particleCount: 80, spread: 70 });
+        if (onEndRound) onEndRound(winnerName, `${scores.x + 1} - ${scores.o}`);
       }
     } else {
-      setTurn('O');
+      setTurn(opponentSymbol);
     }
   };
 
@@ -146,40 +172,48 @@ export default function CyberGridGame({
     }
   };
 
+  const myDisplayScore = mySymbol === 'X' ? scores.x : scores.o;
+  const opponentDisplayScore = mySymbol === 'X' ? scores.o : scores.x;
+  const opponentLabel = isConnected ? remotePeerNickname || 'Peer' : 'AI Bot';
+
   return (
     <div className="cyber-grid-container">
-      {/* Grid Subheader */}
+      {/* Subheader: Scores & Reset (Duplicate Back button purged per Item 5) */}
       <div className="grid-status-bar">
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          {onExitMatch && (
-            <button onClick={onExitMatch} className="btn btn-secondary btn-xs" title="Return to Chat Window">
-              <ArrowLeft size={13} />
-              <span>Chat</span>
-            </button>
-          )}
-          <div className="grid-score-pills">
-            <span className="score-pill you">You (X): {scores.x}</span>
-            <span className="score-pill ties">Ties: {scores.ties}</span>
-            <span className="score-pill peer">
-              {isConnected ? remotePeerNickname || 'Peer' : 'Bot'} (O): {scores.o}
-            </span>
-          </div>
+        <div className="grid-score-pills">
+          <span className="score-pill you">
+            {myNickname} ({mySymbol}): {myDisplayScore}
+          </span>
+          <span className="score-pill ties">Ties: {scores.ties}</span>
+          <span className="score-pill peer">
+            {opponentLabel} ({opponentSymbol}): {opponentDisplayScore}
+          </span>
         </div>
 
-        <button onClick={handleRestart} className="btn btn-icon btn-xs" title="Reset Grid">
+        <button onClick={handleRestart} className="btn btn-icon btn-xs" title="Reset Grid for New Round">
           <RefreshCw size={14} />
         </button>
       </div>
 
+      {/* Network Reconnection Pause Notice */}
+      {isReconnecting && (
+        <div className="game-pause-banner">
+          <WifiOff size={13} className="animate-spin text-amber-400" />
+          <span>Opponent reconnecting... Pausing match.</span>
+        </div>
+      )}
+
       {/* Turn Banner */}
       <div className="grid-turn-indicator">
         {!winner ? (
-          <span className={turn === 'X' ? 'active-turn user' : 'active-turn opponent'}>
-            {turn === 'X' ? '⚡ Your Turn (Place X)' : `Waiting for ${isConnected ? remotePeerNickname || 'Peer' : 'Bot'}...`}
+          <span className={isMyTurn ? 'active-turn user' : 'active-turn opponent'}>
+            {isMyTurn 
+              ? `⚡ Your Turn (Place ${mySymbol})` 
+              : `Waiting for ${opponentLabel} (${opponentSymbol})...`}
           </span>
         ) : (
           <span className="winner-label">
-            {winner === 'Tie' ? '🤝 Tactical Tie!' : `🏆 ${winner === 'X' ? 'You Win!' : `${remotePeerNickname || 'Peer'} Wins!`}`}
+            {winner === 'Tie' ? '🤝 Tactical Tie!' : `🏆 ${winner} Wins!`}
           </span>
         )}
       </div>
@@ -193,7 +227,7 @@ export default function CyberGridGame({
               key={idx}
               className={`cyber-cell ${cell ? `filled-${cell.toLowerCase()}` : ''} ${isWinningCell ? 'winning-cell' : ''}`}
               onClick={() => handleSquareClick(idx)}
-              disabled={!!cell || !!winner || turn !== 'X'}
+              disabled={!!cell || !!winner || !isMyTurn || isReconnecting}
             >
               {cell}
             </button>

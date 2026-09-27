@@ -280,7 +280,10 @@
   .home-header-actions {
     order: 2;
     flex: 0 0 auto;
-    gap: 4px;
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 3px;
   }
 
   .home-header-actions .btn-icon {
@@ -291,7 +294,7 @@
   }
 
   .home-header-actions .btn-danger {
-    padding: 4px 8px !important;
+    padding: 4px 7px !important;
     height: 32px !important;
     font-size: 0.72rem !important;
     min-width: auto !important;

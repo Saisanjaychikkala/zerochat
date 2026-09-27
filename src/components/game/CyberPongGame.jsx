@@ -9,6 +9,7 @@ export default function CyberPongGame({
   myNickname = 'You',
   remotePeerNickname = 'Peer',
   onExitMatch,
+  onEndRound,
 }) {
   const canvasRef = useRef(null);
   const [score, setScore] = useState({ p1: 0, p2: 0 });
@@ -41,6 +42,7 @@ export default function CyberPongGame({
           setScore({ p1: event.p1, p2: event.p2 });
           if (event.winner) {
             setWinner(event.winner);
+            if (onEndRound) onEndRound(event.winner, `${event.p1}-${event.p2}`);
             try { confetti({ particleCount: 70, spread: 60, origin: { y: 0.6 } }); } catch (e) {}
           }
         }
@@ -57,7 +59,7 @@ export default function CyberPongGame({
     });
 
     return () => unsub();
-  }, [roleIsHost]);
+  }, [roleIsHost, onEndRound]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -99,17 +101,23 @@ export default function CyberPongGame({
 
         if (gs.ballX < 0) {
           gs.p2Score += 1;
-          setScore({ p1: gs.p1Score, p2: gs.p2Score });
+          const newScore = { p1: gs.p1Score, p2: gs.p2Score };
+          setScore(newScore);
           if (gs.p2Score >= 5) {
-            setWinner(isConnected ? remotePeerNickname || 'Player 2' : 'Cyber Bot');
+            const wName = isConnected ? remotePeerNickname || 'Player 2' : 'Cyber Bot';
+            setWinner(wName);
+            if (onEndRound) onEndRound(wName, `${newScore.p1}-${newScore.p2}`);
             try { confetti({ particleCount: 80, spread: 70, origin: { y: 0.6 } }); } catch (e) {}
           }
           gs.ballX = w / 2; gs.ballY = h / 2; gs.ballVx = 4.5; gs.ballVy = (Math.random() - 0.5) * 5;
         } else if (gs.ballX > w) {
           gs.p1Score += 1;
-          setScore({ p1: gs.p1Score, p2: gs.p2Score });
+          const newScore = { p1: gs.p1Score, p2: gs.p2Score };
+          setScore(newScore);
           if (gs.p1Score >= 5) {
-            setWinner(myNickname || 'Player 1');
+            const wName = myNickname || 'Player 1';
+            setWinner(wName);
+            if (onEndRound) onEndRound(wName, `${newScore.p1}-${newScore.p2}`);
             try { confetti({ particleCount: 80, spread: 70, origin: { y: 0.6 } }); } catch (e) {}
           }
           gs.ballX = w / 2; gs.ballY = h / 2; gs.ballVx = -4.5; gs.ballVy = (Math.random() - 0.5) * 5;
@@ -155,7 +163,7 @@ export default function CyberPongGame({
 
     animId = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(animId);
-  }, [winner, isConnected, myNickname, remotePeerNickname]);
+  }, [winner, isConnected, myNickname, remotePeerNickname, onEndRound]);
 
   const updatePaddle = useCallback((relativeY) => {
     const clampedY = Math.max(6, Math.min(324, relativeY));
@@ -174,10 +182,25 @@ export default function CyberPongGame({
     updatePaddle(((clientY - rect.top) / rect.height) * 400 - 35);
   };
 
-  const handleNudge = (delta) => {
+  const handleNudge = useCallback((delta) => {
     const curY = roleIsHost ? stateRef.current.p1Y : stateRef.current.p2Y;
     updatePaddle(curY + delta);
-  };
+  }, [roleIsHost, updatePaddle]);
+
+  // Desktop keyboard controls (W/S or Up/Down arrows)
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'ArrowUp' || e.code === 'KeyW') {
+        e.preventDefault();
+        handleNudge(-28);
+      } else if (e.key === 'ArrowDown' || e.code === 'KeyS') {
+        e.preventDefault();
+        handleNudge(28);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [handleNudge]);
 
   const handleRestart = () => {
     setWinner(null);
@@ -191,12 +214,6 @@ export default function CyberPongGame({
     <div className="pong-arena-wrapper">
       <div className="pong-subbar">
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          {onExitMatch && (
-            <button onClick={onExitMatch} className="btn btn-secondary btn-xs" title="Return to Chat Window">
-              <ArrowLeft size={13} />
-              <span>Chat</span>
-            </button>
-          )}
           <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
             You: <strong style={{ color: roleIsHost ? '#00f2fe' : '#10b981' }}>{roleIsHost ? 'Left (P1)' : 'Right (P2)'}</strong>
           </span>

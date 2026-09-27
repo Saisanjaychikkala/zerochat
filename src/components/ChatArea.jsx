@@ -255,6 +255,7 @@ export default function ChatArea({
             onJoinCard={inChatGames.handleJoinCard}
             onLaunchCard={inChatGames.handleLaunchCard}
             onResumeCard={inChatGames.handleResumeMatch}
+            onRematch={inChatGames.handleRematch}
           />
         ))}
 
@@ -317,6 +318,7 @@ export default function ChatArea({
             showToast={showToast}
             onExitMatch={inChatGames.handleExitMatch}
             onReturnToChat={inChatGames.handleReturnToChat}
+            onEndRound={inChatGames.handleEndRound}
           />
         </div>
       )}

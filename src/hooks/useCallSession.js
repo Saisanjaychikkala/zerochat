@@ -248,7 +248,13 @@ export function useCallSession({ status, remoteNickname, soundEnabled, showToast
     } catch (err) {
       stopActiveRingtones();
       setCallState((prev) => ({ ...prev, status: 'idle' }));
-      if (showToast) showToast(err.message || 'Could not start call (check mic/camera permissions)', 'error');
+      if (showToast) {
+        if (err.name === 'NotAllowedError' || err.message?.toLowerCase().includes('permission')) {
+          showToast('Mic/Camera permission blocked. Click the lock icon in your browser URL bar to allow access.', 'error');
+        } else {
+          showToast(err.message || 'Could not start call (check mic/camera permissions)', 'error');
+        }
+      }
     }
   }, [status, remoteNickname, showToast, stopActiveRingtones]);
 
@@ -262,7 +268,13 @@ export function useCallSession({ status, remoteNickname, soundEnabled, showToast
     try {
       await peerService.answerCall(isVideo);
     } catch (err) {
-      if (showToast) showToast(err.message || 'Could not answer call', 'error');
+      if (showToast) {
+        if (err.name === 'NotAllowedError' || err.message?.toLowerCase().includes('permission')) {
+          showToast('Mic/Camera permission blocked. Click the lock icon in your browser URL bar to allow access.', 'error');
+        } else {
+          showToast(err.message || 'Could not answer call', 'error');
+        }
+      }
     }
   }, [showToast, stopActiveRingtones]);
 

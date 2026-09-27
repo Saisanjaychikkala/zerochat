@@ -1,6 +1,6 @@
 // Robust Clipboard Copy Utility with fallback for HTTP, LAN, and restricted contexts
 
-export const copyToClipboard = async (text) => {
+export const copyToClipboard = async (text, showPromptFallback = true) => {
   if (!text) return false;
 
   // Modern Clipboard API
@@ -26,9 +26,18 @@ export const copyToClipboard = async (text) => {
     textArea.select();
     const successful = document.execCommand('copy');
     document.body.removeChild(textArea);
-    return successful;
+    if (successful) return true;
   } catch (err) {
-    console.warn('[ZeroChat] Clipboard copy fallback failed:', err);
-    return false;
+    console.warn('[ZeroChat] Clipboard copy execCommand failed:', err);
   }
+
+  // Final LAN IP / HTTP Fallback: Selectable Prompt Dialog
+  if (showPromptFallback && typeof window !== 'undefined' && typeof window.prompt === 'function') {
+    try {
+      window.prompt('Copy room link or code manually (Ctrl+C / Cmd+C):', text);
+      return true;
+    } catch (_) {}
+  }
+
+  return false;
 };

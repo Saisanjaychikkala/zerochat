@@ -74,10 +74,23 @@ export function useInChatGames({
       } else if (event.type === 'game_card_conclude') {
         if (!setMessages) return;
         setMessages((prev) =>
-          prev.map((m) => (m.cardId === event.cardId ? { ...m, isConcluded: true, isPlaying: false } : m))
+          prev.map((m) =>
+            m.cardId === event.cardId
+              ? {
+                  ...m,
+                  isConcluded: true,
+                  isPlaying: false,
+                  winner: event.winner || m.winner || null,
+                  finalScore: event.finalScore || m.finalScore || null,
+                }
+              : m
+          )
         );
         setActiveMatch(null);
-        if (showToast) showToast('Match concluded. Resources cleared.', 'info');
+        if (showToast) {
+          const outcome = event.winner ? ` Winner: ${event.winner}!` : '';
+          showToast(`Match concluded.${outcome} Resources cleared.`, 'info');
+        }
       }
     });
 
@@ -195,13 +208,40 @@ export function useInChatGames({
     setActiveMatch((prev) => (prev ? { ...prev, isVisible: true } : null));
   }, []);
 
+  // Record round outcome on card
+  const handleEndRound = useCallback((winner, finalScore) => {
+    const current = activeMatchRef.current;
+    if (current?.cardId && setMessages) {
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.cardId === current.cardId
+            ? { ...m, winner, finalScore }
+            : m
+        )
+      );
+    }
+  }, [setMessages]);
+
   // Conclude match and clean up
-  const handleExitMatch = useCallback(() => {
+  const handleExitMatch = useCallback((summary = null) => {
     const current = activeMatchRef.current;
     if (current?.cardId) {
+      const winner = summary?.winner || null;
+      const finalScore = summary?.finalScore || null;
+
       if (setMessages) {
         setMessages((prev) =>
-          prev.map((m) => (m.cardId === current.cardId ? { ...m, isConcluded: true, isPlaying: false } : m))
+          prev.map((m) =>
+            m.cardId === current.cardId
+              ? {
+                  ...m,
+                  isConcluded: true,
+                  isPlaying: false,
+                  ...(winner ? { winner } : {}),
+                  ...(finalScore ? { finalScore } : {}),
+                }
+              : m
+          )
         );
       }
 
@@ -209,12 +249,19 @@ export function useInChatGames({
         peerService.sendGameEvent({
           type: 'game_card_conclude',
           cardId: current.cardId,
+          winner,
+          finalScore,
         });
       }
     }
     setActiveMatch(null);
     if (showToast) showToast('Match finished. Resources cleared.', 'info');
   }, [isConnected, setMessages, showToast]);
+
+  // Immediate rematch: posts new challenge for same game
+  const handleRematch = useCallback((gameId) => {
+    handleAddGameToChat(gameId);
+  }, [handleAddGameToChat]);
 
   return {
     activeMatch,
@@ -225,6 +272,8 @@ export function useInChatGames({
     handleLaunchCard,
     handleReturnToChat,
     handleResumeMatch,
+    handleEndRound,
     handleExitMatch,
+    handleRematch,
   };
 }

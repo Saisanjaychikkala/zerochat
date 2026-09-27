@@ -1,5 +1,5 @@
 import React from 'react';
-import { Gamepad2, CircleDot, Disc, Users, Check, Play, Ban } from 'lucide-react';
+import { Gamepad2, CircleDot, Disc, Users, Check, Play, Ban, Trophy, RefreshCw } from 'lucide-react';
 
 const GAME_CONFIGS = {
   pong: {
@@ -25,6 +25,7 @@ export default function InChatGameCard({
   onJoinCard,
   onLaunchCard,
   onResumeCard,
+  onRematch,
 }) {
   const config = GAME_CONFIGS[card.gameId] || GAME_CONFIGS.pong;
   const Icon = config.icon;
@@ -134,9 +135,56 @@ export default function InChatGameCard({
       {/* Action Footer */}
       <div className="in-chat-card-actions">
         {isConcluded ? (
-          <button disabled className="btn btn-secondary btn-xs w-full concluded-btn">
-            <span>Match Concluded • Resources Cleared</span>
-          </button>
+          <div className="in-chat-concluded-container" style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            <div className="in-chat-winner-banner" style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '6px',
+              padding: '6px 10px',
+              borderRadius: '8px',
+              background: card.winner ? 'rgba(0, 242, 254, 0.08)' : 'rgba(255, 255, 255, 0.04)',
+              border: card.winner ? '1px solid rgba(0, 242, 254, 0.25)' : '1px solid rgba(255, 255, 255, 0.08)',
+              fontSize: '0.76rem',
+              color: 'var(--text-main)',
+            }}>
+              {card.winner ? (
+                card.winner === 'draw' || card.winner === 'Tactical Draw' ? (
+                  <span>🤝 Tactical Draw {card.finalScore ? `(${card.finalScore})` : ''}</span>
+                ) : (
+                  <>
+                    <Trophy size={14} color="#eab308" />
+                    <span>
+                      <strong style={{ color: '#00f2fe' }}>{card.winner}</strong> won! {card.finalScore ? `(${card.finalScore})` : ''}
+                    </span>
+                  </>
+                )
+              ) : (
+                <span>Match Concluded • Resources Cleared</span>
+              )}
+            </div>
+            {onRematch && (
+              <button 
+                type="button"
+                onClick={() => onRematch(card.gameId)}
+                className="btn btn-secondary btn-xs w-full rematch-btn"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px',
+                  background: 'rgba(255, 255, 255, 0.06)',
+                  color: 'var(--accent-cyan)',
+                  borderColor: 'rgba(0, 242, 254, 0.3)',
+                  height: '32px',
+                  cursor: 'pointer'
+                }}
+              >
+                <RefreshCw size={12} />
+                <span>Play Rematch</span>
+              </button>
+            )}
+          </div>
         ) : card.isPlaying ? (
           <button 
             onClick={() => (onResumeCard || onLaunchCard) && (onResumeCard || onLaunchCard)(card.cardId)}

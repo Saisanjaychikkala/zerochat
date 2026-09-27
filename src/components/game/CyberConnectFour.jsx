@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { RefreshCw, Sparkles, ArrowLeft } from 'lucide-react';
+import { RefreshCw, Sparkles, WifiOff } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { peerService } from '../../services/peerService';
 
@@ -54,15 +54,31 @@ function checkConnectFourWin(board) {
   return null;
 }
 
-export default function CyberConnectFour({ status, remotePeerNickname, onExitMatch }) {
+export default function CyberConnectFour({ 
+  status, 
+  isHost = true,
+  myNickname = 'You',
+  remotePeerNickname = 'Peer', 
+  onExitMatch,
+  onEndRound,
+}) {
   const [grid, setGrid] = useState(createEmptyGrid);
-  const [turn, setTurn] = useState('C'); // 'C' (Cyan/Local) | 'M' (Magenta/Opponent)
+  const [turn, setTurn] = useState('C'); // 'C' (Cyan / Host starts first)
   const [winner, setWinner] = useState(null);
   const [winningCells, setWinningCells] = useState([]);
   const [scores, setScores] = useState({ c: 0, m: 0, ties: 0 });
   const [hoverCol, setHoverCol] = useState(null);
 
   const isConnected = status === 'connected';
+  const isReconnecting = status === 'reconnecting';
+  const isSolo = !isConnected && status === 'disconnected';
+
+  // Role authority: Host is Cyan ('C', moves first); Guest is Neon ('M', moves second)
+  const myToken = (!isConnected || isHost) ? 'C' : 'M';
+  const opponentToken = myToken === 'C' ? 'M' : 'C';
+  const isMyTurn = turn === myToken;
+
+  const opponentLabel = isConnected ? remotePeerNickname || 'Peer' : 'AI Bot';
 
   // Apply a drop in a column
   const dropToken = (board, col, player) => {
@@ -84,16 +100,24 @@ export default function CyberConnectFour({ status, remotePeerNickname, onExitMat
       if (event.type === 'c4_drop') {
         setGrid((prev) => {
           if (winner) return prev;
-          const dropRes = dropToken(prev, event.col, 'M');
+          const dropRes = dropToken(prev, event.col, event.token || opponentToken);
           if (!dropRes) return prev;
           const winRes = checkConnectFourWin(dropRes.newBoard);
           if (winRes) {
-            setWinner(winRes.winner);
-            setWinningCells(winRes.line);
-            if (winRes.winner === 'M') setScores((s) => ({ ...s, m: s.m + 1 }));
-            if (winRes.winner === 'Tie') setScores((s) => ({ ...s, ties: s.ties + 1 }));
+            if (winRes.winner === 'Tie') {
+              setWinner('Tie');
+              setScores((s) => ({ ...s, ties: s.ties + 1 }));
+              if (onEndRound) onEndRound('Tie', `${scores.c} - ${scores.m}`);
+            } else {
+              const winnerName = winRes.winner === myToken ? myNickname : remotePeerNickname;
+              setWinner(winnerName);
+              setWinningCells(winRes.line);
+              if (winRes.winner === 'C') setScores((s) => ({ ...s, c: s.c + 1 }));
+              else setScores((s) => ({ ...s, m: s.m + 1 }));
+              if (onEndRound) onEndRound(winnerName, `${scores.c} - ${scores.m}`);
+            }
           } else {
-            setTurn('C');
+            setTurn(myToken);
           }
           return dropRes.newBoard;
         });
@@ -106,11 +130,11 @@ export default function CyberConnectFour({ status, remotePeerNickname, onExitMat
     });
 
     return () => unsub();
-  }, [winner]);
+  }, [winner, myToken, opponentToken, myNickname, remotePeerNickname, onEndRound, scores]);
 
-  // Practice AI Bot
+  // Practice AI Bot (Strictly Solo mode only - never triggers during network reconnects)
   useEffect(() => {
-    if (!isConnected && turn === 'M' && !winner) {
+    if (isSolo && turn === 'M' && !winner) {
       const timer = setTimeout(() => {
         const validCols = [];
         for (let c = 0; c < COLS; c++) {
@@ -153,10 +177,15 @@ export default function CyberConnectFour({ status, remotePeerNickname, onExitMat
           if (!dropRes) return prev;
           const winRes = checkConnectFourWin(dropRes.newBoard);
           if (winRes) {
-            setWinner(winRes.winner);
-            setWinningCells(winRes.line);
-            if (winRes.winner === 'M') setScores((s) => ({ ...s, m: s.m + 1 }));
-            if (winRes.winner === 'Tie') setScores((s) => ({ ...s, ties: s.ties + 1 }));
+            if (winRes.winner === 'Tie') {
+              setWinner('Tie');
+              setScores((s) => ({ ...s, ties: s.ties + 1 }));
+            } else {
+              setWinner(winRes.winner === myToken ? myNickname : 'AI Bot');
+              setWinningCells(winRes.line);
+              if (winRes.winner === 'C') setScores((s) => ({ ...s, c: s.c + 1 }));
+              else setScores((s) => ({ ...s, m: s.m + 1 }));
+            }
           } else {
             setTurn('C');
           }
@@ -166,32 +195,37 @@ export default function CyberConnectFour({ status, remotePeerNickname, onExitMat
 
       return () => clearTimeout(timer);
     }
-  }, [turn, isConnected, winner, grid]);
+  }, [turn, isSolo, winner, grid, myToken, myNickname]);
 
   const handleColumnClick = (col) => {
-    if (winner || turn !== 'C' || grid[0][col]) return;
+    if (winner || !isMyTurn || grid[0][col] || isReconnecting) return;
 
-    const dropRes = dropToken(grid, col, 'C');
+    const dropRes = dropToken(grid, col, myToken);
     if (!dropRes) return;
 
     setGrid(dropRes.newBoard);
 
     if (isConnected) {
-      peerService.sendGameEvent({ game: 'c4', type: 'c4_drop', col });
+      peerService.sendGameEvent({ game: 'c4', type: 'c4_drop', col, token: myToken });
     }
 
     const winRes = checkConnectFourWin(dropRes.newBoard);
     if (winRes) {
-      setWinner(winRes.winner);
-      setWinningCells(winRes.line);
-      if (winRes.winner === 'C') {
-        setScores((s) => ({ ...s, c: s.c + 1 }));
-        confetti({ particleCount: 90, spread: 80 });
-      } else if (winRes.winner === 'Tie') {
+      if (winRes.winner === 'Tie') {
+        setWinner('Tie');
         setScores((s) => ({ ...s, ties: s.ties + 1 }));
+        if (onEndRound) onEndRound('Tie', `${scores.c} - ${scores.m}`);
+      } else {
+        const winnerName = myNickname;
+        setWinner(winnerName);
+        setWinningCells(winRes.line);
+        if (myToken === 'C') setScores((s) => ({ ...s, c: s.c + 1 }));
+        else setScores((s) => ({ ...s, m: s.m + 1 }));
+        confetti({ particleCount: 90, spread: 80 });
+        if (onEndRound) onEndRound(winnerName, `${scores.c + 1} - ${scores.m}`);
       }
     } else {
-      setTurn('M');
+      setTurn(opponentToken);
     }
   };
 
@@ -205,74 +239,89 @@ export default function CyberConnectFour({ status, remotePeerNickname, onExitMat
     }
   };
 
+  const myDisplayScore = myToken === 'C' ? scores.c : scores.m;
+  const opponentDisplayScore = myToken === 'C' ? scores.m : scores.c;
+
   return (
     <div className="cyber-c4-container">
-      {/* Subheader Scores */}
+      {/* Subheader Scores (Duplicate back button purged per Item 5) */}
       <div className="c4-status-bar">
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          {onExitMatch && (
-            <button onClick={onExitMatch} className="btn btn-secondary btn-xs" title="Return to Chat Window">
-              <ArrowLeft size={13} />
-              <span>Chat</span>
-            </button>
-          )}
-          <div className="grid-score-pills">
-            <span className="score-pill you">You (Cyan): {scores.c}</span>
-            <span className="score-pill ties">Ties: {scores.ties}</span>
-            <span className="score-pill peer" style={{ color: 'var(--accent-purple)', borderColor: 'var(--accent-purple-glow)' }}>
-              {isConnected ? remotePeerNickname || 'Peer' : 'Bot'} (Neon): {scores.m}
-            </span>
-          </div>
+        <div className="grid-score-pills">
+          <span className="score-pill you">
+            {myNickname} ({myToken === 'C' ? 'Cyan' : 'Neon'}): {myDisplayScore}
+          </span>
+          <span className="score-pill ties">Ties: {scores.ties}</span>
+          <span className="score-pill peer" style={{ color: 'var(--accent-purple)', borderColor: 'var(--accent-purple-glow)' }}>
+            {opponentLabel} ({opponentToken === 'C' ? 'Cyan' : 'Neon'}): {opponentDisplayScore}
+          </span>
         </div>
-        <button onClick={handleRestart} className="btn btn-icon btn-xs" title="Reset Grid">
+        <button onClick={handleRestart} className="btn btn-icon btn-xs" title="Reset Grid for New Round">
           <RefreshCw size={14} />
         </button>
       </div>
 
+      {/* Network Reconnection Pause Notice */}
+      {isReconnecting && (
+        <div className="game-pause-banner">
+          <WifiOff size={13} className="animate-spin text-amber-400" />
+          <span>Opponent reconnecting... Pausing match.</span>
+        </div>
+      )}
+
       {/* Turn Banner */}
       <div className="grid-turn-indicator">
         {!winner ? (
-          <span className={turn === 'C' ? 'active-turn user' : 'active-turn opponent'}>
-            {turn === 'C' ? '⚡ Your Turn (Drop Disc)' : `Waiting for ${isConnected ? remotePeerNickname || 'Peer' : 'Bot'}...`}
+          <span className={isMyTurn ? 'active-turn user' : 'active-turn opponent'}>
+            {isMyTurn ? '⚡ Your Turn (Drop Disc)' : `Waiting for ${opponentLabel}...`}
           </span>
         ) : (
           <span className="winner-label">
-            {winner === 'Tie' ? '🤝 Tactical Tie!' : `🏆 ${winner === 'C' ? 'You Connect Four!' : `${remotePeerNickname || 'Peer'} Wins!`}`}
+            {winner === 'Tie' ? '🤝 Tactical Tie!' : `🏆 ${winner} Connects Four!`}
           </span>
         )}
       </div>
 
-      {/* 7x6 Connect Four Board */}
-      <div className="c4-board-shell">
-        <div className="c4-columns-container">
-          {Array.from({ length: COLS }).map((_, c) => {
-            const isFull = !!grid[0][c];
-            return (
-              <div
-                key={c}
-                className={`c4-column ${hoverCol === c && turn === 'C' && !isFull && !winner ? 'col-hover' : ''}`}
-                onClick={() => handleColumnClick(c)}
-                onMouseEnter={() => setHoverCol(c)}
-                onMouseLeave={() => setHoverCol(null)}
-              >
-                {Array.from({ length: ROWS }).map((_, r) => {
-                  const val = grid[r][c];
-                  const isWinning = winningCells.some(([wr, wc]) => wr === r && wc === c);
-                  return (
-                    <div key={r} className="c4-slot">
-                      <div className={`c4-disc ${val ? `disc-${val.toLowerCase()}` : 'empty'} ${isWinning ? 'winning-disc' : ''}`} />
-                    </div>
-                  );
-                })}
-              </div>
-            );
-          })}
+      {/* 7x6 Matrix */}
+      <div className="c4-matrix-wrapper">
+        <div className="c4-col-guides">
+          {Array.from({ length: COLS }).map((_, c) => (
+            <button
+              key={c}
+              className={`c4-guide-btn ${hoverCol === c && isMyTurn && !winner ? 'active' : ''}`}
+              onMouseEnter={() => setHoverCol(c)}
+              onMouseLeave={() => setHoverCol(null)}
+              onClick={() => handleColumnClick(c)}
+              disabled={!!winner || !isMyTurn || isReconnecting || !!grid[0][c]}
+              title={`Drop Disc in Column ${c + 1}`}
+            >
+              ↓
+            </button>
+          ))}
+        </div>
+
+        <div className="c4-board-grid">
+          {grid.map((row, r) => (
+            <div key={r} className="c4-row">
+              {row.map((cell, c) => {
+                const isWin = winningCells.some(([wr, wc]) => wr === r && wc === c);
+                return (
+                  <div
+                    key={c}
+                    className={`c4-slot ${cell ? `filled-${cell.toLowerCase()}` : 'empty'} ${isWin ? 'winning-slot' : ''}`}
+                    onClick={() => handleColumnClick(c)}
+                  >
+                    <div className="c4-disc" />
+                  </div>
+                );
+              })}
+            </div>
+          ))}
         </div>
       </div>
 
-      {/* Play Again Action */}
+      {/* Victory Actions */}
       {winner && (
-        <div className="grid-win-action" style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
+        <div className="c4-win-action" style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
           <button onClick={handleRestart} className="btn btn-primary">
             <Sparkles size={15} />
             <span>Play Next Round</span>
