@@ -81,3 +81,19 @@ export function normalizeRoomId(raw) {
   return str;
 }
 
+export function generateGameRoomId(gameType = 'pong') {
+  return `game-${gameType}-${generateRoomId()}`;
+}
+
+export function parseRoomHash(raw) {
+  const normalized = normalizeRoomId(raw);
+  if (!normalized) return { isGame: false, gameType: null, roomId: '' };
+  if (normalized.startsWith('game-')) {
+    const parts = normalized.split('-');
+    // format: game-<gameType>-<word1>-<word2>-<num>
+    const gameType = parts[1] || 'pong';
+    return { isGame: true, gameType, roomId: normalized };
+  }
+  return { isGame: false, gameType: null, roomId: normalized };
+}
+

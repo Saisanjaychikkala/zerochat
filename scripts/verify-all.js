@@ -32,11 +32,24 @@ console.log('====================================================\n');
 async function runTests() {
   // 1. Verify Room ID Generation & Normalization
   console.log('[Test Suite 1] Room ID Generation & Entropy');
-  const { generateRoomId, normalizeRoomId, ROOM_WORDS, CHUNK_SIZE } = await import('../src/services/webrtc/constants.js');
+  const { generateRoomId, normalizeRoomId, generateGameRoomId, parseRoomHash, ROOM_WORDS, CHUNK_SIZE } = await import('../src/services/webrtc/constants.js');
   assert(typeof generateRoomId === 'function', 'generateRoomId is exported');
   assert(typeof normalizeRoomId === 'function', 'normalizeRoomId is exported');
+  assert(typeof generateGameRoomId === 'function', 'generateGameRoomId is exported');
+  assert(typeof parseRoomHash === 'function', 'parseRoomHash is exported');
   assert(Array.isArray(ROOM_WORDS) && ROOM_WORDS.length >= 20, 'ROOM_WORDS dictionary has sufficient entropy');
   assert(CHUNK_SIZE === 16384, 'CHUNK_SIZE is standard 16KB (16384 bytes)');
+
+  // Game Room ID generation & hash parsing
+  const pongGameId = generateGameRoomId('pong');
+  assert(pongGameId.startsWith('game-pong-'), `generateGameRoomId produces game-pong prefix (${pongGameId})`);
+  const parsedGame = parseRoomHash('#game-c4-cosmic-radar-780');
+  assert(parsedGame.isGame === true, 'parseRoomHash identifies game room');
+  assert(parsedGame.gameType === 'c4', 'parseRoomHash extracts gameType correctly');
+  assert(parsedGame.roomId === 'game-c4-cosmic-radar-780', 'parseRoomHash normalizes full room ID');
+  const parsedChat = parseRoomHash('#cosmic-radar-780');
+  assert(parsedChat.isGame === false, 'parseRoomHash identifies non-game chat room');
+  assert(parsedChat.roomId === 'cosmic-radar-780', 'parseRoomHash extracts clean chat room ID');
 
   // Room ID Sanitization & Normalization
   assert(normalizeRoomId('nexus lunar 155') === 'nexus-lunar-155', 'normalizeRoomId converts spaces to hyphens');
@@ -187,6 +200,36 @@ async function runTests() {
   // Test App.jsx terminates call on burn and disconnect
   const appSrc = fs.readFileSync(path.join(ROOT, 'src', 'App.jsx'), 'utf8');
   assert(appSrc.includes('handleEndCall()'), 'App.jsx terminates active calls on session burn and disconnect');
+
+  // 8. Verify Sandboxing, Lazy Connection & File Line Budgets (<350 lines)
+  console.log('\n[Test Suite 8] Sandboxing & Feature Isolation Architecture');
+
+  // Lazy HomeScreen WebRTC Connection
+  const peerSessionSrc = fs.readFileSync(path.join(ROOT, 'src', 'hooks', 'usePeerSession.js'), 'utf8');
+  assert(peerSessionSrc.includes('if (initialHash) {'), 'HomeScreen avoids eager WebRTC broker connection when offline');
+  assert(peerSessionSrc.includes('peerService.cleanup()'), 'usePeerSession cleans up WebRTC peer on disconnect and unmount');
+
+  // Isolation Components Existence
+  assert(fs.existsSync(path.join(ROOT, 'src', 'components', 'chat', 'ChatWorkspace.jsx')), 'ChatWorkspace component exists in chat/');
+  assert(fs.existsSync(path.join(ROOT, 'src', 'components', 'AppModals.jsx')), 'AppModals coordinator exists in components/');
+  assert(fs.existsSync(path.join(ROOT, 'src', 'components', 'ConfirmGameModal.jsx')), 'ConfirmGameModal exists in components/');
+
+  // File Line Budget Verification (<350 lines per AGENTS.md)
+  const budgetFiles = [
+    { name: 'App.jsx', path: path.join(ROOT, 'src', 'App.jsx'), max: 350 },
+    { name: 'HomeScreen.jsx', path: path.join(ROOT, 'src', 'components', 'HomeScreen.jsx'), max: 350 },
+    { name: 'P2PGameArena.jsx', path: path.join(ROOT, 'src', 'components', 'P2PGameArena.jsx'), max: 350 },
+    { name: 'ChatWorkspace.jsx', path: path.join(ROOT, 'src', 'components', 'chat', 'ChatWorkspace.jsx'), max: 350 },
+    { name: 'AppModals.jsx', path: path.join(ROOT, 'src', 'components', 'AppModals.jsx'), max: 350 },
+    { name: 'ConfirmGameModal.jsx', path: path.join(ROOT, 'src', 'components', 'ConfirmGameModal.jsx'), max: 350 },
+    { name: 'usePeerSession.js', path: path.join(ROOT, 'src', 'hooks', 'usePeerSession.js'), max: 350 },
+    { name: 'constants.js', path: path.join(ROOT, 'src', 'services', 'webrtc', 'constants.js'), max: 350 }
+  ];
+
+  budgetFiles.forEach(({ name, path: fPath, max }) => {
+    const lines = fs.readFileSync(fPath, 'utf8').split('\n').length;
+    assert(lines <= max, `${name} complies with line budget (${lines}/${max} lines)`);
+  });
 
   // Summary
   console.log('\n====================================================');

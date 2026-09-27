@@ -8,7 +8,7 @@ export function usePeerSession({ soundEnabled, showToast, onNewPeerConnection })
   // Extract and normalize initial room from URL hash immediately
   const initialHash = typeof window !== 'undefined' ? normalizeRoomId(window.location.hash) : '';
   const [myRoomId, setMyRoomId] = useState(initialHash);
-  const [isHost, setIsHost] = useState(!initialHash);
+  const [isHost, setIsHost] = useState(false);
   const [remotePeerId, setRemotePeerId] = useState(null);
   const [remoteNickname, setRemoteNickname] = useState('Peer');
   const [status, setStatus] = useState(initialHash ? 'connecting' : 'disconnected');
@@ -112,10 +112,12 @@ export function usePeerSession({ soundEnabled, showToast, onNewPeerConnection })
       setPeerTypingNickname(nickname);
     });
 
-    // Initialize peer with initial room if specified in URL hash
-    peerService.init(initialHash).catch((err) => {
-      console.error('[ZeroChat] PeerService init error:', err);
-    });
+    // Initialize peer ONLY if initial room is specified in URL hash (e.g. direct invite link)
+    if (initialHash) {
+      peerService.init(initialHash).catch((err) => {
+        console.error('[ZeroChat] PeerService init error:', err);
+      });
+    }
 
     return () => {
       unsubReady();
@@ -148,7 +150,14 @@ export function usePeerSession({ soundEnabled, showToast, onNewPeerConnection })
       setStatus('connecting');
       window.history.replaceState(null, '', '#' + cleanId);
       if (showToast) showToast(`Connecting to room ${cleanId}...`, 'info');
-      peerService.connectToPeer(cleanId);
+      if (!peerService.peer || peerService.peer.destroyed) {
+        peerService.init(cleanId).catch((err) => {
+          console.error('[ZeroChat] Join init error:', err);
+          setStatus('disconnected');
+        });
+      } else {
+        peerService.connectToPeer(cleanId);
+      }
     }
   }, [myRoomId, status, showToast, onNewPeerConnection]);
 
@@ -156,7 +165,11 @@ export function usePeerSession({ soundEnabled, showToast, onNewPeerConnection })
     if (!myRoomId) return;
     if (showToast) showToast(`Retrying connection to room ${myRoomId}...`, 'info');
     setStatus('connecting');
-    peerService.connectToPeer(myRoomId);
+    if (!peerService.peer || peerService.peer.destroyed) {
+      peerService.init(myRoomId).catch(() => setStatus('disconnected'));
+    } else {
+      peerService.connectToPeer(myRoomId);
+    }
   }, [myRoomId, showToast]);
 
   // Synchronize room state when URL hash changes (pasting link, clicking invite link, browser navigation)
@@ -165,7 +178,19 @@ export function usePeerSession({ soundEnabled, showToast, onNewPeerConnection })
 
     const handleHashSync = () => {
       const currentHashRoom = normalizeRoomId(window.location.hash);
-      if (!currentHashRoom) return;
+      if (!currentHashRoom) {
+        if (myRoomId) {
+          peerService.cleanup();
+          currentConnectedPeerRef.current = null;
+          setMyRoomId('');
+          setRemotePeerId(null);
+          setLatency(null);
+          setRoomFullError(null);
+          setStatus('disconnected');
+          setIsHost(false);
+        }
+        return;
+      }
 
       if (currentHashRoom !== myRoomId) {
         console.log(`[ZeroChat] URL hash changed to "${currentHashRoom}". Joining room...`);
@@ -182,14 +207,17 @@ export function usePeerSession({ soundEnabled, showToast, onNewPeerConnection })
   }, [myRoomId, handleJoinRoom]);
 
   const handleDisconnect = useCallback(() => {
-    peerService.disconnect(true);
+    peerService.cleanup();
     currentConnectedPeerRef.current = null;
+    setMyRoomId('');
     setRemotePeerId(null);
     setLatency(null);
     setRoomFullError(null);
     setStatus('disconnected');
+    setIsHost(false);
+    window.history.replaceState(null, '', window.location.pathname);
     if (onNewPeerConnection) onNewPeerConnection();
-    if (showToast) showToast('Disconnected. Session history cleared.', 'info');
+    if (showToast) showToast('Disconnected. Session closed.', 'info');
   }, [showToast, onNewPeerConnection]);
 
   const handleCreateNewRoom = useCallback(() => {
