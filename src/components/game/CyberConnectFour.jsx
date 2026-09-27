@@ -54,7 +54,7 @@ function checkConnectFourWin(board) {
   return null;
 }
 
-export default function CyberConnectFour({ status, remotePeerNickname }) {
+export default function CyberConnectFour({ status, remotePeerNickname, onExitMatch }) {
   const [grid, setGrid] = useState(createEmptyGrid);
   const [turn, setTurn] = useState('C'); // 'C' (Cyan/Local) | 'M' (Magenta/Opponent)
   const [winner, setWinner] = useState(null);
@@ -209,15 +209,22 @@ export default function CyberConnectFour({ status, remotePeerNickname }) {
     <div className="cyber-c4-container">
       {/* Subheader Scores */}
       <div className="c4-status-bar">
-        <div className="grid-score-pills">
-          <span className="score-pill you">You (Cyan): {scores.c}</span>
-          <span className="score-pill ties">Ties: {scores.ties}</span>
-          <span className="score-pill peer" style={{ color: 'var(--accent-purple)', borderColor: 'var(--accent-purple-glow)' }}>
-            {isConnected ? remotePeerNickname || 'Peer' : 'Bot'} (Neon): {scores.m}
-          </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          {onExitMatch && (
+            <button onClick={onExitMatch} className="btn btn-secondary btn-xs" title="Return to Game Lobby">
+              <span>Lobby</span>
+            </button>
+          )}
+          <div className="grid-score-pills">
+            <span className="score-pill you">You (Cyan): {scores.c}</span>
+            <span className="score-pill ties">Ties: {scores.ties}</span>
+            <span className="score-pill peer" style={{ color: 'var(--accent-purple)', borderColor: 'var(--accent-purple-glow)' }}>
+              {isConnected ? remotePeerNickname || 'Peer' : 'Bot'} (Neon): {scores.m}
+            </span>
+          </div>
         </div>
-        <button onClick={handleRestart} className="btn btn-icon" title="Reset Grid">
-          <RefreshCw size={15} />
+        <button onClick={handleRestart} className="btn btn-icon btn-xs" title="Reset Grid">
+          <RefreshCw size={14} />
         </button>
       </div>
 
@@ -264,11 +271,16 @@ export default function CyberConnectFour({ status, remotePeerNickname }) {
 
       {/* Play Again Action */}
       {winner && (
-        <div className="grid-win-action">
+        <div className="grid-win-action" style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
           <button onClick={handleRestart} className="btn btn-primary">
             <Sparkles size={15} />
             <span>Play Next Round</span>
           </button>
+          {onExitMatch && (
+            <button onClick={onExitMatch} className="btn btn-secondary">
+              <span>Return to Lobby</span>
+            </button>
+          )}
         </div>
       )}
     </div>

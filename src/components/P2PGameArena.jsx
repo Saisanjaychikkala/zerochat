@@ -1,54 +1,81 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
   ArrowLeft, 
-  Video, 
-  VideoOff, 
-  Mic, 
-  MicOff, 
-  Gamepad2,
-  CircleDot,
-  Disc,
-  Copy,
-  Check,
-  Radio,
-  Share2
+  Gamepad2, 
+  Copy, 
+  Check, 
+  Radio, 
+  Share2, 
+  Menu,
+  Volume2
 } from 'lucide-react';
 import CyberPongGame from './game/CyberPongGame';
 import CyberGridGame from './game/CyberGridGame';
 import CyberConnectFour from './game/CyberConnectFour';
+import GameDrawer from './game/GameDrawer';
+import GameLobbyChat from './game/GameLobbyChat';
+import GameVoiceDock from './game/GameVoiceDock';
+import { peerService } from '../services/peerService';
 
 export default function P2PGameArena({
   status,
+  isHost,
+  myNickname,
+  myAvatarBg,
   remotePeerNickname,
+  remoteAvatarBg,
   gameRoomId,
-  initialGameType = 'pong',
-  onGameTypeChange,
-  localStream,
-  remoteStream,
-  isAudioMuted,
-  isVideoMuted,
+  callState,
+  onStartCall,
+  onEndCall,
   onToggleAudio,
-  onToggleVideo,
   onExit,
   showToast,
 }) {
-  const [selectedGame, setSelectedGame] = useState(initialGameType || 'pong');
+  const [activeGame, setActiveGame] = useState('pong'); // 'pong' | 'grid' | 'c4'
+  const [isMatchActive, setIsMatchActive] = useState(false);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [chatMessages, setChatMessages] = useState([]);
+  const [activeChallenge, setActiveChallenge] = useState(null);
+
   const isConnected = status === 'connected';
   const isConnecting = status === 'connecting';
+  const isVoiceConnected = callState?.status === 'connected';
 
+  // Listen for WebRTC in-game matchmaking and chat events
   useEffect(() => {
-    if (initialGameType && initialGameType !== selectedGame) {
-      setSelectedGame(initialGameType);
-    }
-  }, [initialGameType]);
+    const unsub = peerService.on('game_event', (event) => {
+      if (!event) return;
 
-  const handleSelectGame = (mode) => {
-    setSelectedGame(mode);
-    if (onGameTypeChange) {
-      onGameTypeChange(mode);
-    }
-  };
+      if (event.type === 'game_challenge') {
+        setActiveChallenge(event.challenge);
+        setActiveGame(event.challenge.gameId);
+        setIsMatchActive(false);
+        if (showToast) showToast(`${event.challenge.hostNickname} proposed a ${event.challenge.gameName} duel!`, 'info');
+      } else if (event.type === 'game_join') {
+        setActiveChallenge((prev) => {
+          if (!prev) return null;
+          return {
+            ...prev,
+            isGuestJoined: true,
+            guestNickname: event.nickname,
+            guestAvatarBg: event.avatarBg,
+          };
+        });
+        if (showToast) showToast(`${event.nickname} joined the match!`, 'success');
+      } else if (event.type === 'game_start') {
+        setIsMatchActive(true);
+      } else if (event.type === 'game_exit_match') {
+        setIsMatchActive(false);
+        if (showToast) showToast(`${remotePeerNickname || 'Opponent'} returned to Game Lobby`, 'info');
+      } else if (event.type === 'game_chat_msg') {
+        setChatMessages((prev) => [...prev, { text: event.text, sender: 'theirs', senderName: event.senderName, avatarBg: event.avatarBg }]);
+      }
+    });
+
+    return () => unsub();
+  }, [remotePeerNickname, showToast]);
 
   const handleCopyLink = () => {
     const inviteUrl = typeof window !== 'undefined' 
@@ -58,13 +85,86 @@ export default function P2PGameArena({
     if (navigator?.clipboard?.writeText) {
       navigator.clipboard.writeText(inviteUrl).then(() => {
         setCopied(true);
-        if (showToast) showToast('Match invite copied! Send to your opponent.', 'success');
+        if (showToast) showToast('Match invite copied! Send to opponent.', 'success');
         setTimeout(() => setCopied(false), 2400);
       }).catch(() => {
         if (showToast) showToast(`Match Code: ${gameRoomId}`, 'info');
       });
     } else if (showToast) {
       showToast(`Match Code: ${gameRoomId}`, 'info');
+    }
+  };
+
+  const handleSelectGame = (gameId) => {
+    setActiveGame(gameId);
+    const gameNames = { pong: 'Cyber Pong', grid: 'Cyber Grid (3x3)', c4: 'Connect 4' };
+    const challenge = {
+      gameId,
+      gameName: gameNames[gameId] || gameId,
+      hostNickname: myNickname || 'Host',
+      hostAvatarBg: myAvatarBg,
+      guestNickname: isConnected ? remotePeerNickname : null,
+      guestAvatarBg: remoteAvatarBg,
+      isGuestJoined: !isConnected, // if offline bot, auto-join
+    };
+    setActiveChallenge(challenge);
+    setIsMatchActive(!isConnected); // if offline, start immediately
+
+    if (isConnected) {
+      peerService.sendGameEvent({
+        type: 'game_challenge',
+        challenge,
+      });
+    }
+  };
+
+  const handleJoinChallenge = () => {
+    if (!activeChallenge) return;
+    setActiveChallenge((prev) => ({
+      ...prev,
+      isGuestJoined: true,
+      guestNickname: myNickname,
+      guestAvatarBg: myAvatarBg,
+    }));
+
+    if (isConnected) {
+      peerService.sendGameEvent({
+        type: 'game_join',
+        nickname: myNickname,
+        avatarBg: myAvatarBg,
+      });
+    }
+  };
+
+  const handleStartMatch = () => {
+    setIsMatchActive(true);
+    if (isConnected) {
+      peerService.sendGameEvent({ type: 'game_start' });
+    }
+  };
+
+  const handleExitActiveMatch = () => {
+    setIsMatchActive(false);
+    if (isConnected) {
+      peerService.sendGameEvent({ type: 'game_exit_match' });
+    }
+  };
+
+  const handleSendChatMessage = (text) => {
+    setChatMessages((prev) => [...prev, { text, sender: 'me', senderName: myNickname, avatarBg: myAvatarBg }]);
+    if (isConnected) {
+      peerService.sendGameEvent({
+        type: 'game_chat_msg',
+        text,
+        senderName: myNickname,
+        avatarBg: myAvatarBg,
+      });
+    }
+  };
+
+  const handleSetMute = (mute) => {
+    if (callState && callState.isAudioMuted !== mute && onToggleAudio) {
+      onToggleAudio();
     }
   };
 
@@ -75,144 +175,109 @@ export default function P2PGameArena({
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <button onClick={onExit} className="btn btn-secondary text-xs" title="Leave Game Arena & Return Home">
             <ArrowLeft size={14} />
-            <span>Exit Arena</span>
+            <span>Home</span>
           </button>
 
-          {/* Game Room Badge & Copy Link */}
           {gameRoomId && (
-            <div 
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '8px',
-                padding: '4px 10px',
-                borderRadius: '8px',
-                background: 'rgba(255, 255, 255, 0.04)',
-                border: '1px solid rgba(255, 255, 255, 0.08)',
-                fontSize: '0.78rem'
-              }}
-            >
+            <div className="game-room-pill" title="Unified Game Room Code">
               <Radio size={13} className={isConnected ? "text-emerald-400 animate-pulse" : isConnecting ? "text-cyan-400 animate-spin" : "text-amber-400"} />
-              <span style={{ fontWeight: 600, color: 'var(--text-main)', fontFamily: 'monospace' }}>
-                #{gameRoomId}
-              </span>
+              <span className="game-room-code font-mono">#{gameRoomId}</span>
               <span className={`status-dot ${status}`} />
-              <button 
-                onClick={handleCopyLink} 
-                className="btn btn-icon btn-xs" 
-                title="Copy Match Invite Link"
-                style={{ padding: '2px 6px', height: '22px', marginLeft: '2px' }}
-              >
+              <button onClick={handleCopyLink} className="btn btn-icon btn-xs" title="Copy Invite Link">
                 {copied ? <Check size={12} color="#10b981" /> : <Copy size={12} />}
               </button>
             </div>
           )}
         </div>
 
-        {/* Game Mode Selector Pill */}
-        <div className="game-mode-toggle">
-          <button
-            onClick={() => handleSelectGame('pong')}
-            className={`game-tab-btn ${selectedGame === 'pong' ? 'active' : ''}`}
+        {/* Action Controls: Game Selector Drawer & Voice Deck */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <GameVoiceDock 
+            status={status}
+            isVoiceConnected={isVoiceConnected}
+            isAudioMuted={callState?.isAudioMuted || false}
+            onConnectVoice={() => onStartCall && onStartCall(false)}
+            onDisconnectVoice={onEndCall}
+            onToggleMute={onToggleAudio}
+            onSetMute={handleSetMute}
+            remotePeerNickname={remotePeerNickname}
+          />
+
+          <button 
+            onClick={() => setIsDrawerOpen(true)} 
+            className="btn btn-primary btn-xs game-drawer-btn"
+            title="Open P2P Game Library"
           >
             <Gamepad2 size={14} />
-            <span>Cyber Pong</span>
-          </button>
-          <button
-            onClick={() => handleSelectGame('grid')}
-            className={`game-tab-btn ${selectedGame === 'grid' ? 'active' : ''}`}
-          >
-            <CircleDot size={14} />
-            <span>Grid (3x3)</span>
-          </button>
-          <button
-            onClick={() => handleSelectGame('c4')}
-            className={`game-tab-btn ${selectedGame === 'c4' ? 'active' : ''}`}
-          >
-            <Disc size={14} />
-            <span>Connect 4</span>
+            <span>Games</span>
           </button>
         </div>
       </div>
 
       {/* Opponent Status Banner when waiting */}
       {!isConnected && (
-        <div 
-          style={{ 
-            padding: '8px 16px', 
-            background: 'rgba(168, 85, 247, 0.1)', 
-            borderBottom: '1px solid rgba(168, 85, 247, 0.2)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            fontSize: '0.82rem',
-            color: 'var(--text-main)'
-          }}
-        >
+        <div className="game-waiting-banner">
           <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <Share2 size={14} color="var(--accent-purple, #a855f7)" />
-            {isConnecting 
-              ? 'Connecting to opponent over direct WebRTC channel...'
-              : 'Waiting for opponent to join. Share your match invite link to start playing!'}
+            {isConnecting ? 'Traversing WebRTC NAT channels...' : 'Waiting for opponent. Share match link to duel live!'}
           </span>
-          <button onClick={handleCopyLink} className="btn btn-primary text-xs" style={{ padding: '4px 10px', height: '26px' }}>
+          <button onClick={handleCopyLink} className="btn btn-primary text-xs" style={{ height: '26px', padding: '0 10px' }}>
             <Copy size={12} />
             <span>Copy Match Link</span>
           </button>
         </div>
       )}
 
-      {/* Main Arena Workspace with Video / Audio Face-Off PIP overlay */}
+      {/* Main Workspace: Active Match vs Game Lobby Chat */}
       <div className="game-stage-wrapper">
-        {selectedGame === 'pong' ? (
-          <CyberPongGame 
-            status={status} 
-            remotePeerNickname={remotePeerNickname} 
-          />
-        ) : selectedGame === 'grid' ? (
-          <CyberGridGame 
-            status={status} 
-            remotePeerNickname={remotePeerNickname} 
-            showToast={showToast}
-          />
-        ) : (
-          <CyberConnectFour
-            status={status}
-            remotePeerNickname={remotePeerNickname}
-          />
-        )}
-
-        {/* Video / Audio Face-Off PIP Dock */}
-        <div className="faceoff-pip-dock" title="Live Face-Off Camera & Mic">
-          {remoteStream ? (
-            <video
-              autoPlay
-              playsInline
-              ref={(v) => {
-                if (v && v.srcObject !== remoteStream) v.srcObject = remoteStream;
-              }}
-              className="faceoff-video remote"
+        {isMatchActive ? (
+          activeGame === 'pong' ? (
+            <CyberPongGame 
+              status={status}
+              isHost={isHost}
+              myNickname={myNickname}
+              remotePeerNickname={remotePeerNickname}
+              onExitMatch={handleExitActiveMatch}
+            />
+          ) : activeGame === 'grid' ? (
+            <CyberGridGame 
+              status={status} 
+              remotePeerNickname={remotePeerNickname} 
+              showToast={showToast}
+              onExitMatch={handleExitActiveMatch}
             />
           ) : (
-            <div className="faceoff-placeholder">
-              <span>{remotePeerNickname ? remotePeerNickname.charAt(0) : 'P'}</span>
-            </div>
-          )}
-
-          <div className="faceoff-controls">
-            {onToggleAudio && (
-              <button onClick={onToggleAudio} className="btn btn-icon btn-xs" title="Mute/Unmute Mic">
-                {isAudioMuted ? <MicOff size={13} color="#f43f5e" /> : <Mic size={13} color="var(--accent-cyan)" />}
-              </button>
-            )}
-            {onToggleVideo && (
-              <button onClick={onToggleVideo} className="btn btn-icon btn-xs" title="Toggle Webcam">
-                {isVideoMuted ? <VideoOff size={13} color="#f43f5e" /> : <Video size={13} color="var(--accent-emerald)" />}
-              </button>
-            )}
-          </div>
-        </div>
+            <CyberConnectFour
+              status={status}
+              remotePeerNickname={remotePeerNickname}
+              onExitMatch={handleExitActiveMatch}
+            />
+          )
+        ) : (
+          <GameLobbyChat 
+            status={status}
+            myNickname={myNickname}
+            myAvatarBg={myAvatarBg}
+            remotePeerNickname={remotePeerNickname}
+            remoteAvatarBg={remoteAvatarBg}
+            activeChallenge={activeChallenge}
+            onJoinChallenge={handleJoinChallenge}
+            onStartMatch={handleStartMatch}
+            onOpenDrawer={() => setIsDrawerOpen(true)}
+            chatMessages={chatMessages}
+            onSendChatMessage={handleSendChatMessage}
+            isHost={isHost}
+          />
+        )}
       </div>
+
+      {/* Mobile & Desktop Slide-out Game Drawer */}
+      <GameDrawer 
+        isOpen={isDrawerOpen}
+        onClose={() => setIsDrawerOpen(false)}
+        onSelectGame={handleSelectGame}
+        activeGame={activeGame}
+      />
     </div>
   );
 }

@@ -24,14 +24,6 @@ export default function App() {
     return 'home';
   });
 
-  const [gameMode, setGameMode] = useState(() => {
-    if (typeof window !== 'undefined' && window.location.hash) {
-      const parsed = parseRoomHash(window.location.hash);
-      if (parsed.isGame) return parsed.gameType || 'pong';
-    }
-    return 'pong';
-  });
-
   const [toast, setToast] = useState(null);
   const showToast = useCallback((message, type = 'info') => {
     setToast({ message, type });
@@ -84,10 +76,15 @@ export default function App() {
     const onHashNav = () => {
       const parsed = parseRoomHash(window.location.hash);
       if (parsed.isGame) {
-        setGameMode(parsed.gameType || 'pong');
         setViewMode('game');
+        if (parsed.roomId && parsed.roomId !== myRoomId) {
+          handleJoinRoom(parsed.roomId);
+        }
       } else if (parsed.roomId) {
         setViewMode('room');
+        if (parsed.roomId !== myRoomId) {
+          handleJoinRoom(parsed.roomId);
+        }
       } else {
         setViewMode('home');
       }
@@ -101,7 +98,7 @@ export default function App() {
       window.removeEventListener('hashchange', onHashNav);
       window.removeEventListener('popstate', onHashNav);
     };
-  }, [handleEndCall, stopActiveRingtones]);
+  }, [handleEndCall, stopActiveRingtones, handleJoinRoom, myRoomId]);
 
   const handleLaunchRoomFromHome = () => {
     if (!myRoomId) handleCreateNewRoom();
@@ -111,7 +108,6 @@ export default function App() {
   const handleJoinRoomFromHome = (code) => {
     const parsed = parseRoomHash(code);
     if (parsed.isGame) {
-      setGameMode(parsed.gameType || 'pong');
       handleJoinRoom(parsed.roomId);
       setViewMode('game');
     } else {
@@ -120,32 +116,20 @@ export default function App() {
     }
   };
 
-  const startIsolatedGame = (targetMode = 'pong') => {
+  const startIsolatedGame = () => {
     handleEndCall();
     stopActiveRingtones();
-    chatTransfers.handleBurnSession(() => stopActiveRingtones());
-    const newGameCode = generateGameRoomId(targetMode);
-    setGameMode(targetMode);
-    handleJoinRoom(newGameCode);
+    chatTransfers.resetHistory();
+    const newGameCode = generateGameRoomId();
+    handleJoinRoom(newGameCode, true);
     setViewMode('game');
   };
 
-  const handleRequestLaunchGame = (targetMode = 'pong') => {
+  const handleRequestLaunchGame = () => {
     if (viewMode === 'room' && (status === 'connected' || chatTransfers.messages.length > 0)) {
       setIsConfirmGameOpen(true);
     } else {
-      startIsolatedGame(targetMode);
-    }
-  };
-
-  const handleGameTypeChange = (newMode) => {
-    setGameMode(newMode);
-    if (myRoomId && myRoomId.startsWith('game-')) {
-      const parts = myRoomId.split('-');
-      if (parts.length >= 3) {
-        const newId = `game-${newMode}-${parts.slice(2).join('-')}`;
-        window.history.replaceState(null, '', '#' + newId);
-      }
+      startIsolatedGame();
     }
   };
 
@@ -170,7 +154,7 @@ export default function App() {
           </div>
         )}
 
-        {viewMode !== 'home' && (
+        {viewMode === 'room' && (
           <Header 
             status={status}
             myRoomId={myRoomId}
@@ -187,7 +171,7 @@ export default function App() {
             onGoHome={onDisconnect}
             theme={preferences.theme}
             onToggleTheme={preferences.toggleTheme}
-            onLaunchGame={() => handleRequestLaunchGame(gameMode)}
+            onLaunchGame={() => handleRequestLaunchGame()}
           />
         )}
 
@@ -216,7 +200,7 @@ export default function App() {
             onToggleTheme={preferences.toggleTheme}
             onLaunchRoom={handleLaunchRoomFromHome}
             onJoinRoom={handleJoinRoomFromHome}
-            onLaunchGame={() => startIsolatedGame('pong')}
+            onLaunchGame={() => startIsolatedGame()}
             onOpenInfoModal={() => setIsInfoModalOpen(true)}
             onOpenRoomModal={() => setIsRoomModalOpen(true)}
             onBurnSession={onBurnSession}
@@ -225,16 +209,15 @@ export default function App() {
         ) : viewMode === 'game' ? (
           <P2PGameArena 
             status={status}
+            isHost={peerSession.isHost}
+            myNickname={preferences.myNickname}
+            myAvatarBg={preferences.myAvatarBg}
             remotePeerNickname={remoteNickname}
             gameRoomId={myRoomId}
-            initialGameType={gameMode}
-            onGameTypeChange={handleGameTypeChange}
-            localStream={callSession.callState.localStream}
-            remoteStream={callSession.callState.remoteStream}
-            isAudioMuted={callSession.callState.isAudioMuted}
-            isVideoMuted={callSession.callState.isVideoMuted}
+            callState={callSession.callState}
+            onStartCall={callSession.handleStartCall}
+            onEndCall={callSession.handleEndCall}
             onToggleAudio={callSession.handleToggleAudio}
-            onToggleVideo={callSession.handleToggleVideo}
             onExit={onDisconnect}
             showToast={showToast}
           />
@@ -267,7 +250,7 @@ export default function App() {
           setIsConfirmGameOpen={setIsConfirmGameOpen}
           onConfirmEnterGame={() => {
             setIsConfirmGameOpen(false);
-            startIsolatedGame(gameMode);
+            startIsolatedGame();
           }}
           myRoomId={myRoomId}
           status={status}

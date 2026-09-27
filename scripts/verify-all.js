@@ -41,12 +41,11 @@ async function runTests() {
   assert(CHUNK_SIZE === 16384, 'CHUNK_SIZE is standard 16KB (16384 bytes)');
 
   // Game Room ID generation & hash parsing
-  const pongGameId = generateGameRoomId('pong');
-  assert(pongGameId.startsWith('game-pong-'), `generateGameRoomId produces game-pong prefix (${pongGameId})`);
-  const parsedGame = parseRoomHash('#game-c4-cosmic-radar-780');
+  const pongGameId = generateGameRoomId();
+  assert(pongGameId.startsWith('game-'), `generateGameRoomId produces unified game prefix (${pongGameId})`);
+  const parsedGame = parseRoomHash('#game-cosmic-radar-780');
   assert(parsedGame.isGame === true, 'parseRoomHash identifies game room');
-  assert(parsedGame.gameType === 'c4', 'parseRoomHash extracts gameType correctly');
-  assert(parsedGame.roomId === 'game-c4-cosmic-radar-780', 'parseRoomHash normalizes full room ID');
+  assert(parsedGame.roomId === 'game-cosmic-radar-780', 'parseRoomHash normalizes full room ID');
   const parsedChat = parseRoomHash('#cosmic-radar-780');
   assert(parsedChat.isGame === false, 'parseRoomHash identifies non-game chat room');
   assert(parsedChat.roomId === 'cosmic-radar-780', 'parseRoomHash extracts clean chat room ID');
@@ -219,11 +218,19 @@ async function runTests() {
     { name: 'App.jsx', path: path.join(ROOT, 'src', 'App.jsx'), max: 350 },
     { name: 'HomeScreen.jsx', path: path.join(ROOT, 'src', 'components', 'HomeScreen.jsx'), max: 350 },
     { name: 'P2PGameArena.jsx', path: path.join(ROOT, 'src', 'components', 'P2PGameArena.jsx'), max: 350 },
+    { name: 'CyberPongGame.jsx', path: path.join(ROOT, 'src', 'components', 'game', 'CyberPongGame.jsx'), max: 350 },
+    { name: 'CyberGridGame.jsx', path: path.join(ROOT, 'src', 'components', 'game', 'CyberGridGame.jsx'), max: 350 },
+    { name: 'CyberConnectFour.jsx', path: path.join(ROOT, 'src', 'components', 'game', 'CyberConnectFour.jsx'), max: 350 },
+    { name: 'GameDrawer.jsx', path: path.join(ROOT, 'src', 'components', 'game', 'GameDrawer.jsx'), max: 350 },
+    { name: 'GameLobbyChat.jsx', path: path.join(ROOT, 'src', 'components', 'game', 'GameLobbyChat.jsx'), max: 350 },
+    { name: 'GameVoiceDock.jsx', path: path.join(ROOT, 'src', 'components', 'game', 'GameVoiceDock.jsx'), max: 350 },
     { name: 'ChatWorkspace.jsx', path: path.join(ROOT, 'src', 'components', 'chat', 'ChatWorkspace.jsx'), max: 350 },
     { name: 'AppModals.jsx', path: path.join(ROOT, 'src', 'components', 'AppModals.jsx'), max: 350 },
     { name: 'ConfirmGameModal.jsx', path: path.join(ROOT, 'src', 'components', 'ConfirmGameModal.jsx'), max: 350 },
     { name: 'usePeerSession.js', path: path.join(ROOT, 'src', 'hooks', 'usePeerSession.js'), max: 350 },
-    { name: 'constants.js', path: path.join(ROOT, 'src', 'services', 'webrtc', 'constants.js'), max: 350 }
+    { name: 'constants.js', path: path.join(ROOT, 'src', 'services', 'webrtc', 'constants.js'), max: 350 },
+    { name: 'gameLobby.css', path: path.join(ROOT, 'src', 'styles', 'gameLobby.css'), max: 350 },
+    { name: 'gameDrawer.css', path: path.join(ROOT, 'src', 'styles', 'gameDrawer.css'), max: 350 }
   ];
 
   budgetFiles.forEach(({ name, path: fPath, max }) => {

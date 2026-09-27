@@ -12,7 +12,8 @@ const WINNING_LINES = [
 export default function CyberGridGame({
   status,
   remotePeerNickname,
-  showToast
+  showToast,
+  onExitMatch
 }) {
   const [board, setBoard] = useState(Array(9).fill(null));
   const [turn, setTurn] = useState('X'); // 'X' (Local / Player 1) | 'O' (Remote / Player 2)
@@ -149,16 +150,23 @@ export default function CyberGridGame({
     <div className="cyber-grid-container">
       {/* Grid Subheader */}
       <div className="grid-status-bar">
-        <div className="grid-score-pills">
-          <span className="score-pill you">You (X): {scores.x}</span>
-          <span className="score-pill ties">Ties: {scores.ties}</span>
-          <span className="score-pill peer">
-            {isConnected ? remotePeerNickname || 'Peer' : 'Bot'} (O): {scores.o}
-          </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          {onExitMatch && (
+            <button onClick={onExitMatch} className="btn btn-secondary btn-xs" title="Return to Game Lobby">
+              <span>Lobby</span>
+            </button>
+          )}
+          <div className="grid-score-pills">
+            <span className="score-pill you">You (X): {scores.x}</span>
+            <span className="score-pill ties">Ties: {scores.ties}</span>
+            <span className="score-pill peer">
+              {isConnected ? remotePeerNickname || 'Peer' : 'Bot'} (O): {scores.o}
+            </span>
+          </div>
         </div>
 
-        <button onClick={handleRestart} className="btn btn-icon" title="Reset Grid">
-          <RefreshCw size={15} />
+        <button onClick={handleRestart} className="btn btn-icon btn-xs" title="Reset Grid">
+          <RefreshCw size={14} />
         </button>
       </div>
 
@@ -194,11 +202,16 @@ export default function CyberGridGame({
 
       {/* Victory Celebration Overlay */}
       {winner && (
-        <div className="grid-win-action">
+        <div className="grid-win-action" style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
           <button onClick={handleRestart} className="btn btn-primary">
             <Sparkles size={15} />
             <span>Play Next Round</span>
           </button>
+          {onExitMatch && (
+            <button onClick={onExitMatch} className="btn btn-secondary">
+              <span>Return to Lobby</span>
+            </button>
+          )}
         </div>
       )}
     </div>

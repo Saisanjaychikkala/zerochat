@@ -133,7 +133,7 @@ export function usePeerSession({ soundEnabled, showToast, onNewPeerConnection })
     };
   }, [initialHash, showToast, onNewPeerConnection]);
 
-  const handleJoinRoom = useCallback((targetId) => {
+  const handleJoinRoom = useCallback((targetId, asHost = false) => {
     if (!targetId) return;
     const cleanId = normalizeRoomId(targetId);
 
@@ -146,12 +146,12 @@ export function usePeerSession({ soundEnabled, showToast, onNewPeerConnection })
       if (onNewPeerConnection) onNewPeerConnection();
       currentConnectedPeerRef.current = null;
       setMyRoomId(cleanId);
-      setIsHost(false);
+      setIsHost(asHost);
       setStatus('connecting');
       window.history.replaceState(null, '', '#' + cleanId);
       if (showToast) showToast(`Connecting to room ${cleanId}...`, 'info');
       if (!peerService.peer || peerService.peer.destroyed) {
-        peerService.init(cleanId).catch((err) => {
+        peerService.init(cleanId, asHost).catch((err) => {
           console.error('[ZeroChat] Join init error:', err);
           setStatus('disconnected');
         });
