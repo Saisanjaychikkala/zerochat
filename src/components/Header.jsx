@@ -12,11 +12,13 @@ import {
   Activity,
   Home,
   Palette,
-  Gamepad2
+  Gamepad2,
+  MoreVertical
 } from 'lucide-react';
 
 import { copyToClipboard } from '../utils/clipboard';
 import { normalizeRoomId } from '../services/webrtc/constants';
+import MobileActionMenu from './MobileActionMenu';
 
 export default function Header({ 
   status, 
@@ -43,6 +45,7 @@ export default function Header({
   onLaunchGame
 }) {
   const [copied, setCopied] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const activeRoomId = normalizeRoomId(roomId || myRoomId);
   const handleRoomModal = onShowRoomModal || onOpenRoomModal;
   const handleNicknameModal = onShowNicknameModal || onOpenNicknameModal;
@@ -121,7 +124,7 @@ export default function Header({
           <div className="room-link-group">
             <button 
               onClick={copyRoomLink} 
-              className="btn btn-secondary text-xs"
+              className="btn btn-secondary text-xs desktop-only"
               title="Click to copy invite link"
             >
               <span className="font-mono text-cyan-400">#{activeRoomId}</span>
@@ -138,8 +141,8 @@ export default function Header({
           </div>
         )}
 
-        {/* Live Latency / Ping Monitor */}
-        <div className="ping-monitor-badge" title="Live WebRTC round-trip latency">
+        {/* Live Latency / Ping Monitor (Desktop) */}
+        <div className="ping-monitor-badge desktop-only" title="Live WebRTC round-trip latency">
           <Activity size={14} color={status === 'connected' ? 'var(--accent-cyan)' : 'var(--text-dim)'} />
           <span className="ping-val">
             {status === 'connected' 
@@ -153,51 +156,63 @@ export default function Header({
           <span className={`status-dot ${status}`} />
         </div>
 
-        {/* P2P Game Arena Action */}
+        {/* Live Latency / Ping Monitor (Mobile Compact) */}
+        <div 
+          className="ping-monitor-badge-mobile mobile-only" 
+          title={`Status: ${status}${latency !== null ? ` • ${latency}ms` : ''}`}
+          onClick={() => setIsMobileMenuOpen(true)}
+        >
+          <span className={`status-dot ${status}`} />
+          {status === 'connected' && (
+            <span className="ping-val-compact">{latency !== null ? `${latency}ms` : '<10ms'}</span>
+          )}
+        </div>
+
+        {/* P2P Game Arena Action (Desktop) */}
         {onLaunchGame && (
           <button 
             onClick={onLaunchGame} 
-            className="btn btn-icon"
+            className="btn btn-icon desktop-only"
             title="Open P2P Cyber Game Arena"
           >
             <Gamepad2 size={16} color="var(--accent-purple)" />
           </button>
         )}
 
-        {/* Theme Switcher */}
+        {/* Theme Switcher (Desktop) */}
         {onToggleTheme && (
           <button 
             onClick={onToggleTheme} 
-            className="btn btn-icon theme-toggle-btn"
+            className="btn btn-icon theme-toggle-btn desktop-only"
             title={`Active Theme: ${theme}. Click to switch theme.`}
           >
             <Palette size={16} />
           </button>
         )}
 
-        {/* Sound Toggle */}
+        {/* Sound Toggle (Desktop) */}
         <button 
           onClick={handleSoundToggle} 
-          className="btn btn-icon"
+          className="btn btn-icon desktop-only"
           title={soundEnabled ? 'Mute Sounds' : 'Unmute Sounds'}
         >
           {soundEnabled ? <Volume2 size={16} /> : <VolumeX size={16} className="text-rose-400" />}
         </button>
 
-        {/* Info Modal */}
+        {/* Info Modal (Desktop) */}
         <button 
           onClick={handleInfoModal} 
-          className="btn btn-icon info-btn"
+          className="btn btn-icon info-btn desktop-only"
           title="Security & Architecture"
         >
           <Info size={16} />
         </button>
 
-        {/* Disconnect Action */}
+        {/* Disconnect Action (Desktop) */}
         {status === 'connected' && (
           <button 
             onClick={onDisconnect}
-            className="btn btn-secondary text-xs text-rose-400 border-rose-500/30"
+            className="btn btn-secondary text-xs text-rose-400 border-rose-500/30 desktop-only"
             title="Disconnect from current peer"
           >
             <PhoneOff size={14} />
@@ -205,7 +220,7 @@ export default function Header({
           </button>
         )}
 
-        {/* Panic / Burn Button */}
+        {/* Panic / Burn Button (Always Visible) */}
         <button 
           onClick={onBurnSession} 
           className="btn btn-danger text-xs font-semibold"
@@ -214,7 +229,38 @@ export default function Header({
           <Flame size={14} />
           <span className="burn-text">Burn</span>
         </button>
+
+        {/* Mobile Quick Action Menu Trigger */}
+        <button 
+          type="button" 
+          onClick={() => setIsMobileMenuOpen(true)} 
+          className="btn btn-icon mobile-only mobile-menu-trigger" 
+          title="Open Quick Actions Menu"
+          aria-label="Open Quick Actions Menu"
+        >
+          <MoreVertical size={17} />
+        </button>
       </div>
+
+      {/* Mobile Cyber-Glass Action Drawer */}
+      <MobileActionMenu 
+        isOpen={isMobileMenuOpen}
+        onClose={() => setIsMobileMenuOpen(false)}
+        activeRoomId={activeRoomId}
+        status={status}
+        latency={latency}
+        theme={theme}
+        onToggleTheme={onToggleTheme}
+        soundEnabled={soundEnabled}
+        onToggleSound={handleSoundToggle}
+        onLaunchGame={onLaunchGame}
+        onOpenInfoModal={handleInfoModal}
+        onOpenRoomModal={handleRoomModal}
+        onDisconnect={onDisconnect}
+        onBurnSession={onBurnSession}
+        copyRoomLink={copyRoomLink}
+        copied={copied}
+      />
     </header>
   );
 }

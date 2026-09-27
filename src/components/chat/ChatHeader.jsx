@@ -49,9 +49,9 @@ export default function ChatHeader({
             : '?'}
         </div>
 
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ fontWeight: 700, fontSize: '0.95rem' }}>
+        <div className="peer-text-details">
+          <div className="peer-text-headline">
+            <span className="peer-nickname-text">
               {roomFullError && !isConnected
                 ? 'Room is Full (2/2)'
                 : isConnected 
@@ -66,7 +66,7 @@ export default function ChatHeader({
               <span>{roomFullError && !isConnected ? 'Occupied' : 'E2EE'}</span>
             </span>
           </div>
-          <p style={{ fontSize: '0.72rem', color: roomFullError && !isConnected ? '#f87171' : 'var(--text-muted)' }}>
+          <p className="peer-subtitle-text" style={{ color: roomFullError && !isConnected ? '#f87171' : 'var(--text-muted)' }}>
             {roomFullError && !isConnected
               ? 'Session is occupied by 2 peers. Direct 1-to-1 tunnel.'
               : isConnected 
@@ -80,7 +80,7 @@ export default function ChatHeader({
         </div>
       </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+      <div className="chat-header-actions">
         {isConnected && (
           <>
             {onSendNudge && (

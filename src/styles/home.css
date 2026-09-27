@@ -265,3 +265,46 @@
   flex: 1;
   max-width: 440px;
 }
+
+@media (max-width: 768px) {
+  .home-header {
+    padding: 8px 12px;
+    gap: 6px;
+  }
+
+  .home-brand-title {
+    font-size: 1.05rem;
+  }
+
+  .home-brand-sub {
+    display: none !important;
+  }
+
+  .home-logo-group {
+    gap: 8px;
+  }
+
+  .active-room-pill {
+    padding: 4px 8px;
+    font-size: 0.7rem;
+    gap: 4px;
+  }
+
+  .home-header-actions {
+    gap: 4px;
+  }
+
+  .home-header-actions .btn-icon {
+    width: 32px !important;
+    height: 32px !important;
+    min-width: 32px !important;
+    padding: 0 !important;
+  }
+
+  .home-header-actions .btn-danger {
+    padding: 4px 8px !important;
+    height: 32px !important;
+    min-width: 32px !important;
+    font-size: 0.72rem;
+  }
+}

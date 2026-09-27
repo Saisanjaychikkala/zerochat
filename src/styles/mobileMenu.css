@@ -1,0 +1,319 @@
+/* ==========================================================================
+   ZeroChat - Mobile Action Menu & Cyber-Glass Bottom Drawer
+   ========================================================================== */
+
+/* Utility Visibility Classes */
+.mobile-only {
+  display: none !important;
+}
+
+@media (max-width: 768px) {
+  .desktop-only {
+    display: none !important;
+  }
+
+  .mobile-only {
+    display: inline-flex !important;
+  }
+}
+
+@media (max-width: 380px) {
+  .logo-text {
+    display: none !important;
+  }
+}
+
+/* Backdrop */
+.mobile-menu-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 999;
+  background: rgba(4, 7, 15, 0.75);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  animation: fadeIn 0.2s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
+/* Cyber-Glass Drawer Sheet */
+.mobile-menu-sheet {
+  width: 100%;
+  max-width: 500px;
+  background: rgba(12, 18, 32, 0.96);
+  border: 1px solid var(--border-accent);
+  border-bottom: none;
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  padding: 16px 18px;
+  padding-bottom: max(20px, env(safe-area-inset-bottom, 20px));
+  box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.8), 0 0 25px var(--accent-cyan-glow);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  animation: slideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  box-sizing: border-box;
+}
+
+/* Header */
+.mobile-menu-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border-subtle);
+  padding-bottom: 10px;
+}
+
+.mobile-menu-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: -0.01em;
+}
+
+.mobile-menu-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent-cyan);
+  box-shadow: 0 0 8px var(--accent-cyan-glow);
+}
+
+.close-menu-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+/* Room Info & Latency Card */
+.mobile-menu-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.mobile-menu-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.mobile-copy-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  height: 28px;
+  border-radius: var(--radius-full);
+}
+
+.mobile-status-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Action Grid */
+.mobile-menu-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.mobile-grid-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  min-height: 48px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  color: var(--text-main);
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.2s ease;
+  touch-action: manipulation;
+}
+
+.mobile-grid-btn:hover, .mobile-grid-btn:active {
+  background: rgba(0, 242, 254, 0.1);
+  border-color: var(--accent-cyan);
+}
+
+.mobile-grid-btn.full-width {
+  grid-column: 1 / -1;
+}
+
+.grid-btn-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.grid-label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #fff;
+}
+
+.grid-sub {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+}
+
+.text-capitalize {
+  text-transform: capitalize;
+}
+
+/* Footer Actions */
+.mobile-menu-footer {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 4px;
+}
+
+.mobile-footer-btn {
+  width: 100%;
+  height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  border-radius: var(--radius-md);
+  touch-action: manipulation;
+}
+
+/* Mobile Compact Ping Badge */
+.ping-monitor-badge-mobile {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  height: 32px;
+  background: rgba(9, 14, 24, 0.9);
+  border: 1px solid rgba(0, 242, 254, 0.25);
+  border-radius: var(--radius-full);
+  font-size: 0.72rem;
+  font-family: var(--font-mono);
+  color: var(--accent-cyan);
+  cursor: pointer;
+  flex-shrink: 0;
+  touch-action: manipulation;
+}
+
+.ping-val-compact {
+  font-weight: 700;
+  color: var(--accent-cyan);
+  font-size: 0.7rem;
+}
+
+/* Mobile Quick Menu Trigger */
+.mobile-menu-trigger {
+  width: 32px !important;
+  height: 32px !important;
+  min-width: 32px !important;
+  border-radius: 50% !important;
+  background: rgba(255, 255, 255, 0.08) !important;
+  color: var(--accent-cyan) !important;
+  border: 1px solid rgba(0, 242, 254, 0.3) !important;
+  touch-action: manipulation;
+}
+
+.mobile-menu-trigger:hover, .mobile-menu-trigger:active {
+  background: rgba(0, 242, 254, 0.2) !important;
+  box-shadow: 0 0 10px var(--accent-cyan-glow);
+}
+
+/* Chat Header Text & Action Group Ergonomics */
+.peer-text-details {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+
+.peer-text-headline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.peer-nickname-text {
+  font-weight: 700;
+  font-size: 0.95rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.peer-subtitle-text {
+  font-size: 0.72rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin: 0;
+}
+
+.chat-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+@media (max-width: 768px) {
+  .peer-info {
+    min-width: 0;
+    flex: 1;
+    overflow: hidden;
+  }
+
+  .peer-nickname-text {
+    max-width: 100px;
+    font-size: 0.85rem;
+  }
+
+  .peer-subtitle-text {
+    display: none !important;
+  }
+
+  .chat-header-actions .btn-icon {
+    width: 34px !important;
+    height: 34px !important;
+    min-width: 34px !important;
+    padding: 0 !important;
+    border-radius: 50%;
+  }
+
+  .status-badge-inline {
+    font-size: 0.65rem;
+    padding: 1px 5px;
+  }
+
+  .e2ee-tag {
+    display: none !important;
+  }
+}
