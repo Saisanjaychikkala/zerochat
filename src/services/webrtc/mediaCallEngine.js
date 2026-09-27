@@ -206,16 +206,20 @@ export class MediaCallEngine {
     if (emit) emit('call_ended', { reason: 'ended' });
   }
 
-  toggleAudio(emit) {
+  setAudioMute(isMuted, emit) {
     if (!this.localStream) return false;
     const audioTrack = this.localStream.getAudioTracks()[0];
     if (audioTrack) {
-      audioTrack.enabled = !audioTrack.enabled;
-      this.isAudioMuted = !audioTrack.enabled;
-      emit('call_audio_toggle', { isMuted: this.isAudioMuted });
+      audioTrack.enabled = !isMuted;
+      this.isAudioMuted = isMuted;
+      if (typeof emit === 'function') emit('call_audio_toggle', { isMuted });
       return this.isAudioMuted;
     }
     return false;
+  }
+
+  toggleAudio(emit) {
+    return this.setAudioMute(!this.isAudioMuted, emit);
   }
 
   async toggleVideo(sendJson, emit) {

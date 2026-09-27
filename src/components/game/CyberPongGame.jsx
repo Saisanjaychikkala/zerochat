@@ -4,32 +4,45 @@ import confetti from 'canvas-confetti';
 import { peerService } from '../../services/peerService';
 
 export default function CyberPongGame({
+  cardId,
+  initialState,
   status,
   isHost = true,
   myNickname = 'You',
   remotePeerNickname = 'Peer',
   onExitMatch,
   onEndRound,
+  onUpdateCardState,
 }) {
   const canvasRef = useRef(null);
-  const [score, setScore] = useState({ p1: 0, p2: 0 });
-  const [winner, setWinner] = useState(null);
+  const [score, setScore] = useState(() => initialState?.score || { p1: 0, p2: 0 });
+  const [winner, setWinner] = useState(() => initialState?.winner || null);
 
   const isConnected = status === 'connected';
   const roleIsHost = !isConnected || isHost;
 
   const stateRef = useRef({
     p1Y: 160, p2Y: 160, ballX: 300, ballY: 200,
-    ballVx: 4.5, ballVy: 2.8, p1Score: 0, p2Score: 0,
+    ballVx: 4.5, ballVy: 2.8,
+    p1Score: initialState?.score?.p1 || 0,
+    p2Score: initialState?.score?.p2 || 0,
     paddleHeight: 70, paddleWidth: 10, tableWidth: 600, tableHeight: 400,
     lastSyncTime: 0, isHost: roleIsHost,
   });
 
   stateRef.current.isHost = roleIsHost;
 
+  // Persist live match score
+  useEffect(() => {
+    if (onUpdateCardState && cardId) {
+      onUpdateCardState(cardId, { score, winner });
+    }
+  }, [score, winner, cardId, onUpdateCardState]);
+
   useEffect(() => {
     const unsub = peerService.on('game_event', (event) => {
       if (!event || event.game !== 'pong') return;
+      if (cardId && event.cardId && event.cardId !== cardId) return;
 
       if (event.type === 'pong_paddle') {
         if (roleIsHost) stateRef.current.p2Y = event.y;
@@ -126,7 +139,7 @@ export default function CyberPongGame({
         if (isConnected && now - gs.lastSyncTime > 32) {
           gs.lastSyncTime = now;
           peerService.sendGameEvent({
-            game: 'pong', type: 'pong_sync',
+            game: 'pong', cardId, type: 'pong_sync',
             ballX: Math.round(gs.ballX), ballY: Math.round(gs.ballY), p1Y: Math.round(gs.p1Y),
             p1: gs.p1Score, p2: gs.p2Score,
             winner: gs.p1Score >= 5 ? myNickname : gs.p2Score >= 5 ? remotePeerNickname : null,
@@ -163,16 +176,16 @@ export default function CyberPongGame({
 
     animId = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(animId);
-  }, [winner, isConnected, myNickname, remotePeerNickname, onEndRound]);
+  }, [winner, isConnected, myNickname, remotePeerNickname, onEndRound, cardId]);
 
   const updatePaddle = useCallback((relativeY) => {
     const clampedY = Math.max(6, Math.min(324, relativeY));
     const gs = stateRef.current;
     if (roleIsHost) gs.p1Y = clampedY; else gs.p2Y = clampedY;
     if (isConnected) {
-      peerService.sendGameEvent({ game: 'pong', type: 'pong_paddle', y: Math.round(clampedY) });
+      peerService.sendGameEvent({ game: 'pong', cardId, type: 'pong_paddle', y: Math.round(clampedY) });
     }
-  }, [roleIsHost, isConnected]);
+  }, [roleIsHost, isConnected, cardId]);
 
   const handlePointer = (e) => {
     const canvas = canvasRef.current;
@@ -207,7 +220,7 @@ export default function CyberPongGame({
     setScore({ p1: 0, p2: 0 });
     const gs = stateRef.current;
     gs.p1Score = 0; gs.p2Score = 0; gs.ballX = 300; gs.ballY = 200; gs.ballVx = 4.5; gs.ballVy = 2.8;
-    if (isConnected) peerService.sendGameEvent({ game: 'pong', type: 'pong_restart' });
+    if (isConnected) peerService.sendGameEvent({ game: 'pong', cardId, type: 'pong_restart' });
   };
 
   return (

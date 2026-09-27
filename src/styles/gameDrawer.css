@@ -166,6 +166,8 @@
   padding: 1px 6px;
   border-radius: var(--radius-full);
   border: 1px solid;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .game-card-tag {

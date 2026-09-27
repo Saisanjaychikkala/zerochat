@@ -219,37 +219,41 @@ export default function FileTransferArea({
                     </div>
                   </div>
 
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
                     {item.completed ? (
-                      <div style={{ display: 'flex', gap: '6px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
                         {item.downloadUrl && item.fileType?.startsWith('image/') && (
                           <button
                             type="button"
                             onClick={() => onOpenLightbox && onOpenLightbox(item.downloadUrl, item.fileName)}
                             className="btn btn-secondary"
-                            style={{ padding: '5px 8px', fontSize: '0.75rem' }}
+                            style={{ padding: '0 8px', height: '30px', fontSize: '0.75rem', flexShrink: 0 }}
                             title="Preview Image"
                           >
                             <Eye size={13} />
                           </button>
                         )}
 
-                    {item.downloadUrl && (
-                        <a 
-                          href={item.downloadUrl} 
-                          download={item.fileName} 
-                          className="btn btn-primary"
-                          style={{ padding: '5px 10px', fontSize: '0.75rem' }}
-                        >
-                          <Download size={13} />
-                          <span>Save to Device</span>
-                        </a>
-                      )}
-                      {!item.isSender && item.downloadUrl && (
-                        <p style={{ fontSize: '0.68rem', color: '#f59e0b', marginTop: '3px', fontWeight: 600 }}>
-                          ⚠️ Tap Save now — file lost if you close the tab!
-                        </p>
-                      )}
+                        {item.downloadUrl && (
+                          <a 
+                            href={item.downloadUrl} 
+                            download={item.fileName} 
+                            className="btn btn-primary"
+                            style={{ 
+                              padding: '0 12px', 
+                              height: '30px', 
+                              fontSize: '0.75rem', 
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '5px',
+                              whiteSpace: 'nowrap',
+                              flexShrink: 0
+                            }}
+                          >
+                            <Download size={13} />
+                            <span>Save to Device</span>
+                          </a>
+                        )}
                       </div>
                     ) : (
                       <>
@@ -275,6 +279,13 @@ export default function FileTransferArea({
                     )}
                   </div>
                 </div>
+
+                {!item.isSender && item.completed && item.downloadUrl && (
+                  <p style={{ fontSize: '0.7rem', color: '#f59e0b', margin: '4px 0 2px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <span>⚠️</span>
+                    <span>Tap "Save to Device" to preserve this file before leaving the room.</span>
+                  </p>
+                )}
 
                 {/* Voice Note Audio preview if completed */}
                 {item.completed && item.isVoiceNote && item.downloadUrl && (

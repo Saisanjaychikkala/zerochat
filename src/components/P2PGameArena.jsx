@@ -222,9 +222,7 @@ export default function P2PGameArena({
   };
 
   const handleSetMute = (mute) => {
-    if (callState && callState.isAudioMuted !== mute && onToggleAudio) {
-      onToggleAudio();
-    }
+    peerService.setAudioMute(mute);
   };
 
   return (
@@ -258,7 +256,7 @@ export default function P2PGameArena({
         <div className="game-waiting-banner">
           <span className="game-waiting-text">
             <Share2 size={13} color="var(--accent-purple, #c084fc)" />
-            {isConnecting ? 'Connecting to peer...' : 'Waiting for opponent to connect...'}
+            {isConnecting ? 'Setting up secure P2P game arena...' : 'Share room link or play solo vs AI below'}
           </span>
           <div style={{ display: 'flex', gap: '6px' }}>
             <button onClick={handleCopyLink} className="btn btn-primary text-xs" style={{ height: '26px', padding: '0 8px', gap: '4px' }}>

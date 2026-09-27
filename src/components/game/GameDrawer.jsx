@@ -9,7 +9,7 @@ const GAMES_LIST = [
     desc: 'High-speed 2-player real-time paddle duel. Deflect the cyber ball and score on your opponent.',
     icon: Gamepad2,
     color: '#00f2fe',
-    badge: 'Real-Time 60fps',
+    badge: '60 FPS',
   },
   {
     id: 'grid',

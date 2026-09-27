@@ -23,6 +23,7 @@ export default function MessageItem({
   onJoinCard,
   onLaunchCard,
   onResumeCard,
+  onExitCard,
   onRematch,
 }) {
   const [copiedCode, setCopiedCode] = useState(false);
@@ -49,6 +50,7 @@ export default function MessageItem({
           onJoinCard={onJoinCard}
           onLaunchCard={onLaunchCard}
           onResumeCard={onResumeCard}
+          onExitCard={onExitCard}
           onRematch={onRematch}
         />
       );

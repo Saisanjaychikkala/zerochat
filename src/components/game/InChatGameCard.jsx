@@ -1,5 +1,5 @@
 import React from 'react';
-import { Gamepad2, CircleDot, Disc, Users, Check, Play, Ban, Trophy, RefreshCw } from 'lucide-react';
+import { Gamepad2, CircleDot, Disc, Users, Check, Play, Ban, Trophy, RefreshCw, X } from 'lucide-react';
 
 const GAME_CONFIGS = {
   pong: {
@@ -25,6 +25,7 @@ export default function InChatGameCard({
   onJoinCard,
   onLaunchCard,
   onResumeCard,
+  onExitCard,
   onRematch,
 }) {
   const config = GAME_CONFIGS[card.gameId] || GAME_CONFIGS.pong;
@@ -186,13 +187,28 @@ export default function InChatGameCard({
             )}
           </div>
         ) : card.isPlaying ? (
-          <button 
-            onClick={() => (onResumeCard || onLaunchCard) && (onResumeCard || onLaunchCard)(card.cardId)}
-            className="btn btn-primary btn-xs w-full resume-card-btn"
-          >
-            <Play size={13} />
-            <span>Resume {card.gameName} Match</span>
-          </button>
+          <div style={{ display: 'flex', gap: '6px', width: '100%' }}>
+            <button 
+              onClick={() => (onResumeCard || onLaunchCard) && (onResumeCard || onLaunchCard)(card.cardId)}
+              className="btn btn-primary btn-xs resume-card-btn"
+              style={{ flex: 1 }}
+            >
+              <Play size={13} />
+              <span>Resume {card.gameName} Match</span>
+            </button>
+            {onExitCard && (
+              <button
+                type="button"
+                onClick={() => onExitCard(card.cardId)}
+                className="btn btn-secondary btn-xs"
+                style={{ padding: '0 10px', fontSize: '0.72rem', borderColor: 'rgba(255, 255, 255, 0.15)' }}
+                title="End match and conclude duel"
+              >
+                <X size={12} />
+                <span>End</span>
+              </button>
+            )}
+          </div>
         ) : isJoined ? (
           <button 
             onClick={() => onLaunchCard && onLaunchCard(card.cardId)}

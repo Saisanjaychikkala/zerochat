@@ -19,6 +19,7 @@ export function useInChatGames({
 }) {
   const [activeMatch, setActiveMatch] = useState(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const cachedStatesRef = useRef({});
 
   const messagesRef = useRef(messages);
   messagesRef.current = messages;
@@ -73,6 +74,7 @@ export function useInChatGames({
         });
       } else if (event.type === 'game_card_conclude') {
         if (!setMessages) return;
+        if (event.cardId) delete cachedStatesRef.current[event.cardId];
         setMessages((prev) =>
           prev.map((m) =>
             m.cardId === event.cardId
@@ -86,7 +88,9 @@ export function useInChatGames({
               : m
           )
         );
-        setActiveMatch(null);
+        if (activeMatchRef.current?.cardId === event.cardId) {
+          setActiveMatch(null);
+        }
         if (showToast) {
           const outcome = event.winner ? ` Winner: ${event.winner}!` : '';
           showToast(`Match concluded.${outcome} Resources cleared.`, 'info');
@@ -95,6 +99,7 @@ export function useInChatGames({
     });
 
     const unsubBurn = peerService.on('session_burned', () => {
+      cachedStatesRef.current = {};
       setActiveMatch(null);
       setIsDrawerOpen(false);
     });
@@ -204,8 +209,31 @@ export function useInChatGames({
   }, [showToast]);
 
   // Resume running match
-  const handleResumeMatch = useCallback(() => {
-    setActiveMatch((prev) => (prev ? { ...prev, isVisible: true } : null));
+  const handleResumeMatch = useCallback((targetCardId = null) => {
+    setActiveMatch((prev) => {
+      if (targetCardId && (!prev || prev.cardId !== targetCardId)) {
+        const card = messagesRef.current?.find((m) => m.cardId === targetCardId);
+        if (card) {
+          return {
+            cardId: card.cardId,
+            gameId: card.gameId,
+            gameName: card.gameName,
+            isPlaying: true,
+            isVisible: true,
+          };
+        }
+      }
+      return prev ? { ...prev, isVisible: true } : null;
+    });
+  }, []);
+
+  // Update in-memory cached state per card
+  const handleUpdateCardState = useCallback((cardId, patch) => {
+    if (!cardId) return;
+    cachedStatesRef.current[cardId] = {
+      ...(cachedStatesRef.current[cardId] || {}),
+      ...patch,
+    };
   }, []);
 
   // Record round outcome on card
@@ -223,17 +251,18 @@ export function useInChatGames({
   }, [setMessages]);
 
   // Conclude match and clean up
-  const handleExitMatch = useCallback((summary = null) => {
-    const current = activeMatchRef.current;
-    if (current?.cardId) {
-      const existingCard = messagesRef.current?.find((m) => m.cardId === current.cardId);
-      const winner = summary?.winner || existingCard?.winner || null;
-      const finalScore = summary?.finalScore || existingCard?.finalScore || null;
+  const handleExitMatch = useCallback((summary = null, specificCardId = null) => {
+    const targetCardId = (typeof summary === 'string' ? summary : specificCardId) || activeMatchRef.current?.cardId;
+    if (targetCardId) {
+      delete cachedStatesRef.current[targetCardId];
+      const existingCard = messagesRef.current?.find((m) => m.cardId === targetCardId);
+      const winner = (typeof summary === 'object' ? summary?.winner : null) || existingCard?.winner || null;
+      const finalScore = (typeof summary === 'object' ? summary?.finalScore : null) || existingCard?.finalScore || null;
 
       if (setMessages) {
         setMessages((prev) =>
           prev.map((m) =>
-            m.cardId === current.cardId
+            m.cardId === targetCardId
               ? {
                   ...m,
                   isConcluded: true,
@@ -249,13 +278,15 @@ export function useInChatGames({
       if (isConnected) {
         peerService.sendGameEvent({
           type: 'game_card_conclude',
-          cardId: current.cardId,
+          cardId: targetCardId,
           winner,
           finalScore,
         });
       }
     }
-    setActiveMatch(null);
+    if (activeMatchRef.current?.cardId === targetCardId) {
+      setActiveMatch(null);
+    }
     if (showToast) showToast('Match finished. Resources cleared.', 'info');
   }, [isConnected, setMessages, showToast]);
 
@@ -266,6 +297,7 @@ export function useInChatGames({
 
   return {
     activeMatch,
+    cachedGameStates: cachedStatesRef.current,
     isDrawerOpen,
     setIsDrawerOpen,
     handleAddGameToChat,
@@ -273,6 +305,7 @@ export function useInChatGames({
     handleLaunchCard,
     handleReturnToChat,
     handleResumeMatch,
+    handleUpdateCardState,
     handleEndRound,
     handleExitMatch,
     handleRematch,

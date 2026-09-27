@@ -288,8 +288,11 @@ export function useCallSession({ status, remoteNickname, soundEnabled, showToast
     peerService.endCall();
   }, [stopActiveRingtones]);
 
-  const handleToggleAudio = useCallback(() => {
-    peerService.toggleAudio();
+  const handleToggleAudio = useCallback(() => { peerService.toggleAudio(); }, []);
+
+  const handleSetMute = useCallback((mute) => {
+    peerService.setAudioMute(mute);
+    setCallState((prev) => ({ ...prev, isAudioMuted: !!mute }));
   }, []);
 
   const handleToggleVideo = useCallback(async () => {
@@ -333,6 +336,7 @@ export function useCallSession({ status, remoteNickname, soundEnabled, showToast
     handleRejectCall,
     handleEndCall,
     handleToggleAudio,
+    handleSetMute,
     handleToggleVideo,
     handleToggleScreenShare,
     handleSwitchCamera,

@@ -889,6 +889,10 @@ class PeerService {
     return this.mediaCall.toggleAudio((e, d) => this.emit(e, d));
   }
 
+  setAudioMute(isMuted) {
+    return this.mediaCall.setAudioMute(isMuted, (e, d) => this.emit(e, d));
+  }
+
   toggleVideo() {
     return this.mediaCall.toggleVideo(
       (data) => this.sendJson(data),

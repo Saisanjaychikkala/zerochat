@@ -249,6 +249,68 @@ async function runTests() {
     assert(lines <= max, `${name} complies with line budget (${lines}/${max} lines)`);
   });
 
+  // 9. Real-World UX, Game State Persistence, Layout & Mic Authority
+  console.log('\n[Test Suite 9] Real-World UX, Game State Persistence, Layout & Mic Authority');
+
+  // File Transfer Save Button Layout
+  const fileTransferSrc = fs.readFileSync(path.join(ROOT, 'src', 'components', 'FileTransferArea.jsx'), 'utf8');
+  const ftLines = fileTransferSrc.split('\n').length;
+  assert(ftLines <= 350, `FileTransferArea.jsx complies with line budget (${ftLines}/350 lines)`);
+  assert(fileTransferSrc.includes('whiteSpace: \'nowrap\'') && fileTransferSrc.includes('Save to Device'), 'Save to Device button has nowrap protection against distortion');
+  assert(fileTransferSrc.includes('Tap "Save to Device" to preserve this file'), 'File transfer save warning is cleanly positioned below header');
+
+  // Connect 4 Illuminated Matrix Contrast
+  const c4Css = fs.readFileSync(path.join(ROOT, 'src', 'styles', 'connect4.css'), 'utf8');
+  assert(c4Css.includes('rgba(16, 28, 54, 0.96)'), 'Connect 4 board shell uses high-contrast navy cyber matrix gradient');
+  assert(c4Css.includes('border: 2px solid rgba(0, 242, 254, 0.35)'), 'Connect 4 has glowing cyan outer chassis');
+  assert(c4Css.includes('.c4-column.col-hover .c4-disc.empty'), 'Connect 4 empty slots highlight on column hover');
+
+  // Game Drawer Badge Non-Wrapping
+  const drawerSrc = fs.readFileSync(path.join(ROOT, 'src', 'components', 'game', 'GameDrawer.jsx'), 'utf8');
+  const drawerCss = fs.readFileSync(path.join(ROOT, 'src', 'styles', 'gameDrawer.css'), 'utf8');
+  assert(drawerSrc.includes("badge: '60 FPS'"), 'GameDrawer uses concise 60 FPS badge');
+  assert(drawerCss.includes('white-space: nowrap') && drawerCss.includes('flex-shrink: 0'), 'Game card pills have nowrap and flex-shrink 0');
+
+  // Match State Persistence & Card ID Isolation
+  const inChatGamesSrc = fs.readFileSync(path.join(ROOT, 'src', 'hooks', 'useInChatGames.js'), 'utf8');
+  assert(inChatGamesSrc.includes('cachedStatesRef'), 'useInChatGames maintains in-memory cachedGameStates');
+  assert(inChatGamesSrc.includes('handleUpdateCardState'), 'useInChatGames exports handleUpdateCardState');
+  assert(inChatGamesSrc.includes('handleResumeMatch = useCallback((targetCardId'), 'useInChatGames supports targetCardId resume');
+
+  const activeStageSrc = fs.readFileSync(path.join(ROOT, 'src', 'components', 'game', 'ActiveMatchStage.jsx'), 'utf8');
+  assert(activeStageSrc.includes('cardId && event.cardId && event.cardId !== cardId'), 'ActiveMatchStage isolates incoming events by cardId');
+
+  const gridSrc = fs.readFileSync(path.join(ROOT, 'src', 'components', 'game', 'CyberGridGame.jsx'), 'utf8');
+  assert(gridSrc.includes('cardId,') && gridSrc.includes('onUpdateCardState'), 'CyberGridGame receives cardId and reports live state');
+  assert(gridSrc.includes("game: 'grid', cardId"), 'CyberGridGame tags moves with cardId');
+
+  const c4Src = fs.readFileSync(path.join(ROOT, 'src', 'components', 'game', 'CyberConnectFour.jsx'), 'utf8');
+  assert(c4Src.includes('cardId,') && c4Src.includes('onUpdateCardState'), 'CyberConnectFour receives cardId and reports live state');
+  assert(c4Src.includes("game: 'c4', cardId"), 'CyberConnectFour tags drops with cardId');
+
+  const pongSrc = fs.readFileSync(path.join(ROOT, 'src', 'components', 'game', 'CyberPongGame.jsx'), 'utf8');
+  assert(pongSrc.includes('cardId,') && pongSrc.includes('onUpdateCardState'), 'CyberPongGame receives cardId and reports live score');
+  assert(pongSrc.includes("game: 'pong', cardId"), 'CyberPongGame tags paddle and sync with cardId');
+
+  // Audio Mute Authority & Synchronization
+  const mediaEngineSrc = fs.readFileSync(path.join(ROOT, 'src', 'services', 'webrtc', 'mediaCallEngine.js'), 'utf8');
+  assert(mediaEngineSrc.includes('setAudioMute(isMuted, emit)'), 'mediaCallEngine implements explicit setAudioMute authority');
+
+  const peerServiceApiSrc = fs.readFileSync(path.join(ROOT, 'src', 'services', 'peerService.js'), 'utf8');
+  assert(peerServiceApiSrc.includes('setAudioMute(isMuted)'), 'peerService exposes setAudioMute facade');
+
+  const callSessionSrc = fs.readFileSync(path.join(ROOT, 'src', 'hooks', 'useCallSession.js'), 'utf8');
+  assert(callSessionSrc.includes('handleSetMute,'), 'useCallSession exports handleSetMute');
+
+  const p2pArenaSrc = fs.readFileSync(path.join(ROOT, 'src', 'components', 'P2PGameArena.jsx'), 'utf8');
+  assert(p2pArenaSrc.includes('peerService.setAudioMute(mute)'), 'P2PGameArena invokes peerService.setAudioMute directly');
+  assert(p2pArenaSrc.includes('Setting up secure P2P game arena...'), 'P2PGameArena waiting banner displays friendly guidance');
+
+  // Background Match Persistence in ChatArea
+  const chatAreaSrc = fs.readFileSync(path.join(ROOT, 'src', 'components', 'ChatArea.jsx'), 'utf8');
+  assert(chatAreaSrc.includes("display: inChatGames.activeMatch.isVisible ? 'flex' : 'none'"), 'ChatArea preserves ActiveMatchStage state across Return to Chat');
+  assert(chatAreaSrc.includes('End') && chatAreaSrc.includes('handleExitMatch'), 'ChatArea floating dock provides End Match button');
+
   // Summary
   console.log('\n====================================================');
   console.log(` Verification Complete: ${passedTests}/${totalTests} tests passed`);

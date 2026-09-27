@@ -10,6 +10,8 @@ const WINNING_LINES = [
 ];
 
 export default function CyberGridGame({
+  cardId,
+  initialState,
   status,
   isHost = true,
   myNickname = 'You',
@@ -17,12 +19,13 @@ export default function CyberGridGame({
   showToast,
   onExitMatch,
   onEndRound,
+  onUpdateCardState,
 }) {
-  const [board, setBoard] = useState(Array(9).fill(null));
-  const [turn, setTurn] = useState('X'); // 'X' moves first
-  const [winner, setWinner] = useState(null);
-  const [winningLine, setWinningLine] = useState(null);
-  const [scores, setScores] = useState({ x: 0, o: 0, ties: 0 });
+  const [board, setBoard] = useState(() => initialState?.board || Array(9).fill(null));
+  const [turn, setTurn] = useState(() => initialState?.turn || 'X'); // 'X' moves first
+  const [winner, setWinner] = useState(() => initialState?.winner || null);
+  const [winningLine, setWinningLine] = useState(() => initialState?.winningLine || null);
+  const [scores, setScores] = useState(() => initialState?.scores || { x: 0, o: 0, ties: 0 });
 
   const isConnected = status === 'connected';
   const isReconnecting = status === 'reconnecting';
@@ -32,6 +35,13 @@ export default function CyberGridGame({
   const mySymbol = (!isConnected || isHost) ? 'X' : 'O';
   const opponentSymbol = mySymbol === 'X' ? 'O' : 'X';
   const isMyTurn = turn === mySymbol;
+
+  // Persist live board state in memory cache
+  useEffect(() => {
+    if (onUpdateCardState && cardId) {
+      onUpdateCardState(cardId, { board, turn, winner, winningLine, scores });
+    }
+  }, [board, turn, winner, winningLine, scores, cardId, onUpdateCardState]);
 
   // Check victory condition
   const checkWinner = (squares) => {
@@ -51,6 +61,7 @@ export default function CyberGridGame({
   useEffect(() => {
     const unsub = peerService.on('game_event', (event) => {
       if (!event || event.game !== 'grid') return;
+      if (cardId && event.cardId && event.cardId !== cardId) return;
 
       if (event.type === 'grid_move') {
         setBoard((prev) => {
@@ -145,6 +156,7 @@ export default function CyberGridGame({
     if (isConnected) {
       peerService.sendGameEvent({
         game: 'grid',
+        cardId,
         type: 'grid_move',
         index,
         symbol: mySymbol,
@@ -186,7 +198,7 @@ export default function CyberGridGame({
     setWinningLine(null);
     setTurn('X');
     if (isConnected) {
-      peerService.sendGameEvent({ game: 'grid', type: 'grid_restart' });
+      peerService.sendGameEvent({ game: 'grid', cardId, type: 'grid_restart' });
     }
   };
 

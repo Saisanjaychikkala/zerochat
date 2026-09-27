@@ -42,35 +42,43 @@ function checkConnectFourWin(board) {
       }
     }
   }
-  if (board.every(row => row.every(Boolean))) return { winner: 'Tie', line: [] };
-  return null;
+  return board.every(row => row.every(Boolean)) ? { winner: 'Tie', line: [] } : null;
 }
 
 export default function CyberConnectFour({ 
+  cardId,
+  initialState,
   status, 
   isHost = true,
   myNickname = 'You',
   remotePeerNickname = 'Peer', 
   onExitMatch,
   onEndRound,
+  onUpdateCardState,
 }) {
-  const [grid, setGrid] = useState(createEmptyGrid);
-  const [turn, setTurn] = useState('C'); // 'C' (Cyan / Host starts first)
-  const [winner, setWinner] = useState(null);
-  const [winningCells, setWinningCells] = useState([]);
-  const [scores, setScores] = useState({ c: 0, m: 0, ties: 0 });
+  const [grid, setGrid] = useState(() => initialState?.grid || createEmptyGrid());
+  const [turn, setTurn] = useState(() => initialState?.turn || 'C');
+  const [winner, setWinner] = useState(() => initialState?.winner || null);
+  const [winningCells, setWinningCells] = useState(() => initialState?.winningCells || []);
+  const [scores, setScores] = useState(() => initialState?.scores || { c: 0, m: 0, ties: 0 });
   const [hoverCol, setHoverCol] = useState(null);
 
   const isConnected = status === 'connected';
   const isReconnecting = status === 'reconnecting';
   const isSolo = !isConnected && status === 'disconnected';
 
-  // Role authority: Host is Cyan ('C', moves first); Guest is Neon ('M', moves second)
+  // Role authority: Host is Cyan ('C'); Guest is Neon ('M')
   const myToken = (!isConnected || isHost) ? 'C' : 'M';
   const opponentToken = myToken === 'C' ? 'M' : 'C';
   const isMyTurn = turn === myToken;
-
   const opponentLabel = isConnected ? remotePeerNickname || 'Peer' : 'AI Bot';
+
+  // Persist live grid state in memory cache
+  useEffect(() => {
+    if (onUpdateCardState && cardId) {
+      onUpdateCardState(cardId, { grid, turn, winner, winningCells, scores });
+    }
+  }, [grid, turn, winner, winningCells, scores, cardId, onUpdateCardState]);
 
   // Apply a drop in a column
   const dropToken = (board, col, player) => {
@@ -88,6 +96,7 @@ export default function CyberConnectFour({
   useEffect(() => {
     const unsub = peerService.on('game_event', (event) => {
       if (!event || event.game !== 'c4') return;
+      if (cardId && event.cardId && event.cardId !== cardId) return;
 
       if (event.type === 'c4_drop') {
         setGrid((prev) => {
@@ -108,11 +117,7 @@ export default function CyberConnectFour({
               setWinner(winnerName);
               setWinningCells(winRes.line);
               setScores((s) => {
-                const next = {
-                  ...s,
-                  c: winRes.winner === 'C' ? s.c + 1 : s.c,
-                  m: winRes.winner === 'M' ? s.m + 1 : s.m,
-                };
+                const next = { ...s, c: winRes.winner === 'C' ? s.c + 1 : s.c, m: winRes.winner === 'M' ? s.m + 1 : s.m };
                 if (onEndRound) onEndRound(winnerName, `${next.c} - ${next.m}`);
                 return next;
               });
@@ -207,7 +212,7 @@ export default function CyberConnectFour({
     setGrid(dropRes.newBoard);
 
     if (isConnected) {
-      peerService.sendGameEvent({ game: 'c4', type: 'c4_drop', col, token: myToken });
+      peerService.sendGameEvent({ game: 'c4', cardId, type: 'c4_drop', col, token: myToken });
     }
 
     const winRes = checkConnectFourWin(dropRes.newBoard);
@@ -225,11 +230,7 @@ export default function CyberConnectFour({
         setWinningCells(winRes.line);
         confetti({ particleCount: 90, spread: 80 });
         setScores((s) => {
-          const next = {
-            ...s,
-            c: myToken === 'C' ? s.c + 1 : s.c,
-            m: myToken === 'M' ? s.m + 1 : s.m,
-          };
+          const next = { ...s, c: myToken === 'C' ? s.c + 1 : s.c, m: myToken === 'M' ? s.m + 1 : s.m };
           if (onEndRound) onEndRound(winnerName, `${next.c} - ${next.m}`);
           return next;
         });
@@ -245,7 +246,7 @@ export default function CyberConnectFour({
     setWinningCells([]);
     setTurn('C');
     if (isConnected) {
-      peerService.sendGameEvent({ game: 'c4', type: 'c4_restart' });
+      peerService.sendGameEvent({ game: 'c4', cardId, type: 'c4_restart' });
     }
   };
 
@@ -332,13 +333,12 @@ export default function CyberConnectFour({
       {/* Victory Actions */}
       {winner && (
         <div className="c4-win-action" style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
-          <button onClick={handleRestart} className="btn btn-primary">
-            <Sparkles size={15} />
-            <span>Play Next Round</span>
+          <button onClick={handleRestart} className="btn btn-primary" style={{ gap: '6px' }}>
+            <Sparkles size={15} /> Play Next Round
           </button>
           {onExitMatch && (
             <button onClick={onExitMatch} className="btn btn-secondary">
-              <span>Return to Chat</span>
+              Return to Chat
             </button>
           )}
         </div>

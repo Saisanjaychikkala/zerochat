@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { RefreshCw, HardDriveUpload, Play } from 'lucide-react';
+import { RefreshCw, HardDriveUpload, Play, X } from 'lucide-react';
 import ChatHeader from './chat/ChatHeader';
 import RoomHeroCard from './chat/RoomHeroCard';
 import MessageItem from './chat/MessageItem';
@@ -199,14 +199,26 @@ export default function ChatArea({
               <strong>{inChatGames.activeMatch.gameName}</strong> match in background
             </span>
           </div>
-          <button 
-            type="button"
-            onClick={inChatGames.handleResumeMatch} 
-            className="btn btn-primary btn-xs resume-dock-btn"
-          >
-            <Play size={12} />
-            <span>Resume Game</span>
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <button 
+              type="button"
+              onClick={() => inChatGames.handleResumeMatch(inChatGames.activeMatch.cardId)} 
+              className="btn btn-primary btn-xs resume-dock-btn"
+            >
+              <Play size={12} />
+              <span>Resume Game</span>
+            </button>
+            <button 
+              type="button"
+              onClick={() => inChatGames.handleExitMatch(null, inChatGames.activeMatch.cardId)} 
+              className="btn btn-secondary btn-xs"
+              style={{ height: '26px', padding: '0 8px', fontSize: '0.72rem' }}
+              title="End match and conclude duel"
+            >
+              <X size={12} />
+              <span>End</span>
+            </button>
+          </div>
         </div>
       )}
 
@@ -255,6 +267,7 @@ export default function ChatArea({
             onJoinCard={inChatGames.handleJoinCard}
             onLaunchCard={inChatGames.handleLaunchCard}
             onResumeCard={inChatGames.handleResumeMatch}
+            onExitCard={inChatGames.handleExitMatch}
             onRematch={inChatGames.handleRematch}
           />
         ))}
@@ -307,10 +320,16 @@ export default function ChatArea({
       />
 
       {/* Active Game Match Stage (Overlaid on Chat with prominent Return to Chat header) */}
-      {inChatGames.activeMatch && inChatGames.activeMatch.isVisible && (
-        <div className="in-chat-active-match-overlay">
+      {inChatGames.activeMatch && (
+        <div 
+          className="in-chat-active-match-overlay"
+          style={{ display: inChatGames.activeMatch.isVisible ? 'flex' : 'none' }}
+        >
           <ActiveMatchStage 
+            key={inChatGames.activeMatch.cardId}
+            cardId={inChatGames.activeMatch.cardId}
             activeGame={inChatGames.activeMatch.gameId}
+            initialState={inChatGames.cachedGameStates?.[inChatGames.activeMatch.cardId]}
             status={status}
             isHost={isHost}
             myNickname={myNickname}
@@ -319,6 +338,7 @@ export default function ChatArea({
             onExitMatch={inChatGames.handleExitMatch}
             onReturnToChat={inChatGames.handleReturnToChat}
             onEndRound={inChatGames.handleEndRound}
+            onUpdateCardState={inChatGames.handleUpdateCardState}
           />
         </div>
       )}

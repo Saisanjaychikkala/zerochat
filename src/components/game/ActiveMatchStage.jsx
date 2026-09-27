@@ -15,7 +15,9 @@ const GAME_TITLES = {
 const EMOTES = ['👏', '🔥', '😂', 'GG'];
 
 export default function ActiveMatchStage({
+  cardId,
   activeGame,
+  initialState,
   status,
   isHost,
   myNickname,
@@ -24,6 +26,7 @@ export default function ActiveMatchStage({
   onExitMatch,
   onReturnToChat,
   onEndRound,
+  onUpdateCardState,
 }) {
   const isConnected = status === 'connected';
   const opponentLabel = isConnected ? remotePeerNickname || 'Peer' : 'AI Bot';
@@ -33,6 +36,7 @@ export default function ActiveMatchStage({
   useEffect(() => {
     const unsub = peerService.on('game_event', (event) => {
       if (!event || event.game !== activeGame) return;
+      if (cardId && event.cardId && event.cardId !== cardId) return;
       if (event.type === 'game_emote') {
         setActiveEmote({ text: event.emoji, sender: event.sender || 'Opponent' });
         try { playSound('pop', true); } catch (e) {}
@@ -41,7 +45,7 @@ export default function ActiveMatchStage({
     });
 
     return () => unsub();
-  }, [activeGame]);
+  }, [activeGame, cardId]);
 
   const handleSendEmote = (emoji) => {
     setActiveEmote({ text: emoji, sender: myNickname || 'You' });
@@ -51,6 +55,7 @@ export default function ActiveMatchStage({
     if (isConnected) {
       peerService.sendGameEvent({
         game: activeGame,
+        cardId,
         type: 'game_emote',
         emoji,
         sender: myNickname || 'You',
@@ -64,6 +69,14 @@ export default function ActiveMatchStage({
       return;
     }
     peerService.sendNudge(`${myNickname || 'Opponent'} is nudging you! It's your turn in ${GAME_TITLES[activeGame] || 'Game'}!`, 'game_turn');
+    if (cardId) {
+      peerService.sendGameEvent({
+        game: activeGame,
+        cardId,
+        type: 'game_nudge',
+        sender: myNickname || 'Opponent',
+      });
+    }
     try { playSound('pop', true); } catch (e) {}
     if (showToast) showToast(`Sent turn nudge to ${opponentLabel}!`, 'success');
   };
@@ -147,15 +160,20 @@ export default function ActiveMatchStage({
       <div style={{ flex: 1, minHeight: 0, position: 'relative', overflow: 'hidden' }}>
         {activeGame === 'pong' ? (
           <CyberPongGame 
+            cardId={cardId}
+            initialState={initialState}
             status={status}
             isHost={isHost}
             myNickname={myNickname}
             remotePeerNickname={remotePeerNickname}
             onExitMatch={onReturnToChat || onExitMatch}
             onEndRound={onEndRound}
+            onUpdateCardState={onUpdateCardState}
           />
         ) : activeGame === 'grid' ? (
           <CyberGridGame 
+            cardId={cardId}
+            initialState={initialState}
             status={status} 
             isHost={isHost}
             myNickname={myNickname}
@@ -163,9 +181,12 @@ export default function ActiveMatchStage({
             showToast={showToast}
             onExitMatch={onReturnToChat || onExitMatch}
             onEndRound={onEndRound}
+            onUpdateCardState={onUpdateCardState}
           />
         ) : (
           <CyberConnectFour
+            cardId={cardId}
+            initialState={initialState}
             status={status}
             isHost={isHost}
             myNickname={myNickname}
@@ -173,6 +194,7 @@ export default function ActiveMatchStage({
             showToast={showToast}
             onExitMatch={onReturnToChat || onExitMatch}
             onEndRound={onEndRound}
+            onUpdateCardState={onUpdateCardState}
           />
         )}
       </div>
