@@ -24,11 +24,13 @@ export default function InChatGameCard({
   myNickname,
   onJoinCard,
   onLaunchCard,
+  onResumeCard,
 }) {
   const config = GAME_CONFIGS[card.gameId] || GAME_CONFIGS.pong;
   const Icon = config.icon;
   const isConcluded = !!card.isConcluded;
   const isJoined = !!card.isGuestJoined;
+  const isPlaying = !!card.isPlaying;
   const isCreator = myNickname && card.hostNickname && myNickname.toLowerCase() === card.hostNickname.toLowerCase();
   const canJoin = !isJoined && !isCreator && !isConcluded;
 
@@ -58,6 +60,11 @@ export default function InChatGameCard({
             <span className="badge-concluded">
               <Ban size={11} />
               <span>Concluded</span>
+            </span>
+          ) : isPlaying ? (
+            <span className="badge-ready" style={{ background: 'rgba(0, 242, 254, 0.15)', borderColor: 'var(--accent-cyan)' }}>
+              <span className="status-dot connected" style={{ width: '6px', height: '6px' }} />
+              <span style={{ color: 'var(--accent-cyan)' }}>In Progress</span>
             </span>
           ) : isJoined ? (
             <span className="badge-ready">
@@ -129,6 +136,14 @@ export default function InChatGameCard({
         {isConcluded ? (
           <button disabled className="btn btn-secondary btn-xs w-full concluded-btn">
             <span>Match Concluded • Resources Cleared</span>
+          </button>
+        ) : card.isPlaying ? (
+          <button 
+            onClick={() => (onResumeCard || onLaunchCard) && (onResumeCard || onLaunchCard)(card.cardId)}
+            className="btn btn-primary btn-xs w-full resume-card-btn"
+          >
+            <Play size={13} />
+            <span>Resume {card.gameName} Match</span>
           </button>
         ) : isJoined ? (
           <button 

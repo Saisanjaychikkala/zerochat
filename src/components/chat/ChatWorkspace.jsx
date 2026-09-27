@@ -8,6 +8,7 @@ export default function ChatWorkspace({
   peerSession,
   callSession,
   myNickname,
+  myAvatarBg,
   onOpenRoomModal,
   onOpenInfoModal,
   onOpenLightbox,
@@ -15,6 +16,7 @@ export default function ChatWorkspace({
 }) {
   const {
     messages,
+    setMessages,
     transfers,
     handleSendMessage,
     handleSendFile,
@@ -46,12 +48,14 @@ export default function ChatWorkspace({
     <main className={`main-workspace tab-${mobileTab}`}>
       <ChatArea 
         messages={messages}
+        setMessages={setMessages}
         onSendMessage={handleSendMessage}
         onSendFile={handleSendFile}
         status={status}
         remotePeerId={remotePeerId}
         remotePeerNickname={remoteNickname}
         myNickname={myNickname}
+        myAvatarBg={myAvatarBg}
         isPeerTyping={isPeerTyping}
         peerTypingNickname={peerTypingNickname}
         onTyping={handleTyping}
@@ -67,6 +71,7 @@ export default function ChatWorkspace({
         callStatus={callState.status}
         onSendNudge={handleSendNudge}
         latency={latency}
+        showToast={showToast}
       />
 
       <FileTransferArea 

@@ -129,6 +129,7 @@ async function runTests() {
   assert(indexCss.includes("@import './styles/call.css';"), 'index.css imports call.css');
   assert(indexCss.includes("@import './styles/zoom.css';"), 'index.css imports zoom.css');
   assert(indexCss.includes("@import './styles/inChatGameCard.css';"), 'index.css imports inChatGameCard.css');
+  assert(indexCss.includes("@import './styles/activeMatchStage.css';"), 'index.css imports activeMatchStage.css');
 
   // 6. Video Call & Screen Share Zoom System Verification
   console.log('\n[Test Suite 6] Video Call Zoom & Subcomponent Modularity');
@@ -237,7 +238,10 @@ async function runTests() {
     { name: 'inChatGameCard.css', path: path.join(ROOT, 'src', 'styles', 'inChatGameCard.css'), max: 350 },
     { name: 'InChatGameCard.jsx', path: path.join(ROOT, 'src', 'components', 'game', 'InChatGameCard.jsx'), max: 350 },
     { name: 'ActiveMatchStage.jsx', path: path.join(ROOT, 'src', 'components', 'game', 'ActiveMatchStage.jsx'), max: 350 },
-    { name: 'GameArenaHeader.jsx', path: path.join(ROOT, 'src', 'components', 'game', 'GameArenaHeader.jsx'), max: 350 }
+    { name: 'GameArenaHeader.jsx', path: path.join(ROOT, 'src', 'components', 'game', 'GameArenaHeader.jsx'), max: 350 },
+    { name: 'ChatArea.jsx', path: path.join(ROOT, 'src', 'components', 'ChatArea.jsx'), max: 350 },
+    { name: 'useInChatGames.js', path: path.join(ROOT, 'src', 'hooks', 'useInChatGames.js'), max: 350 },
+    { name: 'activeMatchStage.css', path: path.join(ROOT, 'src', 'styles', 'activeMatchStage.css'), max: 350 }
   ];
 
   budgetFiles.forEach(({ name, path: fPath, max }) => {

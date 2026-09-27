@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Smile, Mic, X, Paperclip } from 'lucide-react';
+import { Send, Smile, Mic, X, Paperclip, Gamepad2 } from 'lucide-react';
 import { voiceRecorder } from '../../utils/voiceRecorder';
 
 const QUICK_EMOJIS = ['👍', '🔥', '🚀', '❤️', '⚡', '🎉', '👀'];
@@ -11,7 +11,8 @@ export default function ChatInputBar({
   inputText,
   onTextChange,
   onSend,
-  onSendFile
+  onSendFile,
+  onOpenGameDrawer
 }) {
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
@@ -180,6 +181,26 @@ export default function ChatInputBar({
             }}
             multiple
           />
+
+          {/* In-Chat Game Launcher Button */}
+          {onOpenGameDrawer && (
+            <button
+              type="button"
+              className="btn btn-icon game-trigger-btn"
+              title="Add Game to Chat (Pong, Tic-Tac-Toe, Connect 4)"
+              onClick={onOpenGameDrawer}
+              data-interactive="true"
+              style={{
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                margin: 0
+              }}
+            >
+              <Gamepad2 size={18} color="var(--accent-purple, #c084fc)" />
+            </button>
+          )}
 
           <input 
             type="text" 

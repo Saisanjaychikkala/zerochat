@@ -1,20 +1,26 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { RefreshCw, HardDriveUpload } from 'lucide-react';
+import { RefreshCw, HardDriveUpload, Play } from 'lucide-react';
 import ChatHeader from './chat/ChatHeader';
 import RoomHeroCard from './chat/RoomHeroCard';
 import MessageItem from './chat/MessageItem';
 import ReplyPreviewDock from './chat/ReplyPreviewDock';
 import ChatInputBar from './chat/ChatInputBar';
+import GameDrawer from './game/GameDrawer';
+import ActiveMatchStage from './game/ActiveMatchStage';
+import { useInChatGames } from '../hooks/useInChatGames';
+import { extractSnippet, handleScrollToMessage, shareRoomInvite } from './chat/chatHelpers';
 import { copyToClipboard } from '../utils/clipboard';
 
 export default function ChatArea({ 
   messages, 
+  setMessages,
   onSendMessage, 
   onSendFile,
   status, 
   remotePeerId, 
   remotePeerNickname,
   myNickname,
+  myAvatarBg,
   isPeerTyping, 
   peerTypingNickname,
   onTyping,
@@ -29,7 +35,8 @@ export default function ChatArea({
   onStartCall,
   callStatus,
   onSendNudge,
-  latency
+  latency,
+  showToast,
 }) {
   const [inputText, setInputText] = useState('');
   const [copied, setCopied] = useState(false);
@@ -42,6 +49,18 @@ export default function ChatArea({
 
   const isConnected = status === 'connected';
   const inviteUrl = typeof window !== 'undefined' ? `${window.location.origin}${window.location.pathname}#${roomId}` : '';
+
+  // In-Chat Game Engine hook
+  const inChatGames = useInChatGames({
+    messages,
+    setMessages,
+    myNickname,
+    myAvatarBg,
+    remoteNickname: remotePeerNickname,
+    isConnected,
+    isHost,
+    showToast,
+  });
 
   useEffect(() => {
     if (messages.length > 0 || isPeerTyping) {
@@ -69,45 +88,11 @@ export default function ChatArea({
 
   const handleTextChange = (e) => {
     setInputText(e.target.value);
-
     onTyping(true);
     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
     typingTimeoutRef.current = setTimeout(() => {
       onTyping(false);
     }, 1200);
-  };
-
-  const extractSnippet = (msg) => {
-    if (!msg) return '';
-    if (msg.isVoiceNote) {
-      const dur = msg.durationSec ? ` (${msg.durationSec}s)` : '';
-      return `🎤 Voice Note${dur}`;
-    }
-    if (msg.imageUrl || msg.type === 'image') {
-      return `📷 Photo ${msg.fileName ? `(${msg.fileName})` : ''}`.trim();
-    }
-    if (msg.downloadUrl || msg.type === 'file') {
-      return `📎 File: ${msg.fileName || 'Attachment'}`;
-    }
-    const text = msg.text || '';
-    if (text.startsWith('```') && text.endsWith('```')) {
-      return '💻 Code Snippet';
-    }
-    return text.length > 70 ? text.substring(0, 67) + '...' : text;
-  };
-
-  const handleScrollToMessage = (targetId) => {
-    if (!targetId) return;
-    const el = document.getElementById('msg_' + targetId);
-    if (el) {
-      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      el.classList.remove('message-pulse-highlight');
-      void el.offsetWidth; // trigger reflow
-      el.classList.add('message-pulse-highlight');
-      setTimeout(() => {
-        el.classList.remove('message-pulse-highlight');
-      }, 1600);
-    }
   };
 
   const handleSend = (e) => {
@@ -122,7 +107,7 @@ export default function ChatArea({
           ? (myNickname || 'You') 
           : (replyingTo.senderNickname || remotePeerNickname || 'Peer'),
         snippet: extractSnippet(replyingTo),
-        type: replyingTo.isVoiceNote ? 'voice' : replyingTo.imageUrl ? 'image' : replyingTo.downloadUrl ? 'file' : 'text',
+        type: replyingTo.isVoiceNote ? 'voice' : replyingTo.imageUrl ? 'image' : replyingTo.downloadUrl ? 'file' : replyingTo.type === 'game_card' ? 'game' : 'text',
       };
     }
 
@@ -152,27 +137,8 @@ export default function ChatArea({
     }
   };
 
-  const handleShare = async () => {
-    if (!roomId) return;
-    const url = `${window.location.origin}${window.location.pathname}#${roomId}`;
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: 'Join my ZeroChat Room',
-          text: 'Connect to my private, encrypted ZeroChat peer room:',
-          url,
-        });
-      } catch (err) {
-        if (err.name !== 'AbortError') {
-          handleCopyLink();
-        }
-      }
-    } else {
-      handleCopyLink();
-    }
-  };
+  const handleShare = () => shareRoomInvite(roomId, handleCopyLink);
 
-  // Drag-and-Drop over chat area
   const handleDragOver = (e) => {
     e.preventDefault();
     if (status === 'connected') {
@@ -200,6 +166,7 @@ export default function ChatArea({
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
+      style={{ position: 'relative' }}
     >
       {/* Drag overlay feedback */}
       {isDragOverChat && (
@@ -222,6 +189,26 @@ export default function ChatArea({
         onSendNudge={onSendNudge}
         latency={latency}
       />
+
+      {/* Floating Active Match Pill when game is playing in background */}
+      {inChatGames.activeMatch && inChatGames.activeMatch.isPlaying && !inChatGames.activeMatch.isVisible && (
+        <div className="active-match-floating-dock glass-panel">
+          <div className="dock-info">
+            <span className="live-pulse-dot" />
+            <span className="dock-title">
+              <strong>{inChatGames.activeMatch.gameName}</strong> match in background
+            </span>
+          </div>
+          <button 
+            type="button"
+            onClick={inChatGames.handleResumeMatch} 
+            className="btn btn-primary btn-xs resume-dock-btn"
+          >
+            <Play size={12} />
+            <span>Resume Game</span>
+          </button>
+        </div>
+      )}
 
       {/* Reconnecting Alert Bar */}
       {status === 'reconnecting' && (
@@ -254,7 +241,7 @@ export default function ChatArea({
           />
         )}
 
-        {/* Message Bubbles */}
+        {/* Message Bubbles & Interactive Game Cards */}
         {messages.map((msg) => (
           <MessageItem 
             key={msg.id}
@@ -265,6 +252,9 @@ export default function ChatArea({
             onScrollToMessage={handleScrollToMessage}
             onOpenLightbox={onOpenLightbox}
             onImageLoaded={() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })}
+            onJoinCard={inChatGames.handleJoinCard}
+            onLaunchCard={inChatGames.handleLaunchCard}
+            onResumeCard={inChatGames.handleResumeMatch}
           />
         ))}
 
@@ -305,7 +295,31 @@ export default function ChatArea({
         onTextChange={handleTextChange}
         onSend={handleSend}
         onSendFile={onSendFile}
+        onOpenGameDrawer={() => inChatGames.setIsDrawerOpen(true)}
       />
+
+      {/* Slide-Up Bottom Drawer for Selecting Games */}
+      <GameDrawer 
+        isOpen={inChatGames.isDrawerOpen}
+        onClose={() => inChatGames.setIsDrawerOpen(false)}
+        onSelectGame={inChatGames.handleAddGameToChat}
+      />
+
+      {/* Active Game Match Stage (Overlaid on Chat with prominent Return to Chat header) */}
+      {inChatGames.activeMatch && inChatGames.activeMatch.isVisible && (
+        <div className="in-chat-active-match-overlay">
+          <ActiveMatchStage 
+            activeGame={inChatGames.activeMatch.gameId}
+            status={status}
+            isHost={isHost}
+            myNickname={myNickname}
+            remotePeerNickname={remotePeerNickname}
+            showToast={showToast}
+            onExitMatch={inChatGames.handleExitMatch}
+            onReturnToChat={inChatGames.handleReturnToChat}
+          />
+        </div>
+      )}
     </section>
   );
 }

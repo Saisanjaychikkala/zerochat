@@ -192,9 +192,9 @@ export default function CyberPongGame({
       <div className="pong-subbar">
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           {onExitMatch && (
-            <button onClick={onExitMatch} className="btn btn-secondary btn-xs" title="Return to Game Lobby">
+            <button onClick={onExitMatch} className="btn btn-secondary btn-xs" title="Return to Chat Window">
               <ArrowLeft size={13} />
-              <span>Lobby</span>
+              <span>Chat</span>
             </button>
           )}
           <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>

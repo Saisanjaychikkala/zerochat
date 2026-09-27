@@ -25,9 +25,9 @@ export default function GameArenaHeader({
   return (
     <div className="game-header">
       <div className="game-header-left">
-        <button onClick={onExit} className="btn btn-secondary text-xs game-nav-btn" title="Return to ZeroChat Home">
+        <button onClick={onExit} className="btn btn-secondary text-xs game-nav-btn" title="Return to Chat Window">
           <ArrowLeft size={14} />
-          <span className="game-nav-label">Home</span>
+          <span className="game-nav-label">Return to Chat</span>
         </button>
 
         {gameRoomId && (

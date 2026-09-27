@@ -220,7 +220,7 @@ export default function App() {
             onRejectCall={callSession.handleRejectCall}
             onEndCall={callSession.handleEndCall}
             onToggleAudio={callSession.handleToggleAudio}
-            onExit={onDisconnect}
+            onExit={() => setViewMode('room')}
             showToast={showToast}
           />
         ) : (
@@ -230,6 +230,7 @@ export default function App() {
             peerSession={peerSession}
             callSession={callSession}
             myNickname={preferences.myNickname}
+            myAvatarBg={preferences.myAvatarBg}
             onOpenRoomModal={() => setIsRoomModalOpen(true)}
             onOpenInfoModal={() => setIsInfoModalOpen(true)}
             onOpenLightbox={(url, name) => setLightboxImage({ url, name })}

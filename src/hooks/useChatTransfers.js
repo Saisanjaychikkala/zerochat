@@ -266,6 +266,7 @@ export function useChatTransfers({ soundEnabled, mobileTab, showToast }) {
 
   return {
     messages,
+    setMessages,
     transfers,
     unreadChatCount,
     setUnreadChatCount,

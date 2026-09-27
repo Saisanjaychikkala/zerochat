@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { RefreshCw, Sparkles } from 'lucide-react';
+import { RefreshCw, Sparkles, ArrowLeft } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { peerService } from '../../services/peerService';
 
@@ -211,7 +211,8 @@ export default function CyberConnectFour({ status, remotePeerNickname, onExitMat
       <div className="c4-status-bar">
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           {onExitMatch && (
-            <button onClick={onExitMatch} className="btn btn-secondary btn-xs" title="Return to Chat">
+            <button onClick={onExitMatch} className="btn btn-secondary btn-xs" title="Return to Chat Window">
+              <ArrowLeft size={13} />
               <span>Chat</span>
             </button>
           )}

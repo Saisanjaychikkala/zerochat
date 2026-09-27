@@ -236,6 +236,47 @@
   transform: translateY(-1px);
 }
 
+.resume-card-btn {
+  background: linear-gradient(135deg, #10b981, #059669) !important;
+  border: none !important;
+  color: #fff !important;
+  font-weight: 700 !important;
+  height: 38px !important;
+  font-size: 0.82rem !important;
+  box-shadow: 0 0 16px rgba(16, 185, 129, 0.45);
+  border-radius: var(--radius-sm);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: all 0.2s ease;
+}
+
+.resume-card-btn:hover {
+  box-shadow: 0 0 24px rgba(16, 185, 129, 0.65);
+  transform: translateY(-1px);
+}
+
+/* Transparent Bubble for Native Card Appearance */
+.message-bubble.game-card-bubble {
+  background: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+  box-shadow: none !important;
+  max-width: 440px;
+  width: 100%;
+}
+
+/* In-Chat Game Launcher Trigger Button */
+.game-trigger-btn {
+  color: var(--accent-purple, #c084fc);
+  transition: transform 0.2s ease, color 0.2s ease;
+}
+.game-trigger-btn:hover {
+  color: #e879f9;
+  transform: scale(1.1);
+}
+
 @media (max-width: 480px) {
   .in-chat-game-card {
     padding: 10px;

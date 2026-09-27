@@ -1,0 +1,154 @@
+/* ==========================================================================
+   ZeroChat - In-Chat Active Match Stage & Navigation Bar Styles
+   ========================================================================== */
+
+/* Floating Active Match Pill when game is playing in background */
+.active-match-floating-dock {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 14px;
+  margin: 6px 12px 0 12px;
+  background: linear-gradient(135deg, rgba(192, 132, 252, 0.14), rgba(0, 242, 254, 0.1));
+  border: 1px solid rgba(0, 242, 254, 0.3);
+  border-radius: var(--radius-md);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+  z-index: 25;
+  animation: slideDown 0.25s ease-out;
+}
+
+.dock-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dock-title {
+  font-size: 0.78rem;
+  color: var(--text-main);
+}
+
+.resume-dock-btn {
+  background: linear-gradient(135deg, #00f2fe, #4facfe);
+  color: #050b14;
+  font-weight: 700;
+  border: none;
+  padding: 4px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.75rem;
+  transition: all 0.2s ease;
+}
+
+.resume-dock-btn:hover {
+  box-shadow: 0 0 16px rgba(0, 242, 254, 0.5);
+  transform: translateY(-1px);
+}
+
+/* In-Chat Active Match Full Stage Overlay */
+.in-chat-active-match-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 45;
+  background: rgba(10, 15, 29, 0.96);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  display: flex;
+  flex-direction: column;
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+  animation: fadeIn 0.22s ease-out;
+}
+
+/* Universal Top Navigation Bar on Active Match */
+.active-match-top-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(15, 23, 42, 0.85);
+  gap: 8px;
+  min-height: 46px;
+}
+
+.return-to-chat-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+  padding: 5px 12px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #fff;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-height: 34px;
+}
+
+.return-to-chat-btn:hover {
+  background: rgba(255, 255, 255, 0.14);
+  border-color: var(--accent-cyan);
+  transform: translateX(-2px);
+}
+
+.active-match-title-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: rgba(0, 242, 254, 0.08);
+  border: 1px solid rgba(0, 242, 254, 0.2);
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: var(--text-main);
+  white-space: nowrap;
+}
+
+.match-vs-text {
+  color: var(--text-muted);
+  font-size: 0.68rem;
+}
+
+.exit-match-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 0.72rem;
+  color: #f87171;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.exit-match-btn:hover {
+  background: rgba(239, 68, 68, 0.2);
+  border-color: #ef4444;
+}
+
+@media (max-width: 480px) {
+  .active-match-top-nav {
+    padding: 6px 8px;
+  }
+
+  .return-to-chat-btn {
+    padding: 5px 8px;
+    font-size: 0.75rem;
+  }
+
+  .match-vs-text {
+    display: none;
+  }
+
+  .exit-btn-label {
+    display: none;
+  }
+}

@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import AudioPlayerBubble from '../AudioPlayerBubble';
 import ReplyQuoteBox from './ReplyQuoteBox';
+import InChatGameCard from '../game/InChatGameCard';
 import { copyToClipboard } from '../../utils/clipboard';
 
 export default function MessageItem({
@@ -18,7 +19,10 @@ export default function MessageItem({
   onReply,
   onScrollToMessage,
   onOpenLightbox,
-  onImageLoaded
+  onImageLoaded,
+  onJoinCard,
+  onLaunchCard,
+  onResumeCard,
 }) {
   const [copiedCode, setCopiedCode] = useState(false);
 
@@ -35,6 +39,19 @@ export default function MessageItem({
   };
 
   const renderContent = () => {
+    // 0. Interactive Game Challenge Card
+    if (msg.type === 'game_card') {
+      return (
+        <InChatGameCard 
+          card={msg}
+          myNickname={myNickname}
+          onJoinCard={onJoinCard}
+          onLaunchCard={onLaunchCard}
+          onResumeCard={onResumeCard}
+        />
+      );
+    }
+
     // 1. Voice Note Bubble
     if (msg.isVoiceNote && msg.audioUrl) {
       return (
@@ -99,7 +116,7 @@ export default function MessageItem({
       </span>
 
       <div className="message-bubble-wrapper">
-        <div className="message-bubble">
+        <div className={`message-bubble ${msg.type === 'game_card' ? 'game-card-bubble' : ''}`}>
           {msg.replyTo && (
             <ReplyQuoteBox 
               replyTo={msg.replyTo} 
