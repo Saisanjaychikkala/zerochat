@@ -17,17 +17,23 @@
   transition: all 0.2s ease;
 }
 
-/* Concluded (Grayed Out & Disabled) State */
+/* Concluded (Gracefully Finished & Ready for Rematch) State */
 .in-chat-game-card.concluded {
   background: rgba(255, 255, 255, 0.02) !important;
   border-color: rgba(255, 255, 255, 0.08) !important;
   box-shadow: none !important;
-  opacity: 0.55;
-  filter: grayscale(0.9);
 }
 
-.in-chat-game-card.concluded * {
-  cursor: not-allowed;
+.in-chat-game-card.concluded .in-chat-card-header,
+.in-chat-game-card.concluded .in-chat-players-row {
+  opacity: 0.65;
+  filter: grayscale(0.8);
+}
+
+.in-chat-game-card.concluded .rematch-btn {
+  cursor: pointer !important;
+  opacity: 1 !important;
+  filter: none !important;
 }
 
 .in-chat-card-header {

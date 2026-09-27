@@ -226,8 +226,9 @@ export function useInChatGames({
   const handleExitMatch = useCallback((summary = null) => {
     const current = activeMatchRef.current;
     if (current?.cardId) {
-      const winner = summary?.winner || null;
-      const finalScore = summary?.finalScore || null;
+      const existingCard = messagesRef.current?.find((m) => m.cardId === current.cardId);
+      const winner = summary?.winner || existingCard?.winner || null;
+      const finalScore = summary?.finalScore || existingCard?.finalScore || null;
 
       if (setMessages) {
         setMessages((prev) =>

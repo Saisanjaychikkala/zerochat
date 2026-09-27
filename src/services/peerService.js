@@ -454,6 +454,10 @@ class PeerService {
     const onChannelOpen = () => {
       if (this.conn !== connection) return;
       console.log('[ZeroChat] DataChannel is now ACTIVE with:', this.remotePeerId);
+      const rawDc = connection.dataChannel || connection._dc;
+      if (rawDc) {
+        try { rawDc.binaryType = 'arraybuffer'; } catch (e) {}
+      }
       this.lastActiveTime = Date.now();
       if (this.connectionTimeout) {
         clearTimeout(this.connectionTimeout);
@@ -580,6 +584,13 @@ class PeerService {
     // Binary file chunk
     if (data instanceof ArrayBuffer || (data.buffer && data.buffer instanceof ArrayBuffer)) {
       this.fileStream.handleBinaryFileChunk(data, (e, d) => this.emit(e, d));
+      return;
+    }
+
+    if (typeof Blob !== 'undefined' && data instanceof Blob) {
+      data.arrayBuffer().then((buf) => {
+        this.fileStream.handleBinaryFileChunk(buf, (e, d) => this.emit(e, d));
+      }).catch((err) => console.error('[ZeroChat] Blob conversion error:', err));
       return;
     }
 

@@ -62,15 +62,24 @@ export default function CyberGridGame({
           if (res) {
             if (res.winner === 'Tie') {
               setWinner('Tie');
-              setScores((s) => ({ ...s, ties: s.ties + 1 }));
-              if (onEndRound) onEndRound('Tie', `${scores.x} - ${scores.o}`);
+              setScores((s) => {
+                const next = { ...s, ties: s.ties + 1 };
+                if (onEndRound) onEndRound('Tie', `${next.x} - ${next.o}`);
+                return next;
+              });
             } else {
               const winnerName = res.winner === mySymbol ? myNickname : remotePeerNickname;
               setWinner(winnerName);
               setWinningLine(res.line);
-              if (res.winner === 'X') setScores((s) => ({ ...s, x: s.x + 1 }));
-              else setScores((s) => ({ ...s, o: s.o + 1 }));
-              if (onEndRound) onEndRound(winnerName, `${scores.x} - ${scores.o}`);
+              setScores((s) => {
+                const next = {
+                  ...s,
+                  x: res.winner === 'X' ? s.x + 1 : s.x,
+                  o: res.winner === 'O' ? s.o + 1 : s.o,
+                };
+                if (onEndRound) onEndRound(winnerName, `${next.x} - ${next.o}`);
+                return next;
+              });
             }
           } else {
             setTurn(mySymbol);
@@ -146,16 +155,25 @@ export default function CyberGridGame({
     if (res) {
       if (res.winner === 'Tie') {
         setWinner('Tie');
-        setScores((s) => ({ ...s, ties: s.ties + 1 }));
-        if (onEndRound) onEndRound('Tie', `${scores.x} - ${scores.o}`);
+        setScores((s) => {
+          const next = { ...s, ties: s.ties + 1 };
+          if (onEndRound) onEndRound('Tie', `${next.x} - ${next.o}`);
+          return next;
+        });
       } else {
         const winnerName = myNickname;
         setWinner(winnerName);
         setWinningLine(res.line);
-        if (mySymbol === 'X') setScores((s) => ({ ...s, x: s.x + 1 }));
-        else setScores((s) => ({ ...s, o: s.o + 1 }));
         confetti({ particleCount: 80, spread: 70 });
-        if (onEndRound) onEndRound(winnerName, `${scores.x + 1} - ${scores.o}`);
+        setScores((s) => {
+          const next = {
+            ...s,
+            x: mySymbol === 'X' ? s.x + 1 : s.x,
+            o: mySymbol === 'O' ? s.o + 1 : s.o,
+          };
+          if (onEndRound) onEndRound(winnerName, `${next.x} - ${next.o}`);
+          return next;
+        });
       }
     } else {
       setTurn(opponentSymbol);

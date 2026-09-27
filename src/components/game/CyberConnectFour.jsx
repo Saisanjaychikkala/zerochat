@@ -29,28 +29,20 @@ function checkConnectFourWin(board) {
       }
     }
   }
-  // Diagonal down-right
-  for (let r = 0; r <= ROWS - 4; r++) {
-    for (let c = 0; c <= COLS - 4; c++) {
+  // Diagonals (down-right and up-right)
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
       const p = board[r][c];
-      if (p && p === board[r+1][c+1] && p === board[r+2][c+2] && p === board[r+3][c+3]) {
+      if (!p) continue;
+      if (r <= ROWS - 4 && c <= COLS - 4 && p === board[r+1][c+1] && p === board[r+2][c+2] && p === board[r+3][c+3]) {
         return { winner: p, line: [[r,c], [r+1,c+1], [r+2,c+2], [r+3,c+3]] };
       }
-    }
-  }
-  // Diagonal up-right
-  for (let r = 3; r < ROWS; r++) {
-    for (let c = 0; c <= COLS - 4; c++) {
-      const p = board[r][c];
-      if (p && p === board[r-1][c+1] && p === board[r-2][c+2] && p === board[r-3][c+3]) {
+      if (r >= 3 && c <= COLS - 4 && p === board[r-1][c+1] && p === board[r-2][c+2] && p === board[r-3][c+3]) {
         return { winner: p, line: [[r,c], [r-1,c+1], [r-2,c+2], [r-3,c+3]] };
       }
     }
   }
-  // Tie check
-  if (board.every(row => row.every(Boolean))) {
-    return { winner: 'Tie', line: [] };
-  }
+  if (board.every(row => row.every(Boolean))) return { winner: 'Tie', line: [] };
   return null;
 }
 
@@ -106,15 +98,24 @@ export default function CyberConnectFour({
           if (winRes) {
             if (winRes.winner === 'Tie') {
               setWinner('Tie');
-              setScores((s) => ({ ...s, ties: s.ties + 1 }));
-              if (onEndRound) onEndRound('Tie', `${scores.c} - ${scores.m}`);
+              setScores((s) => {
+                const next = { ...s, ties: s.ties + 1 };
+                if (onEndRound) onEndRound('Tie', `${next.c} - ${next.m}`);
+                return next;
+              });
             } else {
               const winnerName = winRes.winner === myToken ? myNickname : remotePeerNickname;
               setWinner(winnerName);
               setWinningCells(winRes.line);
-              if (winRes.winner === 'C') setScores((s) => ({ ...s, c: s.c + 1 }));
-              else setScores((s) => ({ ...s, m: s.m + 1 }));
-              if (onEndRound) onEndRound(winnerName, `${scores.c} - ${scores.m}`);
+              setScores((s) => {
+                const next = {
+                  ...s,
+                  c: winRes.winner === 'C' ? s.c + 1 : s.c,
+                  m: winRes.winner === 'M' ? s.m + 1 : s.m,
+                };
+                if (onEndRound) onEndRound(winnerName, `${next.c} - ${next.m}`);
+                return next;
+              });
             }
           } else {
             setTurn(myToken);
@@ -213,16 +214,25 @@ export default function CyberConnectFour({
     if (winRes) {
       if (winRes.winner === 'Tie') {
         setWinner('Tie');
-        setScores((s) => ({ ...s, ties: s.ties + 1 }));
-        if (onEndRound) onEndRound('Tie', `${scores.c} - ${scores.m}`);
+        setScores((s) => {
+          const next = { ...s, ties: s.ties + 1 };
+          if (onEndRound) onEndRound('Tie', `${next.c} - ${next.m}`);
+          return next;
+        });
       } else {
         const winnerName = myNickname;
         setWinner(winnerName);
         setWinningCells(winRes.line);
-        if (myToken === 'C') setScores((s) => ({ ...s, c: s.c + 1 }));
-        else setScores((s) => ({ ...s, m: s.m + 1 }));
         confetti({ particleCount: 90, spread: 80 });
-        if (onEndRound) onEndRound(winnerName, `${scores.c + 1} - ${scores.m}`);
+        setScores((s) => {
+          const next = {
+            ...s,
+            c: myToken === 'C' ? s.c + 1 : s.c,
+            m: myToken === 'M' ? s.m + 1 : s.m,
+          };
+          if (onEndRound) onEndRound(winnerName, `${next.c} - ${next.m}`);
+          return next;
+        });
       }
     } else {
       setTurn(opponentToken);
