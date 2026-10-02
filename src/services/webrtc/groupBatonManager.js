@@ -6,49 +6,80 @@
 import { GROUP_PACKET_TYPES } from './constants.js';
 
 export function passBaton(engine, targetPeerId) {
-  if (!engine.isHost || targetPeerId === engine.myPeerId) return;
+  if (!engine.isHost || !targetPeerId || targetPeerId === engine.myPeerId) return;
   const targetConn = engine.connections.get(targetPeerId);
   if (!targetConn?.open) return;
 
-  targetConn.send({
-    type: GROUP_PACKET_TYPES.BATON_OFFER,
+  const oldHostId = engine.myPeerId;
+  const updatedRoster = engine.roster.map(m => ({
+    ...m,
+    isHost: m.peerId === targetPeerId,
+    isCoHost: m.peerId === oldHostId ? false : m.isCoHost
+  }));
+
+  // 1. Broadcast BATON_MIGRATED to ALL connected peers in the star relay
+  engine.broadcast({
+    type: GROUP_PACKET_TYPES.BATON_MIGRATED,
     newHostId: targetPeerId,
-    roster: engine.roster
+    oldHostId,
+    roster: updatedRoster
   });
+
+  // 2. Transition current host to guest role
+  engine.isHost = false;
+  engine.currentHostId = targetPeerId;
+  engine.roster = updatedRoster;
+  engine.emit('baton_changed', { isHost: false, newHostId: targetPeerId });
+  engine.emit('roster_update', engine.roster);
+
+  // 3. Gracefully switch connection: close old peer connections and connect to new host as guest
+  setTimeout(() => {
+    engine.connections.forEach(conn => {
+      try { conn.close(); } catch (e) {}
+    });
+    engine.connections.clear();
+    if (!engine.isDestroyed) {
+      engine.connectToHost(targetPeerId);
+    }
+  }, 350);
 }
 
 export function acceptBatonHandoff(engine, incomingRoster) {
-  engine.isHost = true;
-  engine.currentHostId = engine.myPeerId;
-  engine.roster = (incomingRoster || engine.roster).map(m => ({
-    ...m,
-    isHost: m.peerId === engine.myPeerId
-  }));
-
-  engine.broadcast({
-    type: GROUP_PACKET_TYPES.BATON_MIGRATED,
-    newHostId: engine.myPeerId,
-    roster: engine.roster
-  });
-
-  engine.emit('baton_changed', { isHost: true, newHostId: engine.myPeerId });
-  engine.emit('roster_update', engine.roster);
+  handleBatonMigrated(engine, engine.myPeerId, incomingRoster);
 }
 
 export function handleBatonMigrated(engine, newHostId, newRoster) {
+  const isNewHost = (newHostId === engine.myPeerId);
   engine.currentHostId = newHostId;
-  engine.isHost = (newHostId === engine.myPeerId);
-  engine.roster = newRoster || engine.roster;
+  engine.isHost = isNewHost;
+  engine.roster = (newRoster || engine.roster).map(m => ({
+    ...m,
+    isHost: m.peerId === newHostId
+  }));
 
-  if (!engine.isHost) {
+  if (isNewHost) {
+    // I am now promoted to Host of the star relay!
     if (engine.hostConn) {
       try { engine.hostConn.close(); } catch (e) {}
+      engine.hostConn = null;
     }
-    setTimeout(() => engine.connectToHost(newHostId), 300);
+    engine.emit('baton_changed', { isHost: true, newHostId: engine.myPeerId });
+    engine.emit('roster_update', engine.roster);
+    engine.emit('status', 'connected');
+  } else {
+    // I am a guest, switch connection to the new host
+    if (engine.hostConn) {
+      try { engine.hostConn.close(); } catch (e) {}
+      engine.hostConn = null;
+    }
+    engine.emit('baton_changed', { isHost: false, newHostId });
+    engine.emit('roster_update', engine.roster);
+    setTimeout(() => {
+      if (!engine.isDestroyed) {
+        engine.connectToHost(newHostId);
+      }
+    }, 300);
   }
-
-  engine.emit('baton_changed', { isHost: engine.isHost, newHostId });
-  engine.emit('roster_update', engine.roster);
 }
 
 export function setDesignatedSuccessor(engine, targetPeerId) {

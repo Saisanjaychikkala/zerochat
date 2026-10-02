@@ -1,20 +1,17 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { 
-  Send, 
-  Smile, 
-  Mic, 
-  X, 
-  Radio, 
-  ShieldAlert, 
-  LogOut, 
-  Check, 
-  Lock 
-} from 'lucide-react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
+import { Radio, ShieldAlert, X, Check } from 'lucide-react';
 import { GroupHeaderBar } from './GroupHeaderBar';
-import { CompactStreamMessage } from './CompactStreamMessage';
 import { MemberDrawer } from './MemberDrawer';
 import { SquadQrModal } from './SquadQrModal';
-import { voiceRecorder } from '../../utils/voiceRecorder';
+import MessageItem from '../chat/MessageItem';
+import ChatInputBar from '../chat/ChatInputBar';
+import ReplyPreviewDock from '../chat/ReplyPreviewDock';
+import GameDrawer from '../game/GameDrawer';
+import ActiveMatchStage from '../game/ActiveMatchStage';
+import { extractSnippet, handleScrollToMessage } from '../chat/chatHelpers';
+import { GROUP_PACKET_TYPES } from '../../services/webrtc/constants';
+
+const GAME_NAMES = { pong: 'Cyber Pong', grid: 'Cyber Grid (3x3)', c4: 'Connect 4' };
 
 export function GroupChatWorkspace({
   squadRoomId,
@@ -30,6 +27,7 @@ export function GroupChatWorkspace({
   isLocked,
   isDrawerOpen,
   myPeerId,
+  myNickname,
   onToggleDrawer,
   onCloseDrawer,
   onSendMessage,
@@ -43,74 +41,107 @@ export function GroupChatWorkspace({
   onLeaveSquad
 }) {
   const [inputText, setInputText] = useState('');
-  const [replyTarget, setReplyTarget] = useState(null);
-  const [isRecording, setIsRecording] = useState(false);
-  const [recordSeconds, setRecordSeconds] = useState(0);
+  const [replyingTo, setReplyingTo] = useState(null);
   const [isQrModalOpen, setIsQrModalOpen] = useState(false);
-  const recordIntervalRef = useRef(null);
-  const streamBottomRef = useRef(null);
+  const [isGameDrawerOpen, setIsGameDrawerOpen] = useState(false);
+  const [activeMatch, setActiveMatch] = useState(null);
+  const [activeLightbox, setActiveLightbox] = useState(null);
+
+  const messagesEndRef = useRef(null);
+  const isConnected = status === 'connected';
 
   useEffect(() => {
-    streamBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  const handleSend = (e) => {
-    e?.preventDefault();
-    if (!inputText.trim()) return;
-    onSendMessage(inputText.trim(), replyTarget);
-    setInputText('');
-    setReplyTarget(null);
-  };
-
-  const handleKeyDown = (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSend(e);
-    }
-  };
-
-  const startVoiceRecording = async () => {
-    try {
-      await voiceRecorder.start();
-      setIsRecording(true);
-      setRecordSeconds(0);
-      recordIntervalRef.current = setInterval(() => setRecordSeconds(s => s + 1), 1000);
-    } catch (err) {
-      alert('Could not access microphone: ' + err.message);
-    }
-  };
-
-  const stopAndSendVoice = async () => {
-    clearInterval(recordIntervalRef.current);
-    setIsRecording(false);
-    try {
-      const { file, durationSec } = await voiceRecorder.stop();
-      const reader = new FileReader();
-      reader.onload = () => {
-        onSendVoice(reader.result, durationSec);
+  // Transform messages to feed standard MessageItem component
+  const formattedMessages = useMemo(() => {
+    return messages.map((msg) => {
+      const isMe = (myPeerId && msg.authorId === myPeerId) || msg.sender === 'local';
+      const isVoice = msg.type === GROUP_PACKET_TYPES.VOICE || msg.type === 'voice' || msg.isVoiceNote || !!(msg.audio || msg.audioUrl);
+      return {
+        ...msg,
+        id: msg.id || `msg-${msg.timestamp || Date.now()}`,
+        sender: isMe ? 'local' : 'remote',
+        senderNickname: msg.author || msg.senderNickname || (isMe ? (myNickname || 'You') : 'Peer'),
+        isVoiceNote: isVoice,
+        audioUrl: msg.audio || msg.audioUrl,
+        durationSec: msg.duration || msg.durationSec || 0,
+        delivered: true,
+        timestamp: msg.timestamp || Date.now()
       };
+    });
+  }, [messages, myPeerId, myNickname]);
+
+  const handleSend = (e) => {
+    if (e) e.preventDefault();
+    if (!inputText.trim()) return;
+
+    let replyPayload = null;
+    if (replyingTo) {
+      replyPayload = {
+        id: replyingTo.id,
+        senderNickname: replyingTo.sender === 'local' ? (myNickname || 'You') : (replyingTo.senderNickname || 'Peer'),
+        snippet: extractSnippet(replyingTo),
+        type: replyingTo.isVoiceNote ? 'voice' : replyingTo.imageUrl ? 'image' : replyingTo.type === 'game_card' ? 'game' : 'text'
+      };
+    }
+    onSendMessage(inputText.trim(), replyPayload);
+    setInputText('');
+    setReplyingTo(null);
+  };
+
+  const handleSendFile = (file) => {
+    if (file.isVoiceNote) {
+      const reader = new FileReader();
+      reader.onload = () => onSendVoice(reader.result, file.durationSec || 0);
       reader.readAsDataURL(file);
-    } catch (err) {
-      console.error('[GroupChat] Voice error:', err);
+    } else if (file.type?.startsWith('image/')) {
+      const reader = new FileReader();
+      reader.onload = () => onSendMessage('', null, { imageUrl: reader.result, fileName: file.name, type: 'image' });
+      reader.readAsDataURL(file);
     }
   };
 
-  const cancelVoice = () => {
-    clearInterval(recordIntervalRef.current);
-    setIsRecording(false);
-    voiceRecorder.cancel();
+  const handleSelectGame = (gameId) => {
+    setIsGameDrawerOpen(false);
+    const cardId = 'gc_' + Math.random().toString(36).substring(2, 9) + '_' + Date.now();
+    const gameName = GAME_NAMES[gameId] || gameId;
+    const gameCardMsg = {
+      type: 'game_card',
+      id: cardId,
+      cardId,
+      gameId,
+      gameName,
+      hostNickname: myNickname || 'Player',
+      guestNickname: null,
+      isGuestJoined: false,
+      isConcluded: false,
+      isPlaying: false
+    };
+    onSendMessage(`Challenged squad to ${gameName}!`, null, gameCardMsg);
   };
 
-  const isConnected = status === 'connected';
+  const handleLaunchCard = (cardId) => {
+    const card = formattedMessages.find(m => m.cardId === cardId);
+    if (!card) return;
+    setActiveMatch({
+      cardId: card.cardId,
+      gameId: card.gameId,
+      gameName: card.gameName,
+      isPlaying: true,
+      isVisible: true
+    });
+  };
 
   return (
     <div className="squad-layout-container">
       <div className="squad-main-feed">
-        {/* Header */}
         <GroupHeaderBar
           squadRoomId={squadRoomId}
           memberCount={members.length}
           isHost={isHost}
+          isLocked={isLocked}
           latency={latency}
           onOpenQrModal={() => setIsQrModalOpen(true)}
           onToggleDrawer={onToggleDrawer}
@@ -118,7 +149,7 @@ export function GroupChatWorkspace({
         />
 
         {/* Floating Knock Alert Dock for Host */}
-        {isHost && pendingKnocks && pendingKnocks.length > 0 && (
+        {isHost && pendingKnocks?.length > 0 && (
           <div className="squad-knock-alert-dock">
             <div className="squad-knock-alert-info">
               <span className="knock-pulse-dot" />
@@ -132,23 +163,11 @@ export function GroupChatWorkspace({
               </div>
             </div>
             <div className="squad-knock-alert-actions">
-              <button
-                type="button"
-                onClick={() => onDeclineKnocker(pendingKnocks[0].peerId)}
-                className="btn btn-secondary btn-knock-decline"
-                title="Decline admission"
-              >
-                <X size={14} />
-                <span>Decline</span>
+              <button type="button" onClick={() => onDeclineKnocker(pendingKnocks[0].peerId)} className="btn btn-secondary btn-knock-decline" title="Decline admission">
+                <X size={14} /> <span>Decline</span>
               </button>
-              <button
-                type="button"
-                onClick={() => onAdmitKnocker(pendingKnocks[0].peerId)}
-                className="btn btn-primary btn-knock-admit"
-                title="Admit into squad"
-              >
-                <Check size={14} />
-                <span>Admit</span>
+              <button type="button" onClick={() => onAdmitKnocker(pendingKnocks[0].peerId)} className="btn btn-primary btn-knock-admit" title="Admit into squad">
+                <Check size={14} /> <span>Admit</span>
               </button>
             </div>
           </div>
@@ -159,13 +178,9 @@ export function GroupChatWorkspace({
           <div style={{ background: 'rgba(0, 242, 254, 0.08)', borderBottom: '1px solid var(--border-subtle)', padding: '12px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <Radio size={16} className="animate-spin text-cyan-400" />
-              <span style={{ fontSize: '0.85rem', color: 'var(--accent-cyan)', fontWeight: 600 }}>
-                Knocking for admission... Waiting for squad host to admit you.
-              </span>
+              <span style={{ fontSize: '0.85rem', color: 'var(--accent-cyan)', fontWeight: 600 }}>Knocking for admission... Waiting for squad host to admit you.</span>
             </div>
-            <button type="button" onClick={onLeaveSquad} className="btn btn-secondary text-xs">
-              Cancel
-            </button>
+            <button type="button" onClick={onLeaveSquad} className="btn btn-secondary text-xs">Cancel</button>
           </div>
         )}
 
@@ -173,117 +188,68 @@ export function GroupChatWorkspace({
           <div style={{ background: 'rgba(239, 68, 68, 0.15)', borderBottom: '1px solid rgba(239, 68, 68, 0.4)', padding: '14px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <ShieldAlert size={18} color="#f87171" />
-              <span style={{ fontSize: '0.88rem', color: '#f87171', fontWeight: 600 }}>
-                {declineReason || 'Admission was declined by the host.'}
-              </span>
+              <span style={{ fontSize: '0.88rem', color: '#f87171', fontWeight: 600 }}>{declineReason || 'Admission was declined by the host.'}</span>
             </div>
-            <button type="button" onClick={onLeaveSquad} className="btn btn-danger text-xs">
-              Return Home
-            </button>
+            <button type="button" onClick={onLeaveSquad} className="btn btn-danger text-xs">Return Home</button>
           </div>
         )}
 
-        {/* Message Stream */}
-        <div className="squad-stream-scroll">
-          {messages.length === 0 && (
+        {/* Unified Messages Feed using common MessageItem */}
+        <div className="messages-list squad-stream-scroll">
+          {formattedMessages.length === 0 && (
             <div style={{ textAlign: 'center', margin: 'auto', maxWidth: '360px', padding: '24px 0' }}>
               <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: 'var(--bg-panel)', border: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px auto' }}>
                 <Radio size={22} color="var(--accent-cyan)" />
               </div>
               <h4 style={{ margin: '0 0 6px 0', fontSize: '1rem', color: 'var(--text-main)' }}>Welcome to the Squad!</h4>
               <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                Zero servers, zero database. Messages are relayed peer-to-peer using the Baton Pass Star Topology.
+                Zero servers, zero database. Messages and voice notes are relayed peer-to-peer using the Baton Pass Star Topology.
               </p>
             </div>
           )}
 
-          {messages.map(msg => (
-            <CompactStreamMessage
+          {formattedMessages.map((msg) => (
+            <MessageItem
               key={msg.id}
               msg={msg}
-              myPeerId={myPeerId}
-              hostPeerId={currentHostId}
-              coHostPeerId={designatedSuccessorId}
-              onReply={(m) => setReplyTarget(m)}
-              onReact={onSendReaction}
+              myNickname={myNickname}
+              remotePeerNickname="Squad Member"
+              onReply={setReplyingTo}
+              onScrollToMessage={handleScrollToMessage}
+              onOpenLightbox={(url, name) => setActiveLightbox({ url, name })}
+              onImageLoaded={() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })}
+              onJoinCard={handleLaunchCard}
+              onLaunchCard={handleLaunchCard}
+              onResumeCard={handleLaunchCard}
+              onExitCard={() => setActiveMatch(null)}
+              onRematch={handleLaunchCard}
             />
           ))}
-          <div ref={streamBottomRef} />
+          <div ref={messagesEndRef} />
         </div>
 
         {/* Reply Preview Dock */}
-        {replyTarget && (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'var(--bg-panel)', borderTop: '1px solid var(--border-subtle)', padding: '6px 16px', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-            <div>
-              Replying to <span style={{ color: 'var(--accent-cyan)', fontWeight: 600 }}>{replyTarget.author}</span>: {replyTarget.text?.slice(0, 50)}
-            </div>
-            <button type="button" onClick={() => setReplyTarget(null)} className="btn btn-icon" style={{ width: '22px', height: '22px' }}>
-              <X size={13} />
-            </button>
-          </div>
+        {replyingTo && (
+          <ReplyPreviewDock
+            replyingTo={replyingTo}
+            myNickname={myNickname}
+            remotePeerNickname="Squad Member"
+            snippet={extractSnippet(replyingTo)}
+            onCancelReply={() => setReplyingTo(null)}
+          />
         )}
 
-        {/* Input Bar */}
-        <div className="squad-input-dock">
-          {isRecording ? (
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: 'var(--radius-md)', padding: '8px 14px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span className="record-dot animate-ping" />
-                <span style={{ fontSize: '0.82rem', fontWeight: 600, color: '#f87171' }}>
-                  Recording audio... {recordSeconds}s
-                </span>
-              </div>
-              <div style={{ display: 'flex', gap: '8px' }}>
-                <button type="button" onClick={cancelVoice} className="btn btn-secondary text-xs">
-                  Cancel
-                </button>
-                <button type="button" onClick={stopAndSendVoice} className="btn btn-primary text-xs" style={{ background: 'var(--accent-emerald)' }}>
-                  Send Voice Note
-                </button>
-              </div>
-            </div>
-          ) : (
-            <form onSubmit={handleSend} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <button
-                type="button"
-                onClick={startVoiceRecording}
-                disabled={!isConnected}
-                className="btn btn-icon"
-                title="Record Voice Note"
-                style={{ width: '40px', height: '40px', flexShrink: 0 }}
-              >
-                <Mic size={17} />
-              </button>
-
-              <input
-                type="text"
-                placeholder={
-                  isConnected 
-                    ? `Message #${squadRoomId?.replace(/^squad-/, '') || 'squad'}...` 
-                    : status === 'knocking' 
-                      ? 'Waiting for squad host to admit you...' 
-                      : 'Connecting to squad...'
-                }
-                value={inputText}
-                onChange={(e) => setInputText(e.target.value)}
-                onKeyDown={handleKeyDown}
-                disabled={!isConnected}
-                className="chat-input"
-                style={{ flex: 1, height: '40px' }}
-                autoComplete="off"
-              />
-
-              <button
-                type="submit"
-                disabled={!isConnected || !inputText.trim()}
-                className="btn btn-primary"
-                style={{ width: '40px', height: '40px', padding: 0, justifyContent: 'center', flexShrink: 0 }}
-              >
-                <Send size={15} />
-              </button>
-            </form>
-          )}
-        </div>
+        {/* Common ChatInputBar (Text, Voice Recording, Attachments & Gamepad Drawer) */}
+        <ChatInputBar
+          isConnected={isConnected}
+          status={status}
+          roomFullError={null}
+          inputText={inputText}
+          onTextChange={(e) => setInputText(e.target.value)}
+          onSend={handleSend}
+          onSendFile={handleSendFile}
+          onOpenGameDrawer={() => setIsGameDrawerOpen(true)}
+        />
       </div>
 
       {/* Member Drawer */}
@@ -312,6 +278,46 @@ export function GroupChatWorkspace({
         onClose={() => setIsQrModalOpen(false)}
         squadRoomId={squadRoomId}
       />
+
+      {/* Game Drawer */}
+      <GameDrawer
+        isOpen={isGameDrawerOpen}
+        onClose={() => setIsGameDrawerOpen(false)}
+        onSelectGame={handleSelectGame}
+      />
+
+      {/* Active Game Match Stage Overlay */}
+      {activeMatch && (
+        <div className="in-chat-active-match-overlay" style={{ display: activeMatch.isVisible ? 'flex' : 'none' }}>
+          <ActiveMatchStage
+            key={activeMatch.cardId}
+            cardId={activeMatch.cardId}
+            activeGame={activeMatch.gameId}
+            initialState={null}
+            status={status}
+            isHost={isHost}
+            myNickname={myNickname}
+            remotePeerNickname="Squad Opponent"
+            showToast={() => {}}
+            onExitMatch={() => setActiveMatch(null)}
+            onReturnToChat={() => setActiveMatch(null)}
+            onEndRound={() => {}}
+            onUpdateCardState={() => {}}
+          />
+        </div>
+      )}
+
+      {/* Lightbox Modal */}
+      {activeLightbox && (
+        <div className="lightbox-overlay" onClick={() => setActiveLightbox(null)}>
+          <div className="lightbox-content" onClick={(e) => e.stopPropagation()}>
+            <img src={activeLightbox.url} alt={activeLightbox.name || 'Enlarged preview'} />
+            <button type="button" className="btn btn-icon lightbox-close" onClick={() => setActiveLightbox(null)}>
+              <X size={20} />
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

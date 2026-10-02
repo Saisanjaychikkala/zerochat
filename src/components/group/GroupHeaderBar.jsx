@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { Hash, Users, Crown, Zap, SidebarClose, LogOut, ArrowLeft, Copy, Check, QrCode } from 'lucide-react';
+import { Hash, Users, Crown, Zap, SidebarClose, LogOut, ArrowLeft, Copy, Check, QrCode, Lock } from 'lucide-react';
 import { copyToClipboard } from '../../utils/clipboard';
 
 export function GroupHeaderBar({
   squadRoomId,
   memberCount,
   isHost,
+  isLocked,
   latency,
   onOpenQrModal,
   onToggleDrawer,
@@ -42,6 +43,26 @@ export function GroupHeaderBar({
           <button type="button" className="btn btn-icon" style={{ width: '22px', height: '22px', padding: 0 }}>
             {copied ? <Check size={12} color="var(--accent-emerald)" /> : <Copy size={12} />}
           </button>
+          {isLocked && (
+            <span 
+              title="Room locked by Admin" 
+              style={{ 
+                display: 'inline-flex', 
+                alignItems: 'center', 
+                gap: '3px', 
+                background: 'rgba(239, 68, 68, 0.15)', 
+                color: '#f87171', 
+                fontSize: '0.68rem', 
+                fontWeight: 600, 
+                padding: '2px 6px', 
+                borderRadius: '4px',
+                border: '1px solid rgba(239, 68, 68, 0.3)'
+              }}
+            >
+              <Lock size={10} />
+              <span>Locked</span>
+            </span>
+          )}
         </div>
       </div>
 

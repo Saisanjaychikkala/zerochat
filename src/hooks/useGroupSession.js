@@ -20,12 +20,14 @@ export function useGroupSession({ soundEnabled, showToast }) {
   const [latency, setLatency] = useState(null);
   const [isLocked, setIsLocked] = useState(false);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [myPeerId, setMyPeerId] = useState(null);
 
   const soundRef = useRef(soundEnabled);
   soundRef.current = soundEnabled;
 
   useEffect(() => {
-    const unsubReady = groupRelayEngine.on('ready', ({ roomId, isHost: hostFlag }) => {
+    const unsubReady = groupRelayEngine.on('ready', ({ peerId, roomId, isHost: hostFlag }) => {
+      setMyPeerId(peerId);
       setSquadRoomId(roomId);
       setIsHost(hostFlag);
     });
@@ -143,8 +145,8 @@ export function useGroupSession({ soundEnabled, showToast }) {
     return groupRelayEngine.init(roomId, asHost, profile);
   }, []);
 
-  const sendGroupChat = useCallback((text, replyTo = null) => {
-    groupRelayEngine.sendChat(text, replyTo);
+  const sendGroupChat = useCallback((text, replyTo = null, customProps = {}) => {
+    groupRelayEngine.sendChat(text, replyTo, customProps);
   }, []);
 
   const sendGroupVoice = useCallback((audioData, duration) => {
@@ -183,6 +185,7 @@ export function useGroupSession({ soundEnabled, showToast }) {
     groupRelayEngine.cleanup();
     setStatus('disconnected');
     setSquadRoomId('');
+    setMyPeerId(null);
     setMembers([]);
     setPendingKnocks([]);
     setMessages([]);
@@ -193,6 +196,7 @@ export function useGroupSession({ soundEnabled, showToast }) {
 
   return {
     squadRoomId,
+    myPeerId,
     isHost,
     currentHostId,
     designatedSuccessorId,

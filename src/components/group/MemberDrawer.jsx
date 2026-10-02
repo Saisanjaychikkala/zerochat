@@ -192,11 +192,11 @@ export function MemberDrawer({
 
         {/* Drawer Footer */}
         <div className="drawer-footer">
-          {isHost && (
+          {isHost ? (
             <div className="lock-toggle-row">
               <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                 {isLocked ? <Lock size={14} color="#f87171" /> : <Unlock size={14} color="var(--accent-emerald)" />}
-                <span>Lock Squad Room</span>
+                <span>Lock Squad Room (Admin)</span>
               </span>
               <button 
                 type="button"
@@ -206,6 +206,13 @@ export function MemberDrawer({
               >
                 {isLocked ? 'Locked' : 'Unlocked'}
               </button>
+            </div>
+          ) : (
+            <div className="lock-toggle-row" style={{ opacity: 0.85 }}>
+              <span style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.74rem', color: isLocked ? '#f87171' : 'var(--text-muted)' }}>
+                {isLocked ? <Lock size={14} color="#f87171" /> : <Unlock size={14} color="var(--accent-emerald)" />}
+                <span>Squad Access: {isLocked ? 'Locked (Admin Only)' : 'Open (Accepting Members)'}</span>
+              </span>
             </div>
           )}
 

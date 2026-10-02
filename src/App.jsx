@@ -231,7 +231,8 @@ export default function App() {
             latency={groupSession.latency}
             isLocked={groupSession.isLocked}
             isDrawerOpen={groupSession.isDrawerOpen}
-            myPeerId={groupSession.isHost ? groupSession.squadRoomId : undefined}
+            myPeerId={groupSession.myPeerId || (groupSession.isHost ? groupSession.squadRoomId : undefined)}
+            myNickname={preferences.displayName}
             onToggleDrawer={groupSession.toggleDrawer}
             onCloseDrawer={() => groupSession.setIsDrawerOpen(false)}
             onSendMessage={groupSession.sendGroupChat}
