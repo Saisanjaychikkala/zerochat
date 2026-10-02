@@ -330,13 +330,16 @@ export default function App() {
           initialTab={squadModalTab}
           onClose={() => setIsSquadModalOpen(false)}
           onCreateSquad={(config) => {
-            groupSession.initSquad(config.roomId, true, { nickname: preferences.myNickname, avatarId: 1 });
+            groupSession.initSquad(config.roomId, true, { nickname: preferences.myNickname, avatarId: 1 }, config.passcode);
             setViewMode('squad');
-            if (typeof window !== 'undefined') {
-              window.history.replaceState(null, '', '#' + config.roomId);
-            }
+            if (typeof window !== 'undefined') window.history.replaceState(null, '', '#' + config.roomId);
           }}
-          onJoinSquad={(code) => handleJoinRoomFromHome(code)}
+          onJoinSquad={(code, passcode) => {
+            const parsed = parseRoomHash(code);
+            groupSession.initSquad(parsed.roomId, false, { nickname: preferences.myNickname, avatarId: 1 }, passcode);
+            setViewMode('squad');
+            if (typeof window !== 'undefined') window.history.replaceState(null, '', '#' + parsed.roomId);
+          }}
         />
       </div>
     </Suspense>

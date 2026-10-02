@@ -11,13 +11,17 @@ export function GroupCreateModal({
 }) {
   const [activeTab, setActiveTab] = useState(initialTab); // 'create' or 'join'
   const [squadName, setSquadName] = useState('');
+  const [passcode, setPasscode] = useState('');
   const [joinCode, setJoinCode] = useState('');
+  const [joinPasscode, setJoinPasscode] = useState('');
   const [capacity, setCapacity] = useState(8);
   const [policy, setPolicy] = useState('seniority');
 
   useEffect(() => {
     if (isOpen) {
       setActiveTab(initialTab);
+      setPasscode('');
+      setJoinPasscode('');
     }
   }, [isOpen, initialTab]);
 
@@ -33,7 +37,8 @@ export function GroupCreateModal({
       onCreateSquad({
         roomId: cleanId,
         capacity,
-        policy
+        policy,
+        passcode: passcode.trim() || null
       });
     }
     onClose();
@@ -45,7 +50,7 @@ export function GroupCreateModal({
     if (!clean) return;
     const squadCode = clean.startsWith('squad-') ? clean : `squad-${clean}`;
     if (onJoinSquad) {
-      onJoinSquad(squadCode);
+      onJoinSquad(squadCode, joinPasscode.trim() || null);
     }
     onClose();
   };
@@ -104,6 +109,21 @@ export function GroupCreateModal({
                 onChange={(e) => setSquadName(e.target.value)}
                 className="chat-input text-sm"
                 style={{ width: '100%', boxSizing: 'border-box' }}
+              />
+            </div>
+
+            <div>
+              <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, marginBottom: '6px', color: 'var(--text-main)' }}>
+                Squad Passcode (Optional)
+              </label>
+              <input
+                type="password"
+                placeholder="Leave blank for open knock, or set a PIN/passcode"
+                value={passcode}
+                onChange={(e) => setPasscode(e.target.value)}
+                className="chat-input text-sm"
+                style={{ width: '100%', boxSizing: 'border-box' }}
+                autoComplete="new-password"
               />
             </div>
 
@@ -189,6 +209,21 @@ export function GroupCreateModal({
                 style={{ width: '100%', boxSizing: 'border-box' }}
                 autoComplete="off"
                 autoFocus
+              />
+            </div>
+
+            <div>
+              <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, marginBottom: '6px', color: 'var(--text-main)' }}>
+                Squad Passcode (If required by host)
+              </label>
+              <input
+                type="password"
+                placeholder="Enter squad passcode if host set one"
+                value={joinPasscode}
+                onChange={(e) => setJoinPasscode(e.target.value)}
+                className="chat-input text-sm"
+                style={{ width: '100%', boxSizing: 'border-box' }}
+                autoComplete="current-password"
               />
             </div>
 

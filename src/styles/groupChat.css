@@ -80,8 +80,8 @@
 }
 
 .relay-status-chip.guest {
-  border-color: rgba(0, 242, 254, 0.35);
-  background: rgba(0, 242, 254, 0.08);
+  border-color: var(--border-accent);
+  background: var(--bg-ambient-1);
   color: var(--accent-cyan);
 }
 

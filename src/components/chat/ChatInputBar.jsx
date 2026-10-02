@@ -207,6 +207,8 @@ export default function ChatInputBar({
             placeholder={
               roomFullError && !isConnected
                 ? 'Room is full (2/2 peers connected).'
+                : status === 'knocking'
+                ? 'Awaiting host admission to chat...'
                 : isConnected 
                 ? 'Type message, paste image, or audio...' 
                 : status === 'connecting'
@@ -219,7 +221,7 @@ export default function ChatInputBar({
             onChange={onTextChange}
             onKeyDown={handleKeyDown}
             onPaste={handlePaste}
-            disabled={status === 'disconnected' || (roomFullError && !isConnected)}
+            disabled={status === 'disconnected' || status === 'knocking' || status === 'declined' || (roomFullError && !isConnected)}
             className="chat-input"
           />
 
@@ -236,7 +238,7 @@ export default function ChatInputBar({
 
           <button 
             type="submit" 
-            disabled={status === 'disconnected' || !inputText.trim() || (roomFullError && !isConnected)} 
+            disabled={!inputText.trim() || !isConnected || status === 'knocking' || status === 'declined' || status === 'disconnected' || (roomFullError && !isConnected)} 
             className="btn btn-primary send-btn"
             title={!isConnected && (status === 'connecting' || status === 'reconnecting') ? 'Queue message to send once connected' : 'Send message'}
           >

@@ -69,7 +69,7 @@
   align-items: center;
   gap: 8px;
   padding: 6px 14px;
-  background: rgba(0, 242, 254, 0.08);
+  background: var(--bg-ambient-1);
   border: 1px solid var(--border-accent);
   border-radius: var(--radius-full);
   color: var(--text-main);
@@ -81,7 +81,7 @@
 }
 
 .active-room-pill:hover {
-  background: rgba(0, 242, 254, 0.16);
+  background: var(--bg-ambient-1);
   box-shadow: 0 0 15px var(--accent-cyan-glow);
 }
 
@@ -144,11 +144,11 @@
   font-family: var(--font-mono);
   font-weight: 600;
   color: var(--accent-cyan);
-  background: rgba(0, 242, 254, 0.1);
+  background: var(--bg-ambient-1);
   padding: 3px 8px;
   border-radius: var(--radius-full);
   align-self: flex-start;
-  border: 1px solid rgba(0, 242, 254, 0.2);
+  border: 1px solid var(--border-accent);
 }
 
 .card-top-badge.purple {
@@ -180,9 +180,9 @@
 }
 
 .card-icon-box.cyan {
-  background: rgba(0, 242, 254, 0.12);
+  background: var(--bg-ambient-1);
   color: var(--accent-cyan);
-  border: 1px solid rgba(0, 242, 254, 0.25);
+  border: 1px solid var(--border-accent);
 }
 
 .card-icon-box.purple {

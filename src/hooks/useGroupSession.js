@@ -138,11 +138,11 @@ export function useGroupSession({ soundEnabled, showToast }) {
     };
   }, [showToast]);
 
-  const initSquad = useCallback(async (roomId, asHost = false, profile = {}) => {
+  const initSquad = useCallback(async (roomId, asHost = false, profile = {}, passcode = null) => {
     setMessages([]);
     setDeclineReason(null);
     setStatus('connecting');
-    return groupRelayEngine.init(roomId, asHost, profile);
+    return groupRelayEngine.init(roomId, asHost, profile, passcode);
   }, []);
 
   const sendGroupChat = useCallback((text, replyTo = null, customProps = {}) => {

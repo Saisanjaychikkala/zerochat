@@ -24,6 +24,10 @@ export class GroupRelayEngine {
     this.hostConn = null;
     this.designatedSuccessorId = null;
     this.isLocked = false;
+    this.roomPasscode = null;
+    this.enteredPasscode = null;
+    this.isAdmitted = false;
+    this.connectAttempts = 0;
     this.maxPeers = 8;
     this.myProfile = { nickname: 'Anonymous', avatarId: 1 };
     this.connections = new Map();
@@ -52,11 +56,15 @@ export class GroupRelayEngine {
     });
   }
 
-  async init(roomId, isHost = false, profile = {}) {
+  async init(roomId, isHost = false, profile = {}, passcode = null) {
     this.cleanup();
     this.isDestroyed = false;
     this.roomId = roomId;
     this.isHost = isHost;
+    this.roomPasscode = isHost ? (passcode || null) : null;
+    this.enteredPasscode = !isHost ? (passcode || null) : null;
+    this.isAdmitted = isHost;
+    this.connectAttempts = 0;
     this.myProfile = { nickname: profile.nickname || 'Anonymous', avatarId: profile.avatarId || 1 };
 
     const config = { config: { iceServers: ICE_SERVERS, iceCandidatePoolSize: 4 }, debug: 1 };
@@ -103,13 +111,12 @@ export class GroupRelayEngine {
           return;
         }
         if (err.type === 'peer-unavailable' && !this.isHost) {
-          if ((this.connectAttempts || 0) < 4) {
+          if ((this.connectAttempts || 0) < 3) {
             this.connectAttempts = (this.connectAttempts || 0) + 1;
-            setTimeout(() => {
-              if (!this.isDestroyed) this.connectToHost(roomId);
-            }, 1400);
+            setTimeout(() => { if (!this.isDestroyed) this.connectToHost(roomId); }, 1200);
             return;
           }
+          this.emit('status', 'host-unavailable');
         }
         this.emit('error', err);
       });
@@ -127,7 +134,8 @@ export class GroupRelayEngine {
       conn.send({
         type: GROUP_PACKET_TYPES.KNOCK,
         nickname: this.myProfile.nickname,
-        avatarId: this.myProfile.avatarId
+        avatarId: this.myProfile.avatarId,
+        passcode: this.enteredPasscode || undefined
       });
       this.emit('status', 'knocking');
     });
@@ -244,61 +252,31 @@ export class GroupRelayEngine {
     const msg = {
       id: extra.id || `gmsg-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
       type: extra.type || GROUP_PACKET_TYPES.CHAT,
-      text,
-      author: this.myProfile.nickname,
-      authorId: this.myPeerId,
-      avatarId: this.myProfile.avatarId,
-      timestamp: Date.now(),
-      replyTo,
-      ...extra
+      text, author: this.myProfile.nickname, authorId: this.myPeerId,
+      avatarId: this.myProfile.avatarId, timestamp: Date.now(), replyTo, ...extra
     };
-
-    if (this.isHost) {
-      this.broadcast(msg);
-      this.emit('message', msg);
-    } else if (this.hostConn?.open) {
-      this.hostConn.send(msg);
-      this.emit('message', msg);
-    }
+    if (this.isHost) { this.broadcast(msg); this.emit('message', msg); }
+    else if (this.isAdmitted && this.hostConn?.open) { this.hostConn.send(msg); this.emit('message', msg); }
   }
 
   sendVoice(audioData, duration) {
     const voiceMsg = {
       id: `gvoice-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
-      type: GROUP_PACKET_TYPES.VOICE,
-      audio: audioData,
-      duration,
-      author: this.myProfile.nickname,
-      authorId: this.myPeerId,
-      avatarId: this.myProfile.avatarId,
-      timestamp: Date.now()
+      type: GROUP_PACKET_TYPES.VOICE, audio: audioData, duration,
+      author: this.myProfile.nickname, authorId: this.myPeerId,
+      avatarId: this.myProfile.avatarId, timestamp: Date.now()
     };
-
-    if (this.isHost) {
-      this.broadcast(voiceMsg);
-      this.emit('voice', voiceMsg);
-    } else if (this.hostConn?.open) {
-      this.hostConn.send(voiceMsg);
-      this.emit('voice', voiceMsg);
-    }
+    if (this.isHost) { this.broadcast(voiceMsg); this.emit('voice', voiceMsg); }
+    else if (this.isAdmitted && this.hostConn?.open) { this.hostConn.send(voiceMsg); this.emit('voice', voiceMsg); }
   }
 
   sendReaction(messageId, emoji) {
     const packet = {
-      type: GROUP_PACKET_TYPES.REACTION,
-      messageId,
-      emoji,
-      authorId: this.myPeerId,
-      authorName: this.myProfile.nickname
+      type: GROUP_PACKET_TYPES.REACTION, messageId, emoji,
+      authorId: this.myPeerId, authorName: this.myProfile.nickname
     };
-
-    if (this.isHost) {
-      this.broadcast(packet);
-      this.emit('reaction', packet);
-    } else if (this.hostConn?.open) {
-      this.hostConn.send(packet);
-      this.emit('reaction', packet);
-    }
+    if (this.isHost) { this.broadcast(packet); this.emit('reaction', packet); }
+    else if (this.isAdmitted && this.hostConn?.open) { this.hostConn.send(packet); this.emit('reaction', packet); }
   }
 
   passBaton(targetPeerId) { passBaton(this, targetPeerId); }
@@ -334,6 +312,7 @@ export class GroupRelayEngine {
 
   cleanup() {
     this.isDestroyed = true;
+    this.isAdmitted = false;
     if (this.heartbeatInterval) clearInterval(this.heartbeatInterval);
     this.connections.forEach(conn => { try { conn.close(); } catch (e) {} });
     this.connections.clear();

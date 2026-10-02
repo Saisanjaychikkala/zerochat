@@ -246,8 +246,8 @@ export default function HomeScreen({
         </div>
 
         {/* Card 3: Squad Group Chat (Baton Pass) */}
-        <div className="feature-hub-card glass-panel highlight-blue">
-          <div className="card-top-badge" style={{ color: '#58a6ff' }}>
+        <div className="feature-hub-card glass-panel highlight-cyan">
+          <div className="card-top-badge">
             <Zap size={14} />
             <span>Baton Pass Relay • Star Hub</span>
           </div>

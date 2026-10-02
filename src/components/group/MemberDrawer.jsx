@@ -226,20 +226,20 @@ export function MemberDrawer({
               type="button"
               onClick={onOpenQrModal}
               className="btn btn-secondary"
-              style={{ flex: 1, fontSize: '0.78rem', gap: '5px', height: '36px', justifyContent: 'center' }}
+              style={{ flex: '1 1 0', minWidth: 0, fontSize: '0.78rem', gap: '5px', height: '36px', justifyContent: 'center', padding: '0 8px' }}
               title="Show Squad QR Code"
             >
               <QrCode size={14} />
-              <span>Show QR</span>
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Show QR</span>
             </button>
             <button 
               type="button"
               onClick={handleShare}
               className="btn btn-primary"
-              style={{ flex: 2, fontSize: '0.78rem', gap: '5px', height: '36px', justifyContent: 'center' }}
+              style={{ flex: '1 1 0', minWidth: 0, fontSize: '0.78rem', gap: '5px', height: '36px', justifyContent: 'center', padding: '0 8px' }}
             >
               <Share2 size={14} />
-              <span>Share Link</span>
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Share Link</span>
             </button>
           </div>
         </div>

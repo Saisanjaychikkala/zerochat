@@ -11,8 +11,18 @@ export function handleGroupPacket(engine, data, conn) {
   switch (data.type) {
     case GROUP_PACKET_TYPES.KNOCK:
       if (engine.isHost) {
+        // Passcode verification if room is passcode-protected
+        if (engine.roomPasscode && data.passcode !== engine.roomPasscode) {
+          conn.send({
+            type: GROUP_PACKET_TYPES.DECLINE,
+            reason: 'Incorrect squad passcode. Please check passcode and try again.'
+          });
+          setTimeout(() => conn.close(), 350);
+          break;
+        }
+
         const isExistingMember = engine.roster.some(m => m.peerId === conn.peer);
-        if (isExistingMember || data.isReconnecting) {
+        if (isExistingMember && data.isReconnecting) {
           engine.connections.set(conn.peer, conn);
           conn.send({
             type: GROUP_PACKET_TYPES.ADMIT,
@@ -30,6 +40,7 @@ export function handleGroupPacket(engine, data, conn) {
           peerId: conn.peer,
           nickname: data.nickname || 'Guest',
           avatarId: data.avatarId || 1,
+          hasPasscode: !!data.passcode,
           conn,
           timestamp: Date.now()
         });
@@ -39,6 +50,7 @@ export function handleGroupPacket(engine, data, conn) {
       break;
 
     case GROUP_PACKET_TYPES.ADMIT:
+      engine.isAdmitted = true;
       engine.roster = data.roster || [];
       engine.currentHostId = data.hostId;
       engine.designatedSuccessorId = data.successorId || null;
@@ -60,23 +72,35 @@ export function handleGroupPacket(engine, data, conn) {
       break;
 
     case GROUP_PACKET_TYPES.CHAT:
-      engine.emit('message', data);
       if (engine.isHost) {
+        if (!engine.connections.has(conn.peer)) return; // Reject if not yet admitted
+        engine.emit('message', data);
         engine.broadcast(data, conn.peer);
+      } else {
+        if (conn !== engine.hostConn) return;
+        engine.emit('message', data);
       }
       break;
 
     case GROUP_PACKET_TYPES.VOICE:
-      engine.emit('voice', data);
       if (engine.isHost) {
+        if (!engine.connections.has(conn.peer)) return; // Reject if not yet admitted
+        engine.emit('voice', data);
         engine.broadcast(data, conn.peer);
+      } else {
+        if (conn !== engine.hostConn) return;
+        engine.emit('voice', data);
       }
       break;
 
     case GROUP_PACKET_TYPES.REACTION:
-      engine.emit('reaction', data);
       if (engine.isHost) {
+        if (!engine.connections.has(conn.peer)) return; // Reject if not yet admitted
+        engine.emit('reaction', data);
         engine.broadcast(data, conn.peer);
+      } else {
+        if (conn !== engine.hostConn) return;
+        engine.emit('reaction', data);
       }
       break;
 

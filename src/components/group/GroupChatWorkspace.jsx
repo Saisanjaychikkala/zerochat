@@ -76,31 +76,25 @@ export function GroupChatWorkspace({
   const handleSend = (e) => {
     if (e) e.preventDefault();
     if (!inputText.trim()) return;
-
-    let replyPayload = null;
-    if (replyingTo) {
-      replyPayload = {
-        id: replyingTo.id,
-        senderNickname: replyingTo.sender === 'local' ? (myNickname || 'You') : (replyingTo.senderNickname || 'Peer'),
-        snippet: extractSnippet(replyingTo),
-        type: replyingTo.isVoiceNote ? 'voice' : replyingTo.imageUrl ? 'image' : replyingTo.type === 'game_card' ? 'game' : 'text'
-      };
-    }
+    const replyPayload = replyingTo ? {
+      id: replyingTo.id,
+      senderNickname: replyingTo.sender === 'local' ? (myNickname || 'You') : (replyingTo.senderNickname || 'Peer'),
+      snippet: extractSnippet(replyingTo),
+      type: replyingTo.isVoiceNote ? 'voice' : replyingTo.imageUrl ? 'image' : replyingTo.type === 'game_card' ? 'game' : 'text'
+    } : null;
     onSendMessage(inputText.trim(), replyPayload);
     setInputText('');
     setReplyingTo(null);
   };
 
   const handleSendFile = (file) => {
+    const reader = new FileReader();
     if (file.isVoiceNote) {
-      const reader = new FileReader();
       reader.onload = () => onSendVoice(reader.result, file.durationSec || 0);
-      reader.readAsDataURL(file);
     } else if (file.type?.startsWith('image/')) {
-      const reader = new FileReader();
       reader.onload = () => onSendMessage('', null, { imageUrl: reader.result, fileName: file.name, type: 'image' });
-      reader.readAsDataURL(file);
     }
+    reader.readAsDataURL(file);
   };
 
   const handleSelectGame = (gameId) => {
@@ -175,7 +169,7 @@ export function GroupChatWorkspace({
 
         {/* Status Overlays */}
         {status === 'knocking' && (
-          <div style={{ background: 'rgba(0, 242, 254, 0.08)', borderBottom: '1px solid var(--border-subtle)', padding: '12px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ background: 'var(--bg-ambient-1)', borderBottom: '1px solid var(--border-accent)', padding: '12px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <Radio size={16} className="animate-spin text-cyan-400" />
               <span style={{ fontSize: '0.85rem', color: 'var(--accent-cyan)', fontWeight: 600 }}>Knocking for admission... Waiting for squad host to admit you.</span>
@@ -194,62 +188,93 @@ export function GroupChatWorkspace({
           </div>
         )}
 
-        {/* Unified Messages Feed using common MessageItem */}
-        <div className="messages-list squad-stream-scroll">
-          {formattedMessages.length === 0 && (
-            <div style={{ textAlign: 'center', margin: 'auto', maxWidth: '360px', padding: '24px 0' }}>
-              <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: 'var(--bg-panel)', border: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px auto' }}>
-                <Radio size={22} color="var(--accent-cyan)" />
+        {/* Cyber Connecting Loader for Guests */}
+        {status === 'connecting' && !isHost ? (
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '32px 20px', textAlign: 'center' }}>
+            <div className="connecting-radar-wrap" style={{ width: '56px', height: '56px', marginBottom: '18px' }}>
+              <div className="connecting-radar-ring" style={{ width: '56px', height: '56px' }} />
+              <div className="connecting-radar-ring ring-2" style={{ width: '56px', height: '56px' }} />
+              <div className="connecting-radar-core" style={{ width: '38px', height: '38px' }}>
+                <Radio size={20} color="var(--accent-cyan)" />
               </div>
-              <h4 style={{ margin: '0 0 6px 0', fontSize: '1rem', color: 'var(--text-main)' }}>Welcome to the Squad!</h4>
-              <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                Zero servers, zero database. Messages and voice notes are relayed peer-to-peer using the Baton Pass Star Topology.
-              </p>
             </div>
-          )}
+            <h3 style={{ margin: '0 0 6px 0', fontSize: '1.15rem', fontWeight: 700, color: 'var(--text-main)' }}>Connecting to Squad...</h3>
+            <p style={{ margin: '0 0 16px 0', fontSize: '0.82rem', color: 'var(--text-muted)', maxWidth: '320px', lineHeight: 1.4 }}>
+              Reaching out to host at <span className="font-mono text-cyan-400">#{squadRoomId}</span> via WebRTC.
+            </p>
+            <button type="button" onClick={onLeaveSquad} className="btn btn-secondary text-xs">Cancel Connection</button>
+          </div>
+        ) : status === 'host-unavailable' ? (
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '32px 20px', textAlign: 'center' }}>
+            <div style={{ width: '50px', height: '50px', borderRadius: '50%', background: 'rgba(239, 68, 68, 0.15)', border: '1px solid rgba(239, 68, 68, 0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '14px' }}>
+              <ShieldAlert size={24} color="#f87171" />
+            </div>
+            <h3 style={{ margin: '0 0 6px 0', fontSize: '1.1rem', fontWeight: 700, color: '#f87171' }}>Squad Host Unavailable</h3>
+            <p style={{ margin: '0 0 16px 0', fontSize: '0.82rem', color: 'var(--text-muted)', maxWidth: '320px', lineHeight: 1.4 }}>
+              Could not find active squad host at #{squadRoomId}. The room may be closed or host is offline.
+            </p>
+            <button type="button" onClick={onLeaveSquad} className="btn btn-secondary text-xs">Return to Home Hub</button>
+          </div>
+        ) : (
+          <>
+            {/* Unified Messages Feed using common MessageItem */}
+            <div className="messages-list squad-stream-scroll">
+              {formattedMessages.length === 0 && (
+                <div style={{ textAlign: 'center', margin: 'auto', maxWidth: '360px', padding: '24px 0' }}>
+                  <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: 'var(--bg-panel)', border: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px auto' }}>
+                    <Radio size={22} color="var(--accent-cyan)" />
+                  </div>
+                  <h4 style={{ margin: '0 0 6px 0', fontSize: '1rem', color: 'var(--text-main)' }}>Welcome to the Squad!</h4>
+                  <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                    Zero servers, zero database. Messages and voice notes are relayed peer-to-peer using the Baton Pass Star Topology.
+                  </p>
+                </div>
+              )}
 
-          {formattedMessages.map((msg) => (
-            <MessageItem
-              key={msg.id}
-              msg={msg}
-              myNickname={myNickname}
-              remotePeerNickname="Squad Member"
-              onReply={setReplyingTo}
-              onScrollToMessage={handleScrollToMessage}
-              onOpenLightbox={(url, name) => setActiveLightbox({ url, name })}
-              onImageLoaded={() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })}
-              onJoinCard={handleLaunchCard}
-              onLaunchCard={handleLaunchCard}
-              onResumeCard={handleLaunchCard}
-              onExitCard={() => setActiveMatch(null)}
-              onRematch={handleLaunchCard}
+              {formattedMessages.map((msg) => (
+                <MessageItem
+                  key={msg.id}
+                  msg={msg}
+                  myNickname={myNickname}
+                  remotePeerNickname="Squad Member"
+                  onReply={setReplyingTo}
+                  onScrollToMessage={handleScrollToMessage}
+                  onOpenLightbox={(url, name) => setActiveLightbox({ url, name })}
+                  onImageLoaded={() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })}
+                  onJoinCard={handleLaunchCard}
+                  onLaunchCard={handleLaunchCard}
+                  onResumeCard={handleLaunchCard}
+                  onExitCard={() => setActiveMatch(null)}
+                  onRematch={handleLaunchCard}
+                />
+              ))}
+              <div ref={messagesEndRef} />
+            </div>
+
+            {/* Reply Preview Dock */}
+            {replyingTo && (
+              <ReplyPreviewDock
+                replyingTo={replyingTo}
+                myNickname={myNickname}
+                remotePeerNickname="Squad Member"
+                snippet={extractSnippet(replyingTo)}
+                onCancelReply={() => setReplyingTo(null)}
+              />
+            )}
+
+            {/* Common ChatInputBar (Text, Voice Recording, Attachments & Gamepad Drawer) */}
+            <ChatInputBar
+              isConnected={isConnected}
+              status={status}
+              roomFullError={null}
+              inputText={inputText}
+              onTextChange={(e) => setInputText(e.target.value)}
+              onSend={handleSend}
+              onSendFile={handleSendFile}
+              onOpenGameDrawer={() => setIsGameDrawerOpen(true)}
             />
-          ))}
-          <div ref={messagesEndRef} />
-        </div>
-
-        {/* Reply Preview Dock */}
-        {replyingTo && (
-          <ReplyPreviewDock
-            replyingTo={replyingTo}
-            myNickname={myNickname}
-            remotePeerNickname="Squad Member"
-            snippet={extractSnippet(replyingTo)}
-            onCancelReply={() => setReplyingTo(null)}
-          />
+          </>
         )}
-
-        {/* Common ChatInputBar (Text, Voice Recording, Attachments & Gamepad Drawer) */}
-        <ChatInputBar
-          isConnected={isConnected}
-          status={status}
-          roomFullError={null}
-          inputText={inputText}
-          onTextChange={(e) => setInputText(e.target.value)}
-          onSend={handleSend}
-          onSendFile={handleSendFile}
-          onOpenGameDrawer={() => setIsGameDrawerOpen(true)}
-        />
       </div>
 
       {/* Member Drawer */}

@@ -97,7 +97,7 @@ export function GroupHeaderBar({
           <QrCode size={16} />
         </button>
 
-        {/* Member Count Pill */}
+        {/* Member Count Pill / Drawer Toggle */}
         <button 
           type="button"
           onClick={onToggleDrawer}
@@ -106,28 +106,6 @@ export function GroupHeaderBar({
         >
           <Users size={13} />
           <span>{memberCount || 1} Members</span>
-        </button>
-
-        {/* Toggle Drawer Button */}
-        <button 
-          type="button"
-          onClick={onToggleDrawer}
-          className="btn btn-icon"
-          title="Toggle Members Panel"
-          style={{ width: '32px', height: '32px' }}
-        >
-          <SidebarClose size={16} />
-        </button>
-
-        {/* Leave Squad */}
-        <button 
-          type="button"
-          onClick={onLeaveSquad}
-          className="btn btn-icon"
-          title="Leave Squad Room"
-          style={{ width: '32px', height: '32px', color: '#f87171' }}
-        >
-          <LogOut size={15} />
         </button>
       </div>
     </header>
