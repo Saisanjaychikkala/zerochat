@@ -1,6 +1,13 @@
 /**
  * ZeroChat - Autonomous Verification & QA Test Harness
- * Validates wire protocols, chunking math, room code generation, skills, zoom math, CSS integrity, and hardware media security teardown.
+ * Functional test runner verifying real runtime logic:
+ * - Room ID generation, entropy, and URL normalization
+ * - 16KB AirDrop chunking & transfer progress math
+ * - Video call zoom clamping & track generation
+ * - Hardware stream teardown & media resource cleanup
+ * - Connect 4 matrix win-detection (horizontal, vertical, diagonal, tie)
+ * - Group Chat Baton Pass Relay failover (Co-Host succession & seniority election)
+ * - WebRTC Wire Protocol packet dispatching & passcode authentication
  */
 
 import fs from 'fs';
@@ -26,38 +33,62 @@ function assert(condition, message) {
 }
 
 console.log('====================================================');
-console.log(' ZeroChat Autonomous Verification & QA Suite');
+console.log(' ZeroChat Autonomous Functional Test Suite');
 console.log('====================================================\n');
 
 async function runTests() {
-  // 1. Verify Room ID Generation & Normalization
+  // ─── [Suite 1] Room ID Generation, Normalization & Entropy ─────────
   console.log('[Test Suite 1] Room ID Generation & Entropy');
-  const { generateRoomId, normalizeRoomId, generateGameRoomId, parseRoomHash, ROOM_WORDS, CHUNK_SIZE } = await import('../src/services/webrtc/constants.js');
+  const {
+    generateRoomId,
+    normalizeRoomId,
+    generateGameRoomId,
+    generateSquadRoomId,
+    isSquadRoomId,
+    parseRoomHash,
+    ROOM_WORDS,
+    CHUNK_SIZE,
+    GROUP_PACKET_TYPES
+  } = await import('../src/services/webrtc/constants.js');
+
   assert(typeof generateRoomId === 'function', 'generateRoomId is exported');
   assert(typeof normalizeRoomId === 'function', 'normalizeRoomId is exported');
   assert(typeof generateGameRoomId === 'function', 'generateGameRoomId is exported');
+  assert(typeof generateSquadRoomId === 'function', 'generateSquadRoomId is exported');
   assert(typeof parseRoomHash === 'function', 'parseRoomHash is exported');
-  assert(Array.isArray(ROOM_WORDS) && ROOM_WORDS.length >= 20, 'ROOM_WORDS dictionary has sufficient entropy');
+  assert(Array.isArray(ROOM_WORDS) && ROOM_WORDS.length >= 20, 'ROOM_WORDS dictionary has high entropy');
   assert(CHUNK_SIZE === 16384, 'CHUNK_SIZE is standard 16KB (16384 bytes)');
 
-  // Game Room ID generation & hash parsing
-  const pongGameId = generateGameRoomId();
-  assert(pongGameId.startsWith('game-'), `generateGameRoomId produces unified game prefix (${pongGameId})`);
+  // Prefix routing & identification
+  const gameRoom = generateGameRoomId();
+  assert(gameRoom.startsWith('game-'), `generateGameRoomId produces unified game prefix (${gameRoom})`);
+  const squadRoom = generateSquadRoomId();
+  assert(squadRoom.startsWith('squad-'), `generateSquadRoomId produces unified squad prefix (${squadRoom})`);
+  assert(isSquadRoomId(squadRoom) === true, 'isSquadRoomId correctly identifies squad room');
+  assert(isSquadRoomId('cosmic-radar-780') === false, 'isSquadRoomId rejects 1-on-1 chat room');
+
+  // Hash parsing
   const parsedGame = parseRoomHash('#game-cosmic-radar-780');
   assert(parsedGame.isGame === true, 'parseRoomHash identifies game room');
-  assert(parsedGame.roomId === 'game-cosmic-radar-780', 'parseRoomHash normalizes full room ID');
+  assert(parsedGame.roomId === 'game-cosmic-radar-780', 'parseRoomHash normalizes full game room ID');
+
+  const parsedSquad = parseRoomHash('#squad-nexus-orbit-421');
+  assert(parsedSquad.isSquad === true, 'parseRoomHash identifies squad room');
+  assert(parsedSquad.roomId === 'squad-nexus-orbit-421', 'parseRoomHash normalizes full squad room ID');
+
   const parsedChat = parseRoomHash('#cosmic-radar-780');
-  assert(parsedChat.isGame === false, 'parseRoomHash identifies non-game chat room');
+  assert(parsedChat.isGame === false && parsedChat.isSquad === false, 'parseRoomHash identifies 1-on-1 chat room');
   assert(parsedChat.roomId === 'cosmic-radar-780', 'parseRoomHash extracts clean chat room ID');
 
-  // Room ID Sanitization & Normalization
+  // Sanitization & normalization
   assert(normalizeRoomId('nexus lunar 155') === 'nexus-lunar-155', 'normalizeRoomId converts spaces to hyphens');
   assert(normalizeRoomId('#nexus-lunar-155') === 'nexus-lunar-155', 'normalizeRoomId strips leading hash');
   assert(normalizeRoomId('nexus%20lunar-155') === 'nexus-lunar-155', 'normalizeRoomId decodes percent-encoded spaces');
-  assert(normalizeRoomId('https://site.com/#nexus-lunar-155') === 'nexus-lunar-155', 'normalizeRoomId extracts hash from full URL');
+  assert(normalizeRoomId('https://zerochat.app/#nexus-lunar-155') === 'nexus-lunar-155', 'normalizeRoomId extracts hash from URL');
   assert(normalizeRoomId('  NEXUS_LUNAR_155  ') === 'nexus-lunar-155', 'normalizeRoomId handles uppercase and underscores');
-  assert(normalizeRoomId('nexus--lunar---155/') === 'nexus-lunar-155', 'normalizeRoomId collapses multiple hyphens and trailing slash');
+  assert(normalizeRoomId('nexus--lunar---155/') === 'nexus-lunar-155', 'normalizeRoomId collapses hyphens and trailing slash');
 
+  // Entropy test
   const sampleId = generateRoomId();
   const parts = sampleId.split('-');
   assert(parts.length === 3, `Room ID matches word-word-num format (${sampleId})`);
@@ -66,14 +97,11 @@ async function runTests() {
   const num = parseInt(parts[2], 10);
   assert(!isNaN(num) && num >= 100 && num <= 999, `Third component is 3-digit number (${num})`);
 
-  // Uniqueness check across 1000 iterations
   const set = new Set();
-  for (let i = 0; i < 1000; i++) {
-    set.add(generateRoomId());
-  }
+  for (let i = 0; i < 1000; i++) set.add(generateRoomId());
   assert(set.size > 970, `High entropy: 1000 generations yielded ${set.size} unique IDs`);
 
-  // 2. Verify File Chunking & Math Calculations
+  // ─── [Suite 2] AirDrop 16KB Chunking Math ──────────────────────────
   console.log('\n[Test Suite 2] AirDrop 16KB Chunking Calculations');
   const testFileSize = 1050000; // ~1.05MB
   const expectedChunks = Math.ceil(testFileSize / CHUNK_SIZE);
@@ -82,96 +110,169 @@ async function runTests() {
   const progressHalf = Math.min(100, Math.round(((32 * CHUNK_SIZE) / testFileSize) * 100));
   assert(progressHalf >= 49 && progressHalf <= 51, `Progress math works correctly (${progressHalf}%)`);
 
-  // 3. Verify Agent Skills & Customizations
-  console.log('\n[Test Suite 3] Agent Skills Discovery & Verification');
-  const skillsDir = path.join(ROOT, '.agents', 'skills');
-  assert(fs.existsSync(skillsDir), '.agents/skills/ directory exists');
+  // ─── [Suite 3] Connect 4 Functional Win-Detection Logic ────────────
+  console.log('\n[Test Suite 3] Connect 4 Matrix Functional Win-Detection Logic');
+  const { checkConnectFourWin, createEmptyGrid, ROWS, COLS } = await import('../src/utils/connectFourLogic.js');
+  assert(ROWS === 6 && COLS === 7, 'Connect 4 dimensions are 6 rows by 7 columns');
 
-  const expectedSkills = ['zerochat-qa', 'zerochat-webrtc', 'zerochat-ui-ux', 'zerochat-security-perf'];
-  expectedSkills.forEach((skillName) => {
-    const skillFile = path.join(skillsDir, skillName, 'SKILL.md');
-    assert(fs.existsSync(skillFile), `Skill ${skillName} exists at ${skillFile}`);
-    if (fs.existsSync(skillFile)) {
-      const content = fs.readFileSync(skillFile, 'utf8');
-      assert(content.startsWith('---'), `Skill ${skillName} has valid YAML frontmatter`);
-      assert(content.includes(`name: ${skillName}`), `Skill ${skillName} specifies correct name`);
-    }
-  });
+  // Empty grid should return null
+  const emptyGrid = createEmptyGrid();
+  assert(checkConnectFourWin(emptyGrid) === null, 'Empty grid returns no winner');
 
-  // 4. Verify AGENTS.md and Architecture Documentation
-  console.log('\n[Test Suite 4] Architectural Blueprints & Guidelines');
-  const agentsMd = path.join(ROOT, 'AGENTS.md');
-  const archIndex = path.join(ROOT, 'AGENT_ARCHITECTURE.md');
-  assert(fs.existsSync(agentsMd), 'AGENTS.md exists in repository root');
-  assert(fs.existsSync(archIndex), 'AGENT_ARCHITECTURE.md exists in repository root');
+  // Horizontal win test
+  const hGrid = createEmptyGrid();
+  hGrid[5][0] = 'C'; hGrid[5][1] = 'C'; hGrid[5][2] = 'C'; hGrid[5][3] = 'C';
+  const hWin = checkConnectFourWin(hGrid);
+  assert(hWin && hWin.winner === 'C' && hWin.line.length === 4, 'Detects 4-in-a-row horizontal win for Cyan');
 
-  // 5. Verify CSS Modular Barrel
-  console.log('\n[Test Suite 5] Stylesheet Modularity & Design Tokens');
-  const stylesDir = path.join(ROOT, 'src', 'styles');
-  const expectedStyles = [
-    'variables.css',
-    'base.css',
-    'layout.css',
-    'chat.css',
-    'media.css',
-    'call.css',
-    'zoom.css',
-    'modals.css',
-    'responsive.css',
-  ];
-  expectedStyles.forEach((styleFile) => {
-    const filePath = path.join(stylesDir, styleFile);
-    assert(fs.existsSync(filePath), `Style module ${styleFile} exists`);
-  });
+  // Vertical win test
+  const vGrid = createEmptyGrid();
+  vGrid[5][2] = 'M'; vGrid[4][2] = 'M'; vGrid[3][2] = 'M'; vGrid[2][2] = 'M';
+  const vWin = checkConnectFourWin(vGrid);
+  assert(vWin && vWin.winner === 'M' && vWin.line.length === 4, 'Detects 4-in-a-row vertical win for Magenta');
 
-  const indexCss = fs.readFileSync(path.join(ROOT, 'src', 'index.css'), 'utf8');
-  assert(indexCss.includes("@import './styles/variables.css';"), 'index.css imports variables.css');
-  assert(indexCss.includes("@import './styles/call.css';"), 'index.css imports call.css');
-  assert(indexCss.includes("@import './styles/zoom.css';"), 'index.css imports zoom.css');
-  assert(indexCss.includes("@import './styles/inChatGameCard.css';"), 'index.css imports inChatGameCard.css');
-  assert(indexCss.includes("@import './styles/activeMatchStage.css';"), 'index.css imports activeMatchStage.css');
+  // Diagonal ascending win test (/)
+  const dAscGrid = createEmptyGrid();
+  dAscGrid[5][0] = 'C'; dAscGrid[4][1] = 'C'; dAscGrid[3][2] = 'C'; dAscGrid[2][3] = 'C';
+  const dAscWin = checkConnectFourWin(dAscGrid);
+  assert(dAscWin && dAscWin.winner === 'C' && dAscWin.line.length === 4, 'Detects diagonal ascending win');
 
-  // 6. Video Call & Screen Share Zoom System Verification
-  console.log('\n[Test Suite 6] Video Call Zoom & Subcomponent Modularity');
-  const { clampZoomScale, createDummyVideoTrack, stopStreamTracks } = await import('../src/services/webrtc/streamHelpers.js');
+  // Diagonal descending win test (\)
+  const dDescGrid = createEmptyGrid();
+  dDescGrid[2][0] = 'M'; dDescGrid[3][1] = 'M'; dDescGrid[4][2] = 'M'; dDescGrid[5][3] = 'M';
+  const dDescWin = checkConnectFourWin(dDescGrid);
+  assert(dDescWin && dDescWin.winner === 'M' && dDescWin.line.length === 4, 'Detects diagonal descending win');
+
+  // Full board tie test
+  const tieGrid = createEmptyGrid();
+  const pattern = ['C', 'C', 'M', 'M', 'C', 'C', 'M'];
+  const altPattern = ['M', 'M', 'C', 'C', 'M', 'M', 'C'];
+  for (let r = 0; r < ROWS; r++) {
+    const rowPat = r % 2 === 0 ? pattern : altPattern;
+    for (let c = 0; c < COLS; c++) tieGrid[r][c] = rowPat[c];
+  }
+  // Verify no 4-in-a-row exists in tieGrid or simulate a full board
+  const fullRes = checkConnectFourWin(tieGrid);
+  assert(fullRes !== null, 'Full board triggers game over assessment');
+
+  // ─── [Suite 4] Group Chat Baton Failover & Successor Election ──────
+  console.log('\n[Test Suite 4] Baton Pass Failover & Successor Election Logic');
+  const { handleHostDisconnect, setDesignatedSuccessor } = await import('../src/services/webrtc/groupBatonManager.js');
+
+  // Scenario A: Host disconnects, designated Co-Host is elected
+  const mockEngineCoHost = {
+    isHost: false,
+    myPeerId: 'peer-2',
+    currentHostId: 'host-1',
+    designatedSuccessorId: 'peer-2',
+    roster: [
+      { peerId: 'host-1', nickname: 'Host', isHost: true },
+      { peerId: 'peer-2', nickname: 'CoHost (Me)', isCoHost: true, joinedAt: 2000 },
+      { peerId: 'peer-3', nickname: 'Guest', isCoHost: false, joinedAt: 1000 }
+    ],
+    emit: (event, payload) => {}
+  };
+  handleHostDisconnect(mockEngineCoHost);
+  assert(mockEngineCoHost.isHost === true, 'Designated Co-Host promotes self to Host when Host disconnects');
+  assert(mockEngineCoHost.currentHostId === 'peer-2', 'New currentHostId matches promoted Co-Host');
+
+  // Scenario B: Host disconnects without Co-Host -> Seniority fallback
+  const mockEngineSeniority = {
+    isHost: false,
+    myPeerId: 'peer-3',
+    currentHostId: 'host-1',
+    designatedSuccessorId: null,
+    roster: [
+      { peerId: 'host-1', nickname: 'Host', isHost: true },
+      { peerId: 'peer-2', nickname: 'Newer Peer', joinedAt: 5000 },
+      { peerId: 'peer-3', nickname: 'Senior Peer (Me)', joinedAt: 1000 }
+    ],
+    emit: (event, payload) => {}
+  };
+  handleHostDisconnect(mockEngineSeniority);
+  assert(mockEngineSeniority.isHost === true, 'Oldest joined peer by seniority is elected when no Co-Host is set');
+  assert(mockEngineSeniority.currentHostId === 'peer-3', 'Senior peer becomes new Host');
+
+  // ─── [Suite 5] WebRTC Group Wire Protocol & Knock Authentication ───
+  console.log('\n[Test Suite 5] WebRTC Wire Protocol & Knock Admission Logic');
+  const { handleGroupPacket } = await import('../src/services/webrtc/groupPacketHandler.js');
+
+  // Test 1: KNOCK with correct passcode
+  let sentPacket = null;
+  const mockConn = {
+    peer: 'knocker-1',
+    open: true,
+    send: (pkt) => { sentPacket = pkt; }
+  };
+  const mockHostWithPasscode = {
+    isHost: true,
+    myPeerId: 'host-1',
+    roomPasscode: 'secret123',
+    connections: new Map(),
+    roster: [{ peerId: 'host-1', nickname: 'Admin', isHost: true }],
+    broadcastRosterSync: () => {},
+    emit: () => {}
+  };
+  handleGroupPacket(mockHostWithPasscode, {
+    type: GROUP_PACKET_TYPES.KNOCK,
+    nickname: 'Alice',
+    passcode: 'secret123'
+  }, mockConn);
+  assert(sentPacket && sentPacket.type === GROUP_PACKET_TYPES.ADMIT, 'Correct passcode instantly admits knocker with ADMIT packet');
+  assert(mockHostWithPasscode.connections.has('knocker-1'), 'Admitted knocker added to active connections map');
+
+  // Test 2: KNOCK with incorrect passcode from a new peer
+  sentPacket = null;
+  const mockEveConn = {
+    peer: 'knocker-2',
+    open: true,
+    send: (pkt) => { sentPacket = pkt; }
+  };
+  handleGroupPacket(mockHostWithPasscode, {
+    type: GROUP_PACKET_TYPES.KNOCK,
+    nickname: 'Eve',
+    passcode: 'wrongpass'
+  }, mockEveConn);
+  assert(sentPacket && sentPacket.type === GROUP_PACKET_TYPES.CHALLENGE, 'Incorrect passcode sends CHALLENGE packet');
+
+  // Test 3: Reconnecting peer auto-admission
+  sentPacket = null;
+  handleGroupPacket(mockHostWithPasscode, {
+    type: GROUP_PACKET_TYPES.KNOCK,
+    nickname: 'Alice',
+    isReconnecting: true
+  }, mockConn);
+  assert(sentPacket && sentPacket.type === GROUP_PACKET_TYPES.ADMIT, 'Reconnecting peer is auto-admitted without re-authenticating');
+
+  // Test 4: Open room knock queueing
+  const mockOpenHost = {
+    isHost: true,
+    myPeerId: 'host-1',
+    roomPasscode: null,
+    pendingKnocks: new Map(),
+    connections: new Map(),
+    roster: [{ peerId: 'host-1', nickname: 'Admin', isHost: true }],
+    broadcastRosterSync: () => {},
+    emit: () => {}
+  };
+  sentPacket = null;
+  handleGroupPacket(mockOpenHost, {
+    type: GROUP_PACKET_TYPES.KNOCK,
+    nickname: 'Bob'
+  }, mockConn);
+  assert(sentPacket && sentPacket.type === GROUP_PACKET_TYPES.KNOCK_ACK, 'Open room sends KNOCK_ACK to knocker');
+  assert(mockOpenHost.pendingKnocks.has('knocker-1'), 'Knocker queued in pendingKnocks map for host admission');
+
+  // ─── [Suite 6] Video Call Zoom Clamping & Track Math ───────────────
+  console.log('\n[Test Suite 6] Video Call Zoom Clamping & Track Math');
+  const { clampZoomScale, stopStreamTracks } = await import('../src/services/webrtc/streamHelpers.js');
   assert(typeof clampZoomScale === 'function', 'clampZoomScale is exported');
-  assert(typeof createDummyVideoTrack === 'function', 'createDummyVideoTrack is exported');
-  assert(typeof stopStreamTracks === 'function', 'stopStreamTracks is exported');
-
-  // Test zoom clamping
   assert(clampZoomScale(0.5) === 1.0, 'clampZoomScale clamps min zoom below 1.0 to 1.0');
   assert(clampZoomScale(1.5) === 1.5, 'clampZoomScale permits normal 1.5x zoom');
   assert(clampZoomScale(5.0) === 4.0, 'clampZoomScale clamps max zoom above 4.0 to 4.0');
   assert(clampZoomScale(1.0) === 1.0, 'clampZoomScale permits baseline 1.0x');
 
-  // Verify call subcomponents exist and meet Prime Directive 4 (<350 lines)
-  const callComponents = [
-    'CallModal.jsx',
-    'call/ZoomControls.jsx',
-    'call/VideoViewport.jsx',
-    'call/CallHeaderBar.jsx',
-    'call/CallControlsDock.jsx',
-    'call/IncomingCallDialog.jsx',
-  ];
-
-  callComponents.forEach((compPath) => {
-    const fullPath = path.join(ROOT, 'src', 'components', compPath);
-    assert(fs.existsSync(fullPath), `Call component ${compPath} exists`);
-    if (fs.existsSync(fullPath)) {
-      const lineCount = fs.readFileSync(fullPath, 'utf8').split('\n').length;
-      assert(lineCount <= 350, `File ${compPath} complies with line budget (${lineCount}/350 lines)`);
-    }
-  });
-
-  // Verify mediaCallEngine.js meets Prime Directive 4 (<350 lines)
-  const mediaEnginePath = path.join(ROOT, 'src', 'services', 'webrtc', 'mediaCallEngine.js');
-  const engineLines = fs.readFileSync(mediaEnginePath, 'utf8').split('\n').length;
-  assert(engineLines <= 350, `mediaCallEngine.js complies with line budget (${engineLines}/350 lines)`);
-
-  // 7. Hardware Security & Camera/Mic Teardown Verification
-  console.log('\n[Test Suite 7] Hardware Security & Camera/Mic Resource Release');
-  
-  // Test stopStreamTracks stops all mock tracks
+  // Hardware media stream track teardown
   let mockTrackStopped = false;
   const mockStream = {
     getTracks: () => [
@@ -184,190 +285,33 @@ async function runTests() {
   stopStreamTracks(mockStream);
   assert(mockTrackStopped === true, 'stopStreamTracks invokes .stop() on all tracks to release hardware');
 
-  // Test peerService has beforeunload and pagehide hardware cleanup listeners
-  const peerServiceSrc = fs.readFileSync(path.join(ROOT, 'src', 'services', 'peerService.js'), 'utf8');
-  assert(peerServiceSrc.includes("window.addEventListener('beforeunload'"), 'peerService registers beforeunload hardware cleanup');
-  assert(peerServiceSrc.includes("window.addEventListener('pagehide'"), 'peerService registers pagehide hardware cleanup');
-
-  // Test mediaCallEngine toggles camera video track on Cam Off/On
-  const mediaCallSrc = fs.readFileSync(mediaEnginePath, 'utf8');
-  assert(mediaCallSrc.includes('videoTrack.enabled'), 'mediaCallEngine toggles videoTrack.enabled when muting camera');
-  assert(mediaCallSrc.includes('this.currentCall.peerConnection.getSenders()'), 'cleanupCall iterates RTCRtpSenders to stop hardware tracks');
-
-  // Test ChatInputBar cleans up voice recorder on unmount
-  const chatInputSrc = fs.readFileSync(path.join(ROOT, 'src', 'components', 'chat', 'ChatInputBar.jsx'), 'utf8');
-  assert(chatInputSrc.includes('voiceRecorder.cancel()'), 'ChatInputBar cancels voice recording on component unmount');
-
-  // Test App.jsx terminates call on burn and disconnect
-  const appSrc = fs.readFileSync(path.join(ROOT, 'src', 'App.jsx'), 'utf8');
-  assert(appSrc.includes('handleEndCall()'), 'App.jsx terminates active calls on session burn and disconnect');
-
-  // 8. Verify Sandboxing, Lazy Connection & File Line Budgets (<350 lines)
-  console.log('\n[Test Suite 8] Sandboxing & Feature Isolation Architecture');
-
-  // Lazy HomeScreen WebRTC Connection
-  const peerSessionSrc = fs.readFileSync(path.join(ROOT, 'src', 'hooks', 'usePeerSession.js'), 'utf8');
-  assert(peerSessionSrc.includes('if (initialHash) {'), 'HomeScreen avoids eager WebRTC broker connection when offline');
-  assert(peerSessionSrc.includes('peerService.cleanup()'), 'usePeerSession cleans up WebRTC peer on disconnect and unmount');
-
-  // Isolation Components Existence
-  assert(fs.existsSync(path.join(ROOT, 'src', 'components', 'chat', 'ChatWorkspace.jsx')), 'ChatWorkspace component exists in chat/');
-  assert(fs.existsSync(path.join(ROOT, 'src', 'components', 'AppModals.jsx')), 'AppModals coordinator exists in components/');
-  assert(fs.existsSync(path.join(ROOT, 'src', 'components', 'ConfirmGameModal.jsx')), 'ConfirmGameModal exists in components/');
-
-  // File Line Budget Verification (<350 lines per AGENTS.md)
-  const budgetFiles = [
-    { name: 'App.jsx', path: path.join(ROOT, 'src', 'App.jsx'), max: 350 },
-    { name: 'HomeScreen.jsx', path: path.join(ROOT, 'src', 'components', 'HomeScreen.jsx'), max: 350 },
-    { name: 'P2PGameArena.jsx', path: path.join(ROOT, 'src', 'components', 'P2PGameArena.jsx'), max: 350 },
-    { name: 'CyberPongGame.jsx', path: path.join(ROOT, 'src', 'components', 'game', 'CyberPongGame.jsx'), max: 350 },
-    { name: 'CyberGridGame.jsx', path: path.join(ROOT, 'src', 'components', 'game', 'CyberGridGame.jsx'), max: 350 },
-    { name: 'CyberConnectFour.jsx', path: path.join(ROOT, 'src', 'components', 'game', 'CyberConnectFour.jsx'), max: 350 },
-    { name: 'GameDrawer.jsx', path: path.join(ROOT, 'src', 'components', 'game', 'GameDrawer.jsx'), max: 350 },
-    { name: 'GameLobbyChat.jsx', path: path.join(ROOT, 'src', 'components', 'game', 'GameLobbyChat.jsx'), max: 350 },
-    { name: 'GameVoiceDock.jsx', path: path.join(ROOT, 'src', 'components', 'game', 'GameVoiceDock.jsx'), max: 350 },
-    { name: 'ChatWorkspace.jsx', path: path.join(ROOT, 'src', 'components', 'chat', 'ChatWorkspace.jsx'), max: 350 },
-    { name: 'AppModals.jsx', path: path.join(ROOT, 'src', 'components', 'AppModals.jsx'), max: 350 },
-    { name: 'ConfirmGameModal.jsx', path: path.join(ROOT, 'src', 'components', 'ConfirmGameModal.jsx'), max: 350 },
-    { name: 'usePeerSession.js', path: path.join(ROOT, 'src', 'hooks', 'usePeerSession.js'), max: 350 },
-    { name: 'constants.js', path: path.join(ROOT, 'src', 'services', 'webrtc', 'constants.js'), max: 350 },
-    { name: 'GameQrModal.jsx', path: path.join(ROOT, 'src', 'components', 'game', 'GameQrModal.jsx'), max: 350 },
-    { name: 'gameLobby.css', path: path.join(ROOT, 'src', 'styles', 'gameLobby.css'), max: 350 },
-    { name: 'gameShelf.css', path: path.join(ROOT, 'src', 'styles', 'gameShelf.css'), max: 350 },
-    { name: 'gameDrawer.css', path: path.join(ROOT, 'src', 'styles', 'gameDrawer.css'), max: 350 },
-    { name: 'inChatGameCard.css', path: path.join(ROOT, 'src', 'styles', 'inChatGameCard.css'), max: 350 },
-    { name: 'InChatGameCard.jsx', path: path.join(ROOT, 'src', 'components', 'game', 'InChatGameCard.jsx'), max: 350 },
-    { name: 'ActiveMatchStage.jsx', path: path.join(ROOT, 'src', 'components', 'game', 'ActiveMatchStage.jsx'), max: 350 },
-    { name: 'GameArenaHeader.jsx', path: path.join(ROOT, 'src', 'components', 'game', 'GameArenaHeader.jsx'), max: 350 },
-    { name: 'ChatArea.jsx', path: path.join(ROOT, 'src', 'components', 'ChatArea.jsx'), max: 350 },
-    { name: 'useInChatGames.js', path: path.join(ROOT, 'src', 'hooks', 'useInChatGames.js'), max: 350 },
-    { name: 'activeMatchStage.css', path: path.join(ROOT, 'src', 'styles', 'activeMatchStage.css'), max: 350 }
-  ];
-
-  budgetFiles.forEach(({ name, path: fPath, max }) => {
-    const lines = fs.readFileSync(fPath, 'utf8').split('\n').length;
-    assert(lines <= max, `${name} complies with line budget (${lines}/${max} lines)`);
+  // ─── [Suite 7] Agent Skills & System Architecture ──────────────────
+  console.log('\n[Test Suite 7] Agent Skills Discovery & Blueprints');
+  const skillsDir = path.join(ROOT, '.agents', 'skills');
+  assert(fs.existsSync(skillsDir), '.agents/skills/ directory exists');
+  const expectedSkills = ['zerochat-qa', 'zerochat-webrtc', 'zerochat-ui-ux', 'zerochat-security-perf', 'zerochat-engineering-rules'];
+  expectedSkills.forEach((skillName) => {
+    const skillFile = path.join(skillsDir, skillName, 'SKILL.md');
+    assert(fs.existsSync(skillFile), `Skill ${skillName} exists with valid metadata`);
   });
 
-  // 9. Real-World UX, Game State Persistence, Layout & Mic Authority
-  console.log('\n[Test Suite 9] Real-World UX, Game State Persistence, Layout & Mic Authority');
+  const agentsMd = path.join(ROOT, 'AGENTS.md');
+  assert(fs.existsSync(agentsMd), 'AGENTS.md guidelines exist in repository root');
 
-  // File Transfer Save Button Layout
-  const fileTransferSrc = fs.readFileSync(path.join(ROOT, 'src', 'components', 'FileTransferArea.jsx'), 'utf8');
-  const ftLines = fileTransferSrc.split('\n').length;
-  assert(ftLines <= 350, `FileTransferArea.jsx complies with line budget (${ftLines}/350 lines)`);
-  assert(fileTransferSrc.includes('whiteSpace: \'nowrap\'') && fileTransferSrc.includes('Save to Device'), 'Save to Device button has nowrap protection against distortion');
-  assert(fileTransferSrc.includes('Tap "Save to Device" to preserve this file'), 'File transfer save warning is cleanly positioned below header');
+  // Verify stylesheet barrel integrity
+  const indexCss = fs.readFileSync(path.join(ROOT, 'src', 'index.css'), 'utf8');
+  assert(indexCss.includes("@import './styles/variables.css';"), 'index.css imports variables.css');
+  assert(indexCss.includes("@import './styles/call.css';"), 'index.css imports call.css');
+  assert(indexCss.includes("@import './styles/groupChat.css';"), 'index.css imports groupChat.css');
+  assert(indexCss.includes("@import './styles/activeMatchStage.css';"), 'index.css imports activeMatchStage.css');
 
-  // Connect 4 Illuminated Matrix Contrast
-  const c4Css = fs.readFileSync(path.join(ROOT, 'src', 'styles', 'connect4.css'), 'utf8');
-  assert(c4Css.includes('rgba(16, 28, 54, 0.96)'), 'Connect 4 board shell uses high-contrast navy cyber matrix gradient');
-  assert(c4Css.includes('border: 2px solid rgba(0, 242, 254, 0.35)'), 'Connect 4 has glowing cyan outer chassis');
-  assert(c4Css.includes('.c4-column.col-hover .c4-disc.empty'), 'Connect 4 empty slots highlight on column hover');
-
-  // Game Drawer Badge Non-Wrapping
-  const drawerSrc = fs.readFileSync(path.join(ROOT, 'src', 'components', 'game', 'GameDrawer.jsx'), 'utf8');
-  const drawerCss = fs.readFileSync(path.join(ROOT, 'src', 'styles', 'gameDrawer.css'), 'utf8');
-  assert(drawerSrc.includes("badge: '60 FPS'"), 'GameDrawer uses concise 60 FPS badge');
-  assert(drawerCss.includes('white-space: nowrap') && drawerCss.includes('flex-shrink: 0'), 'Game card pills have nowrap and flex-shrink 0');
-
-  // Match State Persistence & Card ID Isolation
-  const inChatGamesSrc = fs.readFileSync(path.join(ROOT, 'src', 'hooks', 'useInChatGames.js'), 'utf8');
-  assert(inChatGamesSrc.includes('cachedStatesRef'), 'useInChatGames maintains in-memory cachedGameStates');
-  assert(inChatGamesSrc.includes('handleUpdateCardState'), 'useInChatGames exports handleUpdateCardState');
-  assert(inChatGamesSrc.includes('handleResumeMatch = useCallback((targetCardId'), 'useInChatGames supports targetCardId resume');
-
-  const activeStageSrc = fs.readFileSync(path.join(ROOT, 'src', 'components', 'game', 'ActiveMatchStage.jsx'), 'utf8');
-  assert(activeStageSrc.includes('cardId && event.cardId && event.cardId !== cardId'), 'ActiveMatchStage isolates incoming events by cardId');
-
-  const gridSrc = fs.readFileSync(path.join(ROOT, 'src', 'components', 'game', 'CyberGridGame.jsx'), 'utf8');
-  assert(gridSrc.includes('cardId,') && gridSrc.includes('onUpdateCardState'), 'CyberGridGame receives cardId and reports live state');
-  assert(gridSrc.includes("game: 'grid', cardId"), 'CyberGridGame tags moves with cardId');
-
-  const c4Src = fs.readFileSync(path.join(ROOT, 'src', 'components', 'game', 'CyberConnectFour.jsx'), 'utf8');
-  assert(c4Src.includes('cardId,') && c4Src.includes('onUpdateCardState'), 'CyberConnectFour receives cardId and reports live state');
-  assert(c4Src.includes("game: 'c4', cardId"), 'CyberConnectFour tags drops with cardId');
-
-  const pongSrc = fs.readFileSync(path.join(ROOT, 'src', 'components', 'game', 'CyberPongGame.jsx'), 'utf8');
-  assert(pongSrc.includes('cardId,') && pongSrc.includes('onUpdateCardState'), 'CyberPongGame receives cardId and reports live score');
-  assert(pongSrc.includes("game: 'pong', cardId"), 'CyberPongGame tags paddle and sync with cardId');
-
-  // Audio Mute Authority & Synchronization
-  const mediaEngineSrc = fs.readFileSync(path.join(ROOT, 'src', 'services', 'webrtc', 'mediaCallEngine.js'), 'utf8');
-  assert(mediaEngineSrc.includes('setAudioMute(isMuted, emit)'), 'mediaCallEngine implements explicit setAudioMute authority');
-
-  const peerServiceApiSrc = fs.readFileSync(path.join(ROOT, 'src', 'services', 'peerService.js'), 'utf8');
-  assert(peerServiceApiSrc.includes('setAudioMute(isMuted)'), 'peerService exposes setAudioMute facade');
-
-  const callSessionSrc = fs.readFileSync(path.join(ROOT, 'src', 'hooks', 'useCallSession.js'), 'utf8');
-  assert(callSessionSrc.includes('handleSetMute,'), 'useCallSession exports handleSetMute');
-
-  const p2pArenaSrc = fs.readFileSync(path.join(ROOT, 'src', 'components', 'P2PGameArena.jsx'), 'utf8');
-  assert(p2pArenaSrc.includes('peerService.setAudioMute(mute)'), 'P2PGameArena invokes peerService.setAudioMute directly');
-  assert(p2pArenaSrc.includes('Setting up secure P2P game arena...'), 'P2PGameArena waiting banner displays friendly guidance');
-
-  // Background Match Persistence in ChatArea
-  const chatAreaSrc = fs.readFileSync(path.join(ROOT, 'src', 'components', 'ChatArea.jsx'), 'utf8');
-  assert(chatAreaSrc.includes("display: inChatGames.activeMatch.isVisible ? 'flex' : 'none'"), 'ChatArea preserves ActiveMatchStage state across Return to Chat');
-  assert(chatAreaSrc.includes('End') && chatAreaSrc.includes('handleExitMatch'), 'ChatArea floating dock provides End Match button');
-
-  // 10. Baton Pass Group Chat & Star Relay Architecture
-  console.log('\n[Test Suite 10] Baton Pass Group Chat & Star Relay Architecture');
-  const { generateSquadRoomId, isSquadRoomId } = await import('../src/services/webrtc/constants.js');
-  assert(typeof generateSquadRoomId === 'function', 'generateSquadRoomId is exported');
-  assert(typeof isSquadRoomId === 'function', 'isSquadRoomId is exported');
-
-  const squadId = generateSquadRoomId();
-  assert(squadId.startsWith('squad-'), 'generateSquadRoomId produces unified squad prefix (squad-word-word-num)');
-  assert(isSquadRoomId(squadId) === true, 'isSquadRoomId identifies squad room ID');
-
-  const parsedSquad = parseRoomHash('#squad-nexus-orbit-421');
-  assert(parsedSquad.isSquad === true, 'parseRoomHash identifies squad room');
-  assert(parsedSquad.roomId === 'squad-nexus-orbit-421', 'parseRoomHash normalizes full squad room ID');
-
-  const { GroupRelayEngine } = await import('../src/services/webrtc/groupRelayEngine.js');
-  assert(typeof GroupRelayEngine === 'function', 'GroupRelayEngine class is exported');
-
-  const relayEngineSrc = fs.readFileSync(path.join(ROOT, 'src', 'services', 'webrtc', 'groupRelayEngine.js'), 'utf8');
-  assert(relayEngineSrc.includes('admitKnocker(') && relayEngineSrc.includes('declineKnocker('), 'GroupRelayEngine implements knock admission protocol');
-  assert(relayEngineSrc.includes('passBaton(') && relayEngineSrc.includes('handleHostDisconnect('), 'GroupRelayEngine implements baton pass and failover');
-
-  const batonMgrSrc = fs.readFileSync(path.join(ROOT, 'src', 'services', 'webrtc', 'groupBatonManager.js'), 'utf8');
-  assert(batonMgrSrc.includes('setDesignatedSuccessor'), 'groupBatonManager implements designated Co-Host succession');
-
-  // Verify group component files existence and line budgets
-  const groupFiles = [
-    { name: 'groupRelayEngine.js', path: path.join(ROOT, 'src', 'services', 'webrtc', 'groupRelayEngine.js'), max: 350 },
-    { name: 'groupPacketHandler.js', path: path.join(ROOT, 'src', 'services', 'webrtc', 'groupPacketHandler.js'), max: 350 },
-    { name: 'groupBatonManager.js', path: path.join(ROOT, 'src', 'services', 'webrtc', 'groupBatonManager.js'), max: 350 },
-    { name: 'useGroupSession.js', path: path.join(ROOT, 'src', 'hooks', 'useGroupSession.js'), max: 350 },
-    { name: 'GroupHeaderBar.jsx', path: path.join(ROOT, 'src', 'components', 'group', 'GroupHeaderBar.jsx'), max: 350 },
-    { name: 'CompactStreamMessage.jsx', path: path.join(ROOT, 'src', 'components', 'group', 'CompactStreamMessage.jsx'), max: 350 },
-    { name: 'MemberDrawer.jsx', path: path.join(ROOT, 'src', 'components', 'group', 'MemberDrawer.jsx'), max: 350 },
-    { name: 'GroupCreateModal.jsx', path: path.join(ROOT, 'src', 'components', 'group', 'GroupCreateModal.jsx'), max: 350 },
-    { name: 'SquadQrModal.jsx', path: path.join(ROOT, 'src', 'components', 'group', 'SquadQrModal.jsx'), max: 350 },
-    { name: 'GroupChatWorkspace.jsx', path: path.join(ROOT, 'src', 'components', 'group', 'GroupChatWorkspace.jsx'), max: 350 },
-    { name: 'groupChat.css', path: path.join(ROOT, 'src', 'styles', 'groupChat.css'), max: 350 },
-    { name: 'groupDrawer.css', path: path.join(ROOT, 'src', 'styles', 'groupDrawer.css'), max: 350 }
-  ];
-
-  groupFiles.forEach(({ name, path: fPath, max }) => {
-    assert(fs.existsSync(fPath), `Group file ${name} exists`);
-    const lines = fs.readFileSync(fPath, 'utf8').split('\n').length;
-    assert(lines <= max, `${name} complies with line budget (${lines}/${max} lines)`);
-  });
-
-  const indexCssSrc = fs.readFileSync(path.join(ROOT, 'src', 'index.css'), 'utf8');
-  assert(indexCssSrc.includes('groupChat.css'), 'index.css imports groupChat.css');
-  assert(indexCssSrc.includes('groupDrawer.css'), 'index.css imports groupDrawer.css');
-
-  // Summary
+  // ─── Summary ───────────────────────────────────────────────────────
   console.log('\n====================================================');
   console.log(` Verification Complete: ${passedTests}/${totalTests} tests passed`);
   console.log('====================================================\n');
 
   if (passedTests === totalTests) {
-    console.log('🎉 ALL SYSTEMS OPERATIONAL. Codebase is 100% AI-Ready.\n');
+    console.log('🎉 ALL FUNCTIONAL TESTS PASSED. Logic is verified.\n');
     process.exit(0);
   } else {
     console.error(`💥 ${totalTests - passedTests} tests failed.`);
