@@ -24,7 +24,7 @@
 .squad-member-drawer {
   width: 320px;
   height: 100%;
-  background: var(--bg-panel);
+  background: #0c1222;
   border-left: 1px solid var(--border-subtle);
   display: flex;
   flex-direction: column;
@@ -153,6 +153,23 @@
 }
 
 .btn-pass-baton:hover { background: var(--accent-amber); color: #000; }
+
+.btn-kick-peer {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  background: rgba(248, 113, 113, 0.1);
+  border: 1px solid rgba(248, 113, 113, 0.35);
+  color: #f87171;
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-kick-peer:hover { background: #f87171; color: #000; }
 
 .btn-star-cohost {
   background: transparent;

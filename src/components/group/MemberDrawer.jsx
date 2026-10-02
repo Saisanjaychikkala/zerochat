@@ -10,7 +10,8 @@ import {
   Check, 
   Zap, 
   ShieldCheck,
-  QrCode
+  QrCode,
+  UserX
 } from 'lucide-react';
 import { copyToClipboard } from '../../utils/clipboard';
 
@@ -30,7 +31,8 @@ export function MemberDrawer({
   onDeclineKnocker,
   onPassBaton,
   onSetSuccessor,
-  onToggleLock
+  onToggleLock,
+  onKickPeer
 }) {
   const hostMember = members.find(m => m.peerId === currentHostId);
   const otherMembers = members.filter(m => m.peerId !== currentHostId);
@@ -180,6 +182,16 @@ export function MemberDrawer({
                             title={`Transfer active Relay Authority (Baton) to ${m.nickname}`}
                           >
                             Pass Baton
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => onKickPeer && onKickPeer(m.peerId)}
+                            className="btn-kick-peer"
+                            title={`Kick ${m.nickname} out of squad`}
+                          >
+                            <UserX size={12} />
+                            <span>Kick</span>
                           </button>
                         </>
                       )}

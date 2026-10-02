@@ -1,5 +1,5 @@
 import React from 'react';
-import { Gamepad2, CircleDot, Disc, Users, Check, Play, Ban, Trophy, RefreshCw, X, Handshake, Zap } from 'lucide-react';
+import { Gamepad2, CircleDot, Disc, Users, Check, Play, Ban, Trophy, RefreshCw, X, Handshake, Zap, Eye } from 'lucide-react';
 
 const GAME_CONFIGS = {
   pong: {
@@ -31,10 +31,13 @@ export default function InChatGameCard({
   const config = GAME_CONFIGS[card.gameId] || GAME_CONFIGS.pong;
   const Icon = config.icon;
   const isConcluded = !!card.isConcluded;
-  const isJoined = !!card.isGuestJoined;
+  const isHostSlot = card.hostNickname && myNickname && card.hostNickname.toLowerCase() === myNickname.toLowerCase();
+  const isGuestSlot = card.guestNickname && myNickname && card.guestNickname.toLowerCase() === myNickname.toLowerCase();
+  const isPlayer = isHostSlot || isGuestSlot;
+  const joinedCount = (card.hostNickname ? 1 : 0) + (card.guestNickname ? 1 : 0);
+  const isFull = joinedCount >= 2;
   const isPlaying = !!card.isPlaying;
-  const isCreator = myNickname && card.hostNickname && myNickname.toLowerCase() === card.hostNickname.toLowerCase();
-  const canJoin = !isJoined && !isCreator && !isConcluded;
+  const canJoin = !isFull && !isPlayer && !isConcluded;
 
   return (
     <div className={`in-chat-game-card glass-panel ${isConcluded ? 'concluded' : ''}`}>
@@ -68,15 +71,20 @@ export default function InChatGameCard({
               <span className="status-dot connected" style={{ width: '6px', height: '6px' }} />
               <span style={{ color: 'var(--accent-cyan)' }}>In Progress</span>
             </span>
-          ) : isJoined ? (
+          ) : isFull ? (
             <span className="badge-ready">
               <Check size={11} />
               <span>2/2 Ready!</span>
             </span>
-          ) : (
+          ) : joinedCount === 1 ? (
             <span className="badge-waiting">
               <Users size={11} />
               <span>1/2 Joined</span>
+            </span>
+          ) : (
+            <span className="badge-waiting" style={{ background: 'rgba(255, 255, 255, 0.05)' }}>
+              <Users size={11} />
+              <span>0/2 Open Slots</span>
             </span>
           )}
         </div>
@@ -84,39 +92,51 @@ export default function InChatGameCard({
 
       {/* Players Row */}
       <div className="in-chat-players-row">
-        {/* Player 1 (Host) */}
-        <div className="in-chat-player-slot ready">
-          <div 
-            className="in-chat-player-avatar" 
-            style={{ background: card.hostAvatarBg || 'linear-gradient(135deg, #00f2fe, #4facfe)' }}
-          >
-            <span>{card.hostNickname ? card.hostNickname.charAt(0).toUpperCase() : 'P1'}</span>
+        {/* Player 1 Slot */}
+        {card.hostNickname ? (
+          <div className="in-chat-player-slot ready">
+            <div 
+              className="in-chat-player-avatar" 
+              style={{ background: card.hostAvatarBg || 'linear-gradient(135deg, #00f2fe, #4facfe)' }}
+            >
+              <span>{card.hostNickname.charAt(0).toUpperCase()}</span>
+            </div>
+            <div className="in-chat-player-info">
+              <span className="in-chat-player-name">{card.hostNickname}</span>
+              <span className="in-chat-player-role">Player 1</span>
+            </div>
+            <div className="in-chat-ready-dot" title="Joined">
+              <Check size={12} color="#10b981" />
+            </div>
           </div>
-          <div className="in-chat-player-info">
-            <span className="in-chat-player-name">{card.hostNickname}</span>
-            <span className="in-chat-player-role">Creator (P1)</span>
+        ) : (
+          <div className="in-chat-player-slot waiting">
+            <div className="in-chat-player-avatar empty">
+              <Users size={14} color="var(--text-dim)" />
+            </div>
+            <div className="in-chat-player-info">
+              <span className="in-chat-player-name empty">Open Slot</span>
+              <span className="in-chat-player-role">Player 1</span>
+            </div>
           </div>
-          <div className="in-chat-ready-dot" title="Ready">
-            <Check size={12} color="#10b981" />
-          </div>
-        </div>
+        )}
 
         <span className="in-chat-vs-label">VS</span>
 
-        {/* Player 2 (Challenger) */}
-        {isJoined ? (
+        {/* Player 2 Slot */}
+        {card.guestNickname ? (
           <div className="in-chat-player-slot ready">
             <div 
               className="in-chat-player-avatar" 
               style={{ background: card.guestAvatarBg || 'linear-gradient(135deg, #c084fc, #f43f5e)' }}
             >
-              <span>{card.guestNickname ? card.guestNickname.charAt(0).toUpperCase() : 'P2'}</span>
+              <span>{card.guestNickname.charAt(0).toUpperCase()}</span>
             </div>
             <div className="in-chat-player-info">
               <span className="in-chat-player-name">{card.guestNickname}</span>
-              <span className="in-chat-player-role">Challenger (P2)</span>
+              <span className="in-chat-player-role">Player 2</span>
             </div>
-            <div className="in-chat-ready-dot" title="Ready">
+            <div className="in-chat-ready-dot" title="Joined">
               <Check size={12} color="#10b981" />
             </div>
           </div>
@@ -189,50 +209,63 @@ export default function InChatGameCard({
               </button>
             )}
           </div>
-        ) : card.isPlaying ? (
-          <div style={{ display: 'flex', gap: '6px', width: '100%' }}>
-            <button 
-              onClick={() => (onResumeCard || onLaunchCard) && (onResumeCard || onLaunchCard)(card.cardId)}
-              className="btn btn-primary btn-xs resume-card-btn"
-              style={{ flex: 1 }}
-            >
-              <Play size={13} />
-              <span>Resume {card.gameName} Match</span>
-            </button>
-            {onExitCard && (
-              <button
+        ) : isPlayer ? (
+          isFull ? (
+            <div style={{ display: 'flex', gap: '6px', width: '100%' }}>
+              <button 
                 type="button"
-                onClick={() => onExitCard(card.cardId)}
-                className="btn btn-secondary btn-xs"
-                style={{ padding: '0 10px', fontSize: '0.72rem', borderColor: 'rgba(255, 255, 255, 0.15)' }}
-                title="End match and conclude duel"
+                onClick={() => (onResumeCard || onLaunchCard) && (onResumeCard || onLaunchCard)(card.cardId)}
+                className="btn btn-primary btn-xs resume-card-btn"
+                style={{ flex: 1 }}
               >
-                <X size={12} />
-                <span>End</span>
+                <Play size={13} />
+                <span>{isPlaying ? `Resume ${card.gameName} Match` : `Launch ${card.gameName} Now!`}</span>
               </button>
-            )}
-          </div>
-        ) : isJoined ? (
-          <button 
-            onClick={() => onLaunchCard && onLaunchCard(card.cardId)}
-            className="btn btn-primary btn-xs w-full launch-card-btn"
-          >
-            <Play size={13} />
-            <span>Launch {card.gameName} Now!</span>
-          </button>
+              {onExitCard && isPlaying && (
+                <button
+                  type="button"
+                  onClick={() => onExitCard(card.cardId)}
+                  className="btn btn-secondary btn-xs"
+                  style={{ padding: '0 10px', fontSize: '0.72rem', borderColor: 'rgba(255, 255, 255, 0.15)' }}
+                  title="End match and conclude duel"
+                >
+                  <X size={12} />
+                  <span>End</span>
+                </button>
+              )}
+            </div>
+          ) : (
+            <div className="in-chat-waiting-msg">
+              <span className="animate-pulse" style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                <Zap size={12} />
+                <span>Joined! Waiting for opponent to join...</span>
+              </span>
+            </div>
+          )
         ) : canJoin ? (
           <button 
+            type="button"
             onClick={() => onJoinCard && onJoinCard(card.cardId)}
             className="btn btn-primary btn-xs w-full join-card-btn"
           >
             <Play size={13} />
-            <span>Join Match as Player 2</span>
+            <span>Join Match ({joinedCount}/2)</span>
+          </button>
+        ) : isFull ? (
+          <button 
+            type="button"
+            onClick={() => onLaunchCard && onLaunchCard(card.cardId, { isSpectator: true })}
+            className="btn btn-secondary btn-xs w-full spectate-card-btn"
+            style={{ borderColor: 'rgba(192, 132, 252, 0.4)', color: '#c084fc', background: 'rgba(192, 132, 252, 0.08)' }}
+          >
+            <Eye size={13} />
+            <span>Spectate Match (2/2 Playing)</span>
           </button>
         ) : (
           <div className="in-chat-waiting-msg">
             <span className="animate-pulse" style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
               <Zap size={12} />
-              <span>Waiting for opponent to click Join...</span>
+              <span>Waiting for players to join...</span>
             </span>
           </div>
         )}

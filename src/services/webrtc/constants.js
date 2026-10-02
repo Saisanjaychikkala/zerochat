@@ -128,8 +128,7 @@ export const GROUP_PACKET_TYPES = {
   BATON_ACCEPT: 'group_baton_accept',
   BATON_MIGRATED: 'group_baton_migrated',
   LOCK_SYNC: 'group_lock_sync',
+  KICK: 'group_kick',
   HEARTBEAT: 'group_heartbeat',
   HEARTBEAT_ACK: 'group_heartbeat_ack'
 };
-
-

@@ -234,6 +234,7 @@ export default function App() {
             isDrawerOpen={groupSession.isDrawerOpen}
             myPeerId={groupSession.myPeerId || (groupSession.isHost ? groupSession.squadRoomId : undefined)}
             myNickname={preferences.displayName}
+            myAvatarBg={preferences.myAvatarBg}
             onToggleDrawer={groupSession.toggleDrawer}
             onCloseDrawer={() => groupSession.setIsDrawerOpen(false)}
             onSendMessage={groupSession.sendGroupChat}
@@ -244,6 +245,7 @@ export default function App() {
             onPassBaton={groupSession.passBaton}
             onSetSuccessor={groupSession.setDesignatedSuccessor}
             onToggleLock={groupSession.toggleLock}
+            onKickPeer={groupSession.kickPeer}
             onLeaveSquad={() => { groupSession.leaveSquad(); setViewMode('home'); }}
             onOpenSettings={() => setIsSettingsOpen(true)}
           />

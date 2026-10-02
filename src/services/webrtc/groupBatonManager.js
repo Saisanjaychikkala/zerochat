@@ -22,15 +22,19 @@ export function passBaton(engine, targetPeerId) {
     type: GROUP_PACKET_TYPES.BATON_MIGRATED,
     newHostId: targetPeerId,
     oldHostId,
-    roster: updatedRoster
+    roster: updatedRoster,
+    roomPasscode: engine.roomPasscode || engine.enteredPasscode || null,
+    isLocked: !!engine.isLocked
   });
 
   // 2. Transition current host to guest role
   engine.isHost = false;
+  engine.isAdmitted = true;
   engine.currentHostId = targetPeerId;
   engine.roster = updatedRoster;
   engine.emit('baton_changed', { isHost: false, newHostId: targetPeerId });
   engine.emit('roster_update', engine.roster);
+  engine.emit('status', 'connected');
 
   // 3. Gracefully switch connection: close old peer connections and connect to new host as guest
   setTimeout(() => {
@@ -48,10 +52,11 @@ export function acceptBatonHandoff(engine, incomingRoster) {
   handleBatonMigrated(engine, engine.myPeerId, incomingRoster);
 }
 
-export function handleBatonMigrated(engine, newHostId, newRoster) {
+export function handleBatonMigrated(engine, newHostId, newRoster, extra = {}) {
   const isNewHost = (newHostId === engine.myPeerId);
   engine.currentHostId = newHostId;
   engine.isHost = isNewHost;
+  engine.isAdmitted = true;
   engine.roster = (newRoster || engine.roster).map(m => ({
     ...m,
     isHost: m.peerId === newHostId
@@ -59,6 +64,8 @@ export function handleBatonMigrated(engine, newHostId, newRoster) {
 
   if (isNewHost) {
     // I am now promoted to Host of the star relay!
+    if (extra.roomPasscode) engine.roomPasscode = extra.roomPasscode;
+    if (extra.isLocked !== undefined) engine.isLocked = !!extra.isLocked;
     if (engine.hostConn) {
       try { engine.hostConn.close(); } catch (e) {}
       engine.hostConn = null;
@@ -74,6 +81,7 @@ export function handleBatonMigrated(engine, newHostId, newRoster) {
     }
     engine.emit('baton_changed', { isHost: false, newHostId });
     engine.emit('roster_update', engine.roster);
+    engine.emit('status', 'connected');
     setTimeout(() => {
       if (!engine.isDestroyed) {
         engine.connectToHost(newHostId, { isReconnecting: true });

@@ -125,7 +125,7 @@ export class GroupRelayEngine {
 
   connectToHost(hostPeerId, opts = {}) {
     this.currentHostId = hostPeerId;
-    this.emit('status', 'connecting');
+    this.emit('status', opts.isReconnecting ? 'connected' : 'connecting');
     if (!this.peer || this.peer.destroyed) return;
     const conn = this.peer.connect(hostPeerId, { reliable: true });
     this.hostConn = conn;
@@ -138,11 +138,11 @@ export class GroupRelayEngine {
         passcode: this.enteredPasscode || undefined,
         isReconnecting: !!opts.isReconnecting
       });
-      this.emit('status', 'knocking');
+      if (!opts.isReconnecting) this.emit('status', 'knocking');
     });
 
     conn.on('data', (data) => handleGroupPacket(this, data, conn));
-    conn.on('close', () => this.handleHostDisconnect());
+    conn.on('close', () => { if (this.currentHostId === hostPeerId) this.handleHostDisconnect(); });
     conn.on('error', (err) => {
       console.warn('[GroupRelay] Host conn error:', err);
       if ((this.connectAttempts || 0) < 4) {
@@ -156,10 +156,6 @@ export class GroupRelayEngine {
     });
   }
 
-  /**
-   * Retry joining a passcode-protected room after user enters the PIN.
-   * Called by GroupChatWorkspace when the passcode prompt is submitted.
-   */
   reconnectWithPasscode(passcode) {
     this.enteredPasscode = passcode || null;
     if (this.currentHostId && !this.isDestroyed) {
@@ -173,8 +169,8 @@ export class GroupRelayEngine {
 
   handleIncomingConnection(conn) {
     if (!this.isHost) return;
-
-    if (this.isLocked || this.connections.size >= this.maxPeers - 1) {
+    const isExisting = this.roster.some(m => m.peerId === conn.peer);
+    if (!isExisting && (this.isLocked || this.connections.size >= this.maxPeers - 1)) {
       conn.on('open', () => {
         conn.send({
           type: GROUP_PACKET_TYPES.DECLINE,
@@ -184,7 +180,6 @@ export class GroupRelayEngine {
       });
       return;
     }
-
     conn.on('data', (data) => handleGroupPacket(this, data, conn));
     conn.on('close', () => this.handlePeerDisconnect(conn.peer));
   }
@@ -208,25 +203,9 @@ export class GroupRelayEngine {
       joinedAt: Date.now()
     });
 
-    const sendAdmitPacket = () => {
-      try {
-        knocker.conn.send({
-          type: GROUP_PACKET_TYPES.ADMIT,
-          roster: this.roster,
-          hostId: this.myPeerId,
-          successorId: this.designatedSuccessorId,
-          isLocked: this.isLocked
-        });
-      } catch (err) {
-        console.warn('[GroupRelay] Admit send error:', err);
-      }
-    };
-
-    if (knocker.conn.open) {
-      sendAdmitPacket();
-    } else {
-      knocker.conn.on('open', sendAdmitPacket);
-    }
+    const pkt = { type: GROUP_PACKET_TYPES.ADMIT, roster: this.roster, hostId: this.myPeerId, successorId: this.designatedSuccessorId, isLocked: this.isLocked };
+    if (knocker.conn.open) { try { knocker.conn.send(pkt); } catch (e) {} }
+    else { knocker.conn.on('open', () => { try { knocker.conn.send(pkt); } catch (e) {} }); }
 
     this.broadcastRosterSync();
     this.emit('knocks_update', Array.from(this.pendingKnocks.values()));
@@ -297,7 +276,7 @@ export class GroupRelayEngine {
 
   passBaton(targetPeerId) { passBaton(this, targetPeerId); }
   acceptBatonHandoff(incomingRoster) { acceptBatonHandoff(this, incomingRoster); }
-  handleBatonMigrated(newHostId, newRoster) { handleBatonMigrated(this, newHostId, newRoster); }
+  handleBatonMigrated(newHostId, newRoster, extra = {}) { handleBatonMigrated(this, newHostId, newRoster, extra); }
   setDesignatedSuccessor(targetPeerId) { setDesignatedSuccessor(this, targetPeerId); }
   handleHostDisconnect() { handleHostDisconnect(this); }
 
@@ -306,6 +285,22 @@ export class GroupRelayEngine {
     this.isLocked = !this.isLocked;
     this.broadcast({ type: GROUP_PACKET_TYPES.LOCK_SYNC, isLocked: this.isLocked });
     this.emit('room_locked', this.isLocked);
+  }
+
+  kickPeer(peerId) {
+    if (!this.isHost || !peerId || peerId === this.myPeerId) return;
+    const conn = this.connections.get(peerId);
+    if (conn?.open) {
+      try { conn.send({ type: GROUP_PACKET_TYPES.KICK, reason: 'Removed from squad by host.' }); } catch (e) {}
+      setTimeout(() => { try { conn.close(); } catch (e) {} }, 100);
+    }
+    this.handlePeerDisconnect(peerId);
+  }
+
+  sendGameAction(actionData) {
+    const packet = { type: GROUP_PACKET_TYPES.GAME_ACTION, ...actionData, timestamp: Date.now() };
+    if (this.isHost) { this.broadcast(packet); this.emit('message', packet); }
+    else if (this.isAdmitted && this.hostConn?.open) { this.hostConn.send(packet); this.emit('message', packet); }
   }
 
   handlePeerDisconnect(peerId) {

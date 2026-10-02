@@ -63,6 +63,34 @@ export function useGroupSession({ soundEnabled, showToast }) {
     });
 
     const unsubMessage = groupRelayEngine.on('message', (msg) => {
+      if (msg.type === 'game_action') {
+        if (msg.action === 'join' && groupRelayEngine.isHost) {
+          setMessages(prev => {
+            const target = prev.find(m => m.cardId === msg.cardId);
+            if (!target) return prev;
+            const updates = {};
+            if (!target.hostNickname) {
+              updates.hostNickname = msg.playerNickname;
+              updates.hostAvatarBg = msg.avatarBg;
+              updates.hostPeerId = msg.playerPeerId;
+            } else if (!target.guestNickname && target.hostNickname !== msg.playerNickname) {
+              updates.guestNickname = msg.playerNickname;
+              updates.guestAvatarBg = msg.avatarBg;
+              updates.guestPeerId = msg.playerPeerId;
+              updates.isGuestJoined = true;
+            }
+            if (Object.keys(updates).length > 0) {
+              groupRelayEngine.sendGameAction({ action: 'card_updated', cardId: msg.cardId, cardUpdates: updates });
+              return prev.map(m => m.cardId === msg.cardId ? { ...m, ...updates } : m);
+            }
+            return prev;
+          });
+          return;
+        } else if (msg.action === 'card_updated' && msg.cardUpdates) {
+          setMessages(prev => prev.map(m => m.cardId === msg.cardId ? { ...m, ...msg.cardUpdates } : m));
+          return;
+        }
+      }
       setMessages(prev => [...prev, msg]);
       playSound('message', soundRef.current);
     });
@@ -177,6 +205,14 @@ export function useGroupSession({ soundEnabled, showToast }) {
     groupRelayEngine.toggleLock();
   }, []);
 
+  const kickPeer = useCallback((peerId) => {
+    groupRelayEngine.kickPeer(peerId);
+  }, []);
+
+  const sendGameAction = useCallback((actionData) => {
+    groupRelayEngine.sendGameAction(actionData);
+  }, []);
+
   const toggleDrawer = useCallback(() => {
     setIsDrawerOpen(prev => !prev);
   }, []);
@@ -213,9 +249,11 @@ export function useGroupSession({ soundEnabled, showToast }) {
     sendGroupChat,
     sendGroupVoice,
     sendGroupReaction,
+    sendGameAction,
     admitKnocker,
     declineKnocker,
     passBaton,
+    kickPeer,
     setDesignatedSuccessor,
     toggleLock,
     toggleDrawer,

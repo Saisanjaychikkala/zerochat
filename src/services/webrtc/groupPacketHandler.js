@@ -5,19 +5,36 @@
 
 import { GROUP_PACKET_TYPES } from './constants.js';
 
+function sendPacket(conn, packet) {
+  if (conn.open) {
+    try { conn.send(packet); } catch (e) {}
+  } else {
+    conn.on('open', () => { try { conn.send(packet); } catch (e) {} });
+  }
+}
+
 export function handleGroupPacket(engine, data, conn) {
   if (!data || !data.type) return;
 
   switch (data.type) {
     case GROUP_PACKET_TYPES.KNOCK:
       if (engine.isHost) {
-        // --- Auto-admit any peer already in the verified roster ---
-        // This covers baton migration, reconnects, and failover elections.
-        // No knock queue, no UI alert, no audio chime — seamless re-entry.
-        const isExistingMember = engine.roster.some(m => m.peerId === conn.peer);
+        // Auto-admit any peer in verified roster OR reconnecting from baton transfer
+        const isExistingMember = engine.roster.some(m => m.peerId === conn.peer) || !!data.isReconnecting;
         if (isExistingMember) {
           engine.connections.set(conn.peer, conn);
-          conn.send({
+          if (!engine.roster.some(m => m.peerId === conn.peer)) {
+            engine.roster.push({
+              peerId: conn.peer,
+              nickname: data.nickname || 'Member',
+              avatarId: data.avatarId || 1,
+              isHost: false,
+              isCoHost: false,
+              latency: 20,
+              joinedAt: Date.now()
+            });
+          }
+          sendPacket(conn, {
             type: GROUP_PACKET_TYPES.ADMIT,
             roster: engine.roster,
             hostId: engine.myPeerId,
@@ -29,18 +46,40 @@ export function handleGroupPacket(engine, data, conn) {
           break;
         }
 
-        // Passcode challenge — send CHALLENGE (not DECLINE) so the guest can
-        // display an inline input and retry without leaving the room.
-        if (engine.roomPasscode && data.passcode !== engine.roomPasscode) {
-          conn.send({
-            type: GROUP_PACKET_TYPES.CHALLENGE,
-            reason: 'passcode_required'
-          });
-          setTimeout(() => conn.close(), 350);
-          break;
+        // Passcode squad unlock
+        if (engine.roomPasscode) {
+          if (data.passcode === engine.roomPasscode) {
+            engine.connections.set(conn.peer, conn);
+            engine.roster = engine.roster.filter(m => m.peerId !== conn.peer);
+            engine.roster.push({
+              peerId: conn.peer,
+              nickname: data.nickname || 'Guest',
+              avatarId: data.avatarId || 1,
+              isHost: false,
+              isCoHost: false,
+              latency: 20,
+              joinedAt: Date.now()
+            });
+            sendPacket(conn, {
+              type: GROUP_PACKET_TYPES.ADMIT,
+              roster: engine.roster,
+              hostId: engine.myPeerId,
+              successorId: engine.designatedSuccessorId,
+              isLocked: engine.isLocked
+            });
+            engine.broadcastRosterSync();
+            engine.emit('roster_update', engine.roster);
+            break;
+          } else {
+            sendPacket(conn, {
+              type: GROUP_PACKET_TYPES.CHALLENGE,
+              reason: 'passcode_required'
+            });
+            break;
+          }
         }
 
-        // Genuine new knocker — queue for host admission
+        // Genuine new knocker (no passcode room) — queue for host admission
         engine.pendingKnocks.set(conn.peer, {
           peerId: conn.peer,
           nickname: data.nickname || 'Guest',
@@ -49,7 +88,7 @@ export function handleGroupPacket(engine, data, conn) {
           conn,
           timestamp: Date.now()
         });
-        conn.send({ type: GROUP_PACKET_TYPES.KNOCK_ACK, roomName: engine.roomId });
+        sendPacket(conn, { type: GROUP_PACKET_TYPES.KNOCK_ACK, roomName: engine.roomId });
         engine.emit('knocks_update', Array.from(engine.pendingKnocks.values()));
       }
       break;
@@ -69,7 +108,16 @@ export function handleGroupPacket(engine, data, conn) {
       engine.emit('declined', data.reason || 'Host declined entry.');
       break;
 
-    // Host sends CHALLENGE when passcode is required — guest shows inline prompt
+    case GROUP_PACKET_TYPES.KICK:
+      engine.isAdmitted = false;
+      engine.emit('status', 'declined');
+      engine.emit('declined', data.reason || 'You were removed from the squad by the host.');
+      if (engine.hostConn) {
+        try { engine.hostConn.close(); } catch (e) {}
+        engine.hostConn = null;
+      }
+      break;
+
     case GROUP_PACKET_TYPES.CHALLENGE:
       if (data.reason === 'passcode_required') {
         engine.emit('status', 'passcode_required');
@@ -134,7 +182,7 @@ export function handleGroupPacket(engine, data, conn) {
       break;
 
     case GROUP_PACKET_TYPES.BATON_MIGRATED:
-      engine.handleBatonMigrated(data.newHostId, data.roster);
+      engine.handleBatonMigrated(data.newHostId, data.roster, data);
       break;
 
     case GROUP_PACKET_TYPES.LOCK_SYNC:

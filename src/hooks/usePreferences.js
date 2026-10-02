@@ -69,6 +69,18 @@ export function usePreferences(showToast) {
     }
   };
 
+  const handleSetSurface = (nextSurface) => {
+    setSurface(nextSurface);
+    if (showToast) {
+      const names = {
+        'ultra-glass': 'Ultra Glass (Dynamic Blur)',
+        'solid-dark': 'Solid Dark (High Contrast)',
+        'oled-black': 'OLED Pure Black (Zero Glare)'
+      };
+      showToast(`Surface layout: ${names[nextSurface] || nextSurface}`, 'info');
+    }
+  };
+
   const handleSaveNickname = (name, color) => {
     setMyNickname(name);
     setMyAvatarBg(color);
@@ -88,7 +100,7 @@ export function usePreferences(showToast) {
     setTheme,
     toggleTheme,
     surface,
-    setSurface,
+    setSurface: handleSetSurface,
     handleSaveNickname,
   };
 }

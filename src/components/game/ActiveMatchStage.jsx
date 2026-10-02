@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, X, Gamepad2, Zap } from 'lucide-react';
+import { ArrowLeft, X, Gamepad2, Zap, Eye } from 'lucide-react';
 import CyberPongGame from './CyberPongGame';
 import CyberGridGame from './CyberGridGame';
 import CyberConnectFour from './CyberConnectFour';
@@ -20,6 +20,7 @@ export default function ActiveMatchStage({
   initialState,
   status,
   isHost,
+  isSpectator = false,
   myNickname,
   remotePeerNickname,
   showToast,
@@ -105,29 +106,38 @@ export default function ActiveMatchStage({
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          {isConnected && (
-            <button
-              type="button"
-              onClick={handleTurnNudge}
-              className="btn btn-secondary text-xs"
-              style={{ height: '30px', padding: '0 8px', borderColor: 'rgba(0, 242, 254, 0.3)' }}
-              title="Nudge opponent when it is their turn"
-            >
-              <Zap size={12} color="#00f2fe" />
-              <span className="exit-btn-label">Nudge</span>
-            </button>
-          )}
+          {isSpectator ? (
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '3px 8px', borderRadius: '12px', background: 'rgba(192, 132, 252, 0.15)', border: '1px solid rgba(192, 132, 252, 0.4)', color: '#c084fc', fontSize: '0.72rem', fontWeight: 700 }}>
+              <Eye size={12} />
+              <span>Spectating</span>
+            </span>
+          ) : (
+            <>
+              {isConnected && (
+                <button
+                  type="button"
+                  onClick={handleTurnNudge}
+                  className="btn btn-secondary text-xs"
+                  style={{ height: '30px', padding: '0 8px', borderColor: 'rgba(0, 242, 254, 0.3)' }}
+                  title="Nudge opponent when it is their turn"
+                >
+                  <Zap size={12} color="#00f2fe" />
+                  <span className="exit-btn-label">Nudge</span>
+                </button>
+              )}
 
-          {onExitMatch && (
-            <button 
-              type="button"
-              onClick={onExitMatch} 
-              className="btn btn-secondary text-xs exit-match-btn" 
-              title="End Match & Close Card"
-            >
-              <X size={13} />
-              <span className="exit-btn-label">End</span>
-            </button>
+              {onExitMatch && (
+                <button 
+                  type="button"
+                  onClick={onExitMatch} 
+                  className="btn btn-secondary text-xs exit-match-btn" 
+                  title="End Match & Close Card"
+                >
+                  <X size={13} />
+                  <span className="exit-btn-label">End</span>
+                </button>
+              )}
+            </>
           )}
         </div>
       </div>
@@ -157,7 +167,7 @@ export default function ActiveMatchStage({
       )}
 
       {/* Active Game Canvas / Matrix */}
-      <div style={{ flex: 1, minHeight: 0, position: 'relative', overflow: 'hidden' }}>
+      <div style={{ flex: 1, minHeight: 0, position: 'relative', overflow: 'hidden', pointerEvents: isSpectator ? 'none' : 'auto' }}>
         {activeGame === 'pong' ? (
           <CyberPongGame 
             cardId={cardId}
