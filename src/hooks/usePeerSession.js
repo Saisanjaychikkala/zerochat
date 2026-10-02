@@ -14,12 +14,15 @@ export function usePeerSession({ soundEnabled, showToast, onNewPeerConnection })
   const [status, setStatus] = useState(initialHash ? 'connecting' : 'disconnected');
   const [latency, setLatency] = useState(null);
   const [roomFullError, setRoomFullError] = useState(null);
+  const [connectionFailed, setConnectionFailed] = useState(false);
+  const [connectionErrorReason, setConnectionErrorReason] = useState(null);
 
   // Remote typing state
   const [isPeerTyping, setIsPeerTyping] = useState(false);
   const [peerTypingNickname, setPeerTypingNickname] = useState('');
 
   const currentConnectedPeerRef = useRef(null);
+  const connectionTimeoutRef = useRef(null);
   const soundEnabledRef = useRef(soundEnabled);
   soundEnabledRef.current = soundEnabled;
 
@@ -70,6 +73,8 @@ export function usePeerSession({ soundEnabled, showToast, onNewPeerConnection })
       setRemotePeerId(peerId);
       if (nickname) setRemoteNickname(nickname);
       setRoomFullError(null);
+      setConnectionFailed(false);
+      setConnectionErrorReason(null);
       setStatus('connected');
     });
 
@@ -85,13 +90,15 @@ export function usePeerSession({ soundEnabled, showToast, onNewPeerConnection })
     });
 
     const unsubPeerNotFound = peerService.on('peer_not_found', () => {
-      if (showToast) showToast('Room not found or peer is offline. Click Retry when peer is ready.', 'error');
+      setConnectionFailed(true);
+      setConnectionErrorReason('peer_offline');
       setStatus('disconnected');
     });
 
     const unsubRoomFull = peerService.on('room_full', ({ reason }) => {
       const msg = reason || 'Room is full (2/2 peers connected)';
       setRoomFullError(msg);
+      setConnectionFailed(false);
       setStatus('disconnected');
       if (showToast) showToast(msg, 'error');
       window.history.replaceState(null, '', window.location.pathname);
@@ -101,6 +108,9 @@ export function usePeerSession({ soundEnabled, showToast, onNewPeerConnection })
       console.warn('[ZeroChat] Peer error event:', err);
       if (err?.type === 'peer-unavailable') {
         if (showToast) showToast('Waiting for peer to open room...', 'warning');
+      } else if (err?.type === 'network' || err?.type === 'webrtc') {
+        setConnectionFailed(true);
+        setConnectionErrorReason('network');
       }
     });
 
@@ -134,6 +144,32 @@ export function usePeerSession({ soundEnabled, showToast, onNewPeerConnection })
     };
   }, [initialHash, showToast, onNewPeerConnection]);
 
+  // Connection timeout guard for strict NATs / unreachable peers
+  useEffect(() => {
+    if (status === 'connecting') {
+      if (connectionTimeoutRef.current) clearTimeout(connectionTimeoutRef.current);
+      connectionTimeoutRef.current = setTimeout(() => {
+        if (!currentConnectedPeerRef.current) {
+          console.warn('[ZeroChat] Direct connection timeout. Showing friendly diagnostic.');
+          setConnectionFailed(true);
+          setConnectionErrorReason('timeout');
+        }
+      }, 16000);
+    } else {
+      if (connectionTimeoutRef.current) {
+        clearTimeout(connectionTimeoutRef.current);
+        connectionTimeoutRef.current = null;
+      }
+      if (status === 'connected') {
+        setConnectionFailed(false);
+        setConnectionErrorReason(null);
+      }
+    }
+    return () => {
+      if (connectionTimeoutRef.current) clearTimeout(connectionTimeoutRef.current);
+    };
+  }, [status]);
+
   const handleJoinRoom = useCallback((targetId, asHost = false) => {
     if (!targetId) return;
     const cleanId = normalizeRoomId(targetId);
@@ -144,6 +180,8 @@ export function usePeerSession({ soundEnabled, showToast, onNewPeerConnection })
         return;
       }
       setRoomFullError(null);
+      setConnectionFailed(false);
+      setConnectionErrorReason(null);
       if (onNewPeerConnection) onNewPeerConnection();
       currentConnectedPeerRef.current = null;
       setMyRoomId(cleanId);
@@ -155,6 +193,7 @@ export function usePeerSession({ soundEnabled, showToast, onNewPeerConnection })
         peerService.init(cleanId, asHost).catch((err) => {
           console.error('[ZeroChat] Join init error:', err);
           setStatus('disconnected');
+          setConnectionFailed(true);
         });
       } else {
         peerService.connectToPeer(cleanId);
@@ -164,10 +203,16 @@ export function usePeerSession({ soundEnabled, showToast, onNewPeerConnection })
 
   const handleRetryConnection = useCallback(() => {
     if (!myRoomId) return;
+    setConnectionFailed(false);
+    setConnectionErrorReason(null);
+    setRoomFullError(null);
     if (showToast) showToast(`Retrying connection to room ${myRoomId}...`, 'info');
     setStatus('connecting');
     if (!peerService.peer || peerService.peer.destroyed) {
-      peerService.init(myRoomId).catch(() => setStatus('disconnected'));
+      peerService.init(myRoomId).catch(() => {
+        setStatus('disconnected');
+        setConnectionFailed(true);
+      });
     } else {
       peerService.connectToPeer(myRoomId);
     }
@@ -214,6 +259,8 @@ export function usePeerSession({ soundEnabled, showToast, onNewPeerConnection })
     setRemotePeerId(null);
     setLatency(null);
     setRoomFullError(null);
+    setConnectionFailed(false);
+    setConnectionErrorReason(null);
     setStatus('disconnected');
     setIsHost(false);
     window.history.replaceState(null, '', window.location.pathname);
@@ -223,6 +270,8 @@ export function usePeerSession({ soundEnabled, showToast, onNewPeerConnection })
 
   const handleCreateNewRoom = useCallback(() => {
     setRoomFullError(null);
+    setConnectionFailed(false);
+    setConnectionErrorReason(null);
     if (onNewPeerConnection) onNewPeerConnection();
     setRemotePeerId(null);
     setLatency(null);
@@ -252,6 +301,8 @@ export function usePeerSession({ soundEnabled, showToast, onNewPeerConnection })
     latency,
     roomFullError,
     setRoomFullError,
+    connectionFailed,
+    connectionErrorReason,
     isPeerTyping,
     peerTypingNickname,
     handleJoinRoom,

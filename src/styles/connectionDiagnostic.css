@@ -1,0 +1,239 @@
+/* ==========================================================================
+   ZeroChat - Connection Diagnostic Card Styles
+   Cyber-Glass Ergonomics & Friendly Non-Technical Troubleshooting
+   ========================================================================== */
+
+.diagnostic-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 30px 22px;
+  background: radial-gradient(120% 120% at 50% 0%, rgba(245, 158, 11, 0.08) 0%, rgba(10, 15, 29, 0.88) 60%),
+              rgba(18, 16, 28, 0.76);
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  border-radius: var(--radius-xl);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.55), 0 0 30px rgba(245, 158, 11, 0.12);
+  max-width: 440px;
+  width: 100%;
+  margin: auto;
+  position: relative;
+  overflow: hidden;
+  box-sizing: border-box;
+  animation: cardFadeIn 0.3s ease-out;
+}
+
+@keyframes cardFadeIn {
+  from { opacity: 0; transform: scale(0.97); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.diagnostic-icon-wrapper {
+  position: relative;
+  width: 68px;
+  height: 68px;
+  margin: 0 auto 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(245, 158, 11, 0.22) 0%, rgba(245, 158, 11, 0.04) 70%);
+  border: 1.5px solid rgba(245, 158, 11, 0.45);
+  box-shadow: 0 0 25px rgba(245, 158, 11, 0.25);
+}
+
+.diagnostic-title {
+  font-size: 1.24rem;
+  font-weight: 700;
+  color: #ffffff;
+  margin: 0 0 6px;
+  letter-spacing: -0.02em;
+}
+
+.diagnostic-sub {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  line-height: 1.45;
+  max-width: 360px;
+  margin: 0 auto 18px;
+}
+
+/* 3 Quick Guidance Cards Grid */
+.diagnostic-tips-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  margin-bottom: 22px;
+}
+
+.diagnostic-tip-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-md);
+  text-align: left;
+  transition: border-color 0.2s ease, background 0.2s ease;
+  box-sizing: border-box;
+}
+
+.diagnostic-tip-item:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(245, 158, 11, 0.3);
+}
+
+.diagnostic-tip-icon-box {
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius-sm);
+  background: rgba(245, 158, 11, 0.12);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  color: #f59e0b;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.diagnostic-tip-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  word-break: break-word;
+}
+
+.diagnostic-tip-title {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-main);
+  line-height: 1.25;
+}
+
+.diagnostic-tip-desc {
+  font-size: 0.72rem;
+  color: var(--text-dim);
+  line-height: 1.35;
+  margin-top: 2px;
+}
+
+/* Action Buttons */
+.diagnostic-actions {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+  justify-content: center;
+}
+
+.diagnostic-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  flex: 1.2;
+  padding: 11px 16px;
+  border-radius: var(--radius-md);
+  font-size: 0.84rem;
+  font-weight: 600;
+  background: linear-gradient(135deg, #00f2fe 0%, #4facfe 100%);
+  color: #040d1a;
+  border: none;
+  box-shadow: 0 4px 18px rgba(0, 242, 254, 0.35);
+  transition: all 0.2s ease;
+  min-height: 44px;
+  cursor: pointer;
+}
+
+.diagnostic-btn-primary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 22px rgba(0, 242, 254, 0.5);
+  filter: brightness(1.05);
+}
+
+.diagnostic-btn-primary:active {
+  transform: translateY(0);
+}
+
+.diagnostic-btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  flex: 1;
+  padding: 11px 14px;
+  border-radius: var(--radius-md);
+  font-size: 0.84rem;
+  font-weight: 600;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  color: var(--text-main);
+  transition: all 0.2s ease;
+  min-height: 44px;
+  cursor: pointer;
+}
+
+.diagnostic-btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.25);
+  color: #fff;
+  transform: translateY(-1px);
+}
+
+.diagnostic-btn-secondary:active {
+  transform: translateY(0);
+}
+
+/* Mobile Responsive Adjustments */
+@media (max-width: 480px) {
+  .diagnostic-card {
+    padding: 22px 14px;
+    border-radius: var(--radius-lg);
+  }
+
+  .diagnostic-title {
+    font-size: 1.15rem;
+  }
+
+  .diagnostic-sub {
+    font-size: 0.76rem;
+    margin-bottom: 14px;
+  }
+
+  .diagnostic-tips-grid {
+    gap: 6px;
+    margin-bottom: 18px;
+  }
+
+  .diagnostic-tip-item {
+    padding: 9px 12px;
+    gap: 10px;
+  }
+
+  .diagnostic-tip-icon-box {
+    width: 32px;
+    height: 32px;
+  }
+
+  .diagnostic-tip-title {
+    font-size: 0.78rem;
+  }
+
+  .diagnostic-tip-desc {
+    font-size: 0.68rem;
+  }
+
+  .diagnostic-actions {
+    flex-direction: column;
+    gap: 8px;
+    width: 100%;
+  }
+
+  .diagnostic-btn-primary,
+  .diagnostic-btn-secondary {
+    width: 100%;
+  }
+}

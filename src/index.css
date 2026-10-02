@@ -20,5 +20,7 @@
 @import './styles/activeMatchStage.css';
 @import './styles/gameDrawer.css';
 @import './styles/connect4.css';
+@import './styles/connectionLoader.css';
+@import './styles/connectionDiagnostic.css';
 @import './styles/responsive.css';
 @import './styles/mobileMenu.css';

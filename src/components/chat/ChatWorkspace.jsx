@@ -31,6 +31,8 @@ export default function ChatWorkspace({
     status,
     latency,
     roomFullError,
+    connectionFailed,
+    connectionErrorReason,
     isPeerTyping,
     peerTypingNickname,
     handleRetryConnection,
@@ -65,6 +67,8 @@ export default function ChatWorkspace({
         isHost={isHost}
         onRetryConnection={handleRetryConnection}
         roomFullError={roomFullError}
+        connectionFailed={connectionFailed}
+        connectionErrorReason={connectionErrorReason}
         onCreateNewRoom={handleCreateNewRoom}
         onOpenInfoModal={onOpenInfoModal}
         onStartCall={handleStartCall}

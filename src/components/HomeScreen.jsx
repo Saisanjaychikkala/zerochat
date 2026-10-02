@@ -169,11 +169,7 @@ export default function HomeScreen({
                 Setting up a private, encrypted channel. No servers in between.
               </p>
               <div className="connecting-banner-hint">
-                {connectingSeconds < 5 ? (
-                  <span>⚡ Finding your friend's device...</span>
-                ) : (
-                  <span>🌐 Working through firewall... this takes 5–8s on mobile data</span>
-                )}
+                <span>⚡ Securing direct device link...</span>
               </div>
             </div>
           </div>

@@ -127,12 +127,10 @@
   transform: translateY(-3px);
   border-color: rgba(255, 255, 255, 0.25);
 }
-
 .feature-hub-card.highlight-cyan:hover {
   border-color: var(--accent-cyan);
   box-shadow: 0 10px 30px -10px var(--accent-cyan-glow);
 }
-
 .feature-hub-card.highlight-purple:hover {
   border-color: var(--accent-purple);
   box-shadow: 0 10px 30px -10px var(--accent-purple-glow);

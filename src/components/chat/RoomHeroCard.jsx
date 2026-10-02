@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { 
   Users, 
@@ -7,10 +7,10 @@ import {
   Share2, 
   Copy, 
   Check,
-  RefreshCw,
-  Radio,
   Sparkles
 } from 'lucide-react';
+import ConnectionLoader from './ConnectionLoader';
+import ConnectionDiagnosticCard from './ConnectionDiagnosticCard';
 
 export default function RoomHeroCard({
   roomId,
@@ -20,6 +20,8 @@ export default function RoomHeroCard({
   status,
   isConnected,
   roomFullError,
+  connectionFailed,
+  connectionErrorReason,
   copied,
   copiedCode,
   onCopyLink,
@@ -29,19 +31,6 @@ export default function RoomHeroCard({
   onOpenRoomModal,
   onOpenInfoModal
 }) {
-  const [elapsedSecs, setElapsedSecs] = useState(0);
-
-  useEffect(() => {
-    let t;
-    if (status === 'connecting') {
-      setElapsedSecs(1);
-      t = setInterval(() => setElapsedSecs((s) => s + 1), 1000);
-    } else {
-      setElapsedSecs(0);
-    }
-    return () => clearInterval(t);
-  }, [status]);
-
   if (roomFullError && !isConnected) {
     return (
       <div className="waiting-hero-card" style={{ borderColor: 'rgba(239, 68, 68, 0.35)', background: 'rgba(239, 68, 68, 0.04)' }}>
@@ -76,109 +65,26 @@ export default function RoomHeroCard({
     );
   }
 
-  // Active Connecting State (Both Joiner and Host when handshake is underway)
+  // Friendly Connection Diagnostic Screen when WebRTC STUN/firewall fails or times out
+  if (connectionFailed && !isConnected) {
+    return (
+      <ConnectionDiagnosticCard 
+        onRetry={onRetryConnection}
+        onCreateNewRoom={onCreateNewRoom}
+        reason={connectionErrorReason}
+      />
+    );
+  }
+
+  // Active Minimalist Cyber-Orb Connection Loader
   if (status === 'connecting') {
     return (
-      <div className="waiting-hero-card">
-        {/* Pulsing Cyber Radar Animation */}
-        <div style={{
-          width: '110px',
-          height: '110px',
-          borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(0,242,254,0.18) 0%, rgba(79,172,254,0.04) 70%, transparent 100%)',
-          border: '2px solid rgba(0,242,254,0.4)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          margin: '0 auto',
-          position: 'relative',
-          boxShadow: '0 0 30px rgba(0,242,254,0.25)'
-        }}>
-          <Radio size={40} color="var(--accent-cyan)" className="animate-pulse" />
-        </div>
-
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginBottom: '4px' }}>
-            <h3 style={{ fontSize: '1.18rem', fontWeight: 700 }}>
-              Connecting to your friend...
-            </h3>
-            <span style={{
-              fontSize: '0.68rem',
-              fontFamily: 'var(--font-mono)',
-              color: 'var(--accent-cyan)',
-              background: 'rgba(0, 242, 254, 0.15)',
-              padding: '2px 8px',
-              borderRadius: '999px',
-              border: '1px solid rgba(0, 242, 254, 0.3)'
-            }}>
-              {elapsedSecs}s
-            </span>
-          </div>
-          <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', lineHeight: 1.45, maxWidth: '380px', margin: '0 auto' }}>
-            Setting up an encrypted, direct connection. No servers store your messages.
-          </p>
-        </div>
-
-        <div style={{
-          width: '100%',
-          maxWidth: '380px',
-          margin: '0 auto',
-          background: 'rgba(0,0,0,0.25)',
-          padding: '10px 14px',
-          borderRadius: 'var(--radius-md)',
-          border: '1px solid var(--border-subtle)',
-          textAlign: 'left'
-        }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-            <span style={{ fontSize: '0.68rem', color: 'var(--text-dim)', textTransform: 'uppercase', fontWeight: 700 }}>
-              Connecting
-            </span>
-            <span style={{ fontSize: '0.68rem', color: 'var(--accent-cyan)', fontFamily: 'var(--font-mono)' }}>
-              {elapsedSecs < 4 ? 'Step 1/3' : elapsedSecs < 8 ? 'Step 2/3' : 'Step 3/3'}
-            </span>
-          </div>
-          <div style={{ fontSize: '0.78rem', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <RefreshCw size={13} className="animate-spin text-cyan-400" />
-            <span>
-              {elapsedSecs < 4 
-                ? 'Finding your friend...' 
-                : elapsedSecs < 8 
-                ? 'Getting through firewalls... hang tight' 
-                : 'Almost there — finalizing connection...'}
-            </span>
-          </div>
-        </div>
-
-        {/* Helpful Tip */}
-        <p style={{ fontSize: '0.74rem', color: 'var(--text-dim)', maxWidth: '380px', margin: '0 auto', lineHeight: 1.4 }}>
-          💡 Tip: Both peers must have ZeroChat open on screen. Connection usually completes in 2–7 seconds.
-        </p>
-
-        {/* Action Buttons */}
-        <div style={{ display: 'flex', gap: '8px', width: '100%', justifyContent: 'center' }}>
-          {onRetryConnection && (
-            <button 
-              onClick={onRetryConnection}
-              className="btn btn-primary"
-              style={{ flex: 1, padding: '10px 14px', fontSize: '0.84rem' }}
-              title="Force connection retry"
-            >
-              <RefreshCw size={14} className="animate-spin" />
-              <span>Retry Connection</span>
-            </button>
-          )}
-
-          <button 
-            onClick={onCreateNewRoom}
-            className="btn btn-secondary"
-            style={{ padding: '10px 14px', fontSize: '0.84rem' }}
-            title="Start your own private room"
-          >
-            <PlusCircle size={14} />
-            <span>Create New Room</span>
-          </button>
-        </div>
-      </div>
+      <ConnectionLoader 
+        inviteUrl={inviteUrl}
+        onCopyLink={onCopyLink}
+        copied={copied}
+        onCancel={onCreateNewRoom}
+      />
     );
   }
 

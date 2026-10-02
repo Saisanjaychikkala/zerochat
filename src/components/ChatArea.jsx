@@ -25,18 +25,11 @@ export default function ChatArea({
   peerTypingNickname,
   onTyping,
   onOpenRoomModal,
-  onOpenLightbox,
-  roomId,
-  isHost,
-  onRetryConnection,
-  roomFullError,
-  onCreateNewRoom,
-  onOpenInfoModal,
-  onStartCall,
-  callStatus,
-  onSendNudge,
-  latency,
-  showToast,
+  onOpenLightbox, roomId, isHost,
+  onRetryConnection, roomFullError,
+  connectionFailed, connectionErrorReason,
+  onCreateNewRoom, onOpenInfoModal, onStartCall,
+  callStatus, onSendNudge, latency, showToast,
 }) {
   const [inputText, setInputText] = useState('');
   const [copied, setCopied] = useState(false);
@@ -242,6 +235,8 @@ export default function ChatArea({
             status={status}
             isConnected={isConnected}
             roomFullError={roomFullError}
+            connectionFailed={connectionFailed}
+            connectionErrorReason={connectionErrorReason}
             copied={copied}
             copiedCode={copiedCode}
             onCopyLink={handleCopyLink}
