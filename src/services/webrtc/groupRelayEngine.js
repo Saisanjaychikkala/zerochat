@@ -299,6 +299,14 @@ export class GroupRelayEngine {
 
   sendGameAction(actionData) {
     const packet = { type: GROUP_PACKET_TYPES.GAME_ACTION, ...actionData, timestamp: Date.now() };
+    if (actionData.action === 'game_event') {
+      if (this.isHost) {
+        this.broadcast(packet);
+      } else if (this.isAdmitted && this.hostConn?.open) {
+        this.hostConn.send(packet);
+      }
+      return;
+    }
     if (this.isHost) { this.broadcast(packet); this.emit('message', packet); }
     else if (this.isAdmitted && this.hostConn?.open) { this.hostConn.send(packet); this.emit('message', packet); }
   }

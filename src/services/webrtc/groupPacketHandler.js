@@ -166,7 +166,33 @@ export function handleGroupPacket(engine, data, conn) {
 
     // Game cards and actions are first-class relay packets
     case GROUP_PACKET_TYPES.GAME_CARD:
+      if (engine.isHost) {
+        if (!engine.connections.has(conn.peer)) return;
+        engine.emit('message', data);
+        engine.broadcast(data, conn.peer);
+      } else {
+        if (conn !== engine.hostConn) return;
+        engine.emit('message', data);
+      }
+      break;
+
     case GROUP_PACKET_TYPES.GAME_ACTION:
+      if (data.action === 'game_event') {
+        if (engine.isHost) {
+          if (!engine.connections.has(conn.peer)) return;
+          engine.broadcast(data, conn.peer);
+        } else {
+          if (conn !== engine.hostConn) return;
+        }
+        engine.emit('game_event', data.data);
+        if (data.data?.type === 'game_nudge') {
+          engine.emit('peer_nudge', {
+            senderNickname: data.data.sender || 'Opponent',
+            message: data.data.message || "It's your turn in the game!"
+          });
+        }
+        return;
+      }
       if (engine.isHost) {
         if (!engine.connections.has(conn.peer)) return;
         engine.emit('message', data);

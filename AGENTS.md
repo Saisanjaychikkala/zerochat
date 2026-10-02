@@ -13,7 +13,7 @@ ZeroChat is maintained using **Direct Pragmatic Engineering**. The AI agent oper
    npm test
    npm run build
    ```
-4. **Pragmatic Modularity (~450 lines max)**: Keep components, styles, and services focused on single responsibility. Avoid artificial code-golfing or decomposing files into duplicate fragments just to satisfy arbitrary line counters.
+4. **Clean Architecture & Single Responsibility Principle (SRP)**: Each component, service, and hook must have a distinct, well-defined single responsibility. Avoid artificial code-golfing or decomposing files into duplicate micro-fragments. Write clean, readable, self-contained, and maintainable code.
 5. **Cyber-Glass Ergonomics & Aesthetics**: Every UI element must deliver high-contrast readability, 60fps hardware-accelerated animations, responsive mobile touch targets (>=44x44px, 100dvh viewport support), and procedural Web Audio feedback.
 
 ---
@@ -48,10 +48,10 @@ ZeroChat is maintained using **Direct Pragmatic Engineering**. The AI agent oper
 ## 3. Direct Pragmatic Execution Loop
 
 1. **Root Cause Analysis**: Inspect real source code, state hooks, and DOM elements directly. Never rely on superficial string-matching tests.
-2. **Surgical Implementation**: Make minimal, robust changes in cohesive modular files with clean component boundaries.
+2. **Surgical Implementation**: Make minimal, robust changes in cohesive modular files with clean component boundaries and zero code duplication.
 3. **Automated Verification**:
    - Run `npm test` to verify all functional regression checks (protocol, state machines, game math, stream teardown).
-   - Run `npm run build` to verify the production bundle remains <200KB gzipped.
+   - Run `npm run build` to verify clean compilation with no syntax or packaging errors.
 4. **Git Hygiene**:
    - Commit with conventional commit messages (`feat: ...`, `fix: ...`, `refactor: ...`).
    - Push directly to `origin/main`.

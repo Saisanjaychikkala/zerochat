@@ -137,11 +137,23 @@ export default function ActiveMatchStage({
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
           {isSpectator ? (
-            <span className="spectator-status-badge">
-              <Eye size={13} />
-              <span className="spec-badge-full">SPECTATOR • VIEW ONLY</span>
-              <span className="spec-badge-mobile">LIVE</span>
-            </span>
+            <>
+              <span className="spectator-status-badge">
+                <Eye size={13} />
+                <span className="spec-badge-full">SPECTATING</span>
+                <span className="spec-badge-mobile">LIVE</span>
+              </span>
+              <button 
+                type="button"
+                onClick={onReturnToChat || onExitMatch} 
+                className="btn btn-secondary text-xs exit-match-btn" 
+                title="Close Spectator View"
+                style={{ height: '30px' }}
+              >
+                <X size={13} />
+                <span className="exit-btn-label">Close</span>
+              </button>
+            </>
           ) : (
             <>
               {isConnected && (

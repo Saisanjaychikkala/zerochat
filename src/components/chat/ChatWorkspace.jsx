@@ -53,6 +53,7 @@ export default function ChatWorkspace({
         setMessages={setMessages}
         onSendMessage={handleSendMessage}
         onSendFile={handleSendFile}
+        onReact={chatTransfers.handleReaction}
         status={status}
         remotePeerId={remotePeerId}
         remotePeerNickname={remoteNickname}

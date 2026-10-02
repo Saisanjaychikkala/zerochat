@@ -215,8 +215,12 @@ export function GroupChatWorkspace({
                   key={msg.id}
                   msg={msg}
                   myNickname={myNickname}
+                  myPeerId={myPeerId}
                   remotePeerNickname="Squad Member"
+                  hostPeerId={currentHostId}
+                  coHostPeerId={designatedSuccessorId}
                   onReply={setReplyingTo}
+                  onReact={onSendReaction}
                   onScrollToMessage={handleScrollToMessage}
                   onOpenLightbox={(url, name) => setActiveLightbox({ url, name })}
                   onImageLoaded={() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })}

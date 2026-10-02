@@ -30,6 +30,7 @@ export default function ChatArea({
   connectionFailed, connectionErrorReason,
   onCreateNewRoom, onOpenInfoModal, onStartCall,
   callStatus, onSendNudge, latency, showToast,
+  onReact,
 }) {
   const [inputText, setInputText] = useState('');
   const [copied, setCopied] = useState(false);
@@ -256,6 +257,7 @@ export default function ChatArea({
             myNickname={myNickname}
             remotePeerNickname={remotePeerNickname}
             onReply={setReplyingTo}
+            onReact={onReact}
             onScrollToMessage={handleScrollToMessage}
             onOpenLightbox={onOpenLightbox}
             onImageLoaded={() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })}

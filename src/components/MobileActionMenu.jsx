@@ -12,7 +12,8 @@ import {
   PhoneOff, 
   Activity, 
   Palette, 
-  Gamepad2 
+  Gamepad2,
+  Settings
 } from 'lucide-react';
 
 export default function MobileActionMenu({
@@ -28,6 +29,7 @@ export default function MobileActionMenu({
   onLaunchGame,
   onOpenInfoModal,
   onOpenRoomModal,
+  onOpenSettings,
   onDisconnect,
   onBurnSession,
   copyRoomLink,
@@ -124,6 +126,20 @@ export default function MobileActionMenu({
               <div className="grid-btn-text">
                 <span className="grid-label">Theme</span>
                 <span className="grid-sub text-capitalize">{theme || 'Cyber'}</span>
+              </div>
+            </button>
+          )}
+
+          {onOpenSettings && (
+            <button 
+              type="button" 
+              onClick={() => { onClose(); onOpenSettings(); }} 
+              className="mobile-grid-btn"
+            >
+              <Settings size={18} color="var(--accent-cyan)" />
+              <div className="grid-btn-text">
+                <span className="grid-label">Settings</span>
+                <span className="grid-sub">Theme & Surface</span>
               </div>
             </button>
           )}

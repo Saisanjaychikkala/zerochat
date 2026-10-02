@@ -13,7 +13,8 @@ import {
   Home,
   Palette,
   Gamepad2,
-  MoreVertical
+  MoreVertical,
+  Settings
 } from 'lucide-react';
 
 import { copyToClipboard } from '../utils/clipboard';
@@ -39,6 +40,7 @@ export default function Header({
   onOpenNicknameModal,
   onShowInfoModal,
   onOpenInfoModal,
+  onOpenSettings,
   onGoHome,
   theme,
   onToggleTheme,
@@ -179,6 +181,18 @@ export default function Header({
           </button>
         )}
 
+        {/* Settings Modal (Desktop) */}
+        {onOpenSettings && (
+          <button 
+            type="button"
+            onClick={onOpenSettings} 
+            className="btn btn-icon settings-btn desktop-only" 
+            title="Settings (Theme, Surface, Sounds)"
+          >
+            <Settings size={16} />
+          </button>
+        )}
+
         {/* Theme Switcher (Desktop) */}
         {onToggleTheme && (
           <button 
@@ -256,6 +270,7 @@ export default function Header({
         onLaunchGame={onLaunchGame}
         onOpenInfoModal={handleInfoModal}
         onOpenRoomModal={handleRoomModal}
+        onOpenSettings={onOpenSettings}
         onDisconnect={onDisconnect}
         onBurnSession={onBurnSession}
         copyRoomLink={copyRoomLink}

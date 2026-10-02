@@ -43,6 +43,14 @@ class PeerService {
     // Sub-Engines
     this.fileStream = new FileStreamEngine();
     this.mediaCall = new MediaCallEngine();
+
+    // Bridge squad relay game events and nudges to peerService listeners
+    groupRelayEngine.on('game_event', (eventData) => {
+      this.emit('game_event', eventData);
+    });
+    groupRelayEngine.on('peer_nudge', (nudgeData) => {
+      this.emit('peer_nudge', nudgeData);
+    });
   }
 
   // ==========================================
@@ -727,6 +735,10 @@ class PeerService {
         this.emit('game_event', packet.data);
         break;
 
+      case 'chat_reaction':
+        this.emit('chat_reaction', { messageId: packet.messageId, emoji: packet.emoji });
+        break;
+
       default:
         break;
     }
@@ -736,12 +748,18 @@ class PeerService {
     const text = (typeof message === 'string' && message.trim()) ? message.trim() : "I'll be calling you in 5 seconds! Get ready.";
     if (groupRelayEngine.roomId && (groupRelayEngine.isHost || groupRelayEngine.isAdmitted)) {
       groupRelayEngine.sendGameAction({
-        action: 'peer_nudge',
-        message: text,
-        nudgeType: typeof nudgeType === 'string' ? nudgeType : 'calling_soon',
-        senderNickname: this.myNickname,
+        action: 'game_event',
+        data: {
+          type: 'game_nudge',
+          sender: this.myNickname,
+          message: text,
+          nudgeType: typeof nudgeType === 'string' ? nudgeType : 'calling_soon',
+        },
         senderPeerId: groupRelayEngine.myPeerId,
       });
+      return;
+    }
+    if (!this.isConnected()) {
       return;
     }
     this.sendJson({
@@ -765,6 +783,20 @@ class PeerService {
       type: 'game_event',
       data,
     });
+  }
+
+  sendReaction(messageId, emoji) {
+    if (groupRelayEngine.roomId && (groupRelayEngine.isHost || groupRelayEngine.isAdmitted)) {
+      groupRelayEngine.sendReaction(messageId, emoji);
+      return;
+    }
+    if (this.conn && this.conn.open) {
+      this.sendJson({
+        type: 'chat_reaction',
+        messageId,
+        emoji,
+      });
+    }
   }
 
   burnSession() {

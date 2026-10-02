@@ -33,10 +33,10 @@ Use this skill when architecting features, writing tests, reviewing code quality
      npm run build
      ```
 
-4. **Pragmatic Modularity (~450 Lines Guideline)**
-   - Aim for single responsibility per file.
-   - Files should naturally stay under ~450 lines.
+4. **Clean Architecture & Single Responsibility Principle (SRP)**
+   - Aim for a single, well-defined responsibility per file.
    - **Never artificial code-golf**: Do not delete helpful comments, combine lines awkwardly, or create fragmented duplicate components just to satisfy an arbitrary line counter. If a component grows large, decompose it along natural responsibility boundaries (custom hook, subcomponents, utility).
+   - Write clean, maintainable, readable, and well-structured code.
 
 5. **Cyber-Glass Aesthetics & Touch Safety**
    - Maintain futuristic cyber-glass visual identity (Plus Jakarta Sans, JetBrains Mono, vibrant neon accents).
@@ -46,11 +46,10 @@ Use this skill when architecting features, writing tests, reviewing code quality
 
 ---
 
-## 2. Bundle Budget Standards
+## 2. Pragmatic Performance & Code Hygiene
 
-- **Target**: Initial main chunk < 150KB gzipped.
-- **Hard Ceiling**: Total bundle < 200KB gzipped.
-- Code-split standalone modules (such as `P2PGameArena`) using dynamic `import()` or React lazy loading.
+- **Pragmatic Splitting**: Code-split large standalone feature modules (such as `P2PGameArena`) using React lazy loading or dynamic imports when appropriate for initial load speed.
+- **Zero Premature Code-Golfing**: Focus on high runtime performance (60fps DOM transitions, efficient WebRTC DataChannel flow control, memory cleanup on session burn) rather than artificial byte limits.
 
 ---
 

@@ -1,5 +1,5 @@
 import React from 'react';
-import { ArrowLeft, Gamepad2, Copy, Check, Radio, QrCode } from 'lucide-react';
+import { ArrowLeft, Gamepad2, Copy, Check, Radio, QrCode, Settings } from 'lucide-react';
 import GameVoiceDock from './GameVoiceDock';
 
 export default function GameArenaHeader({
@@ -21,6 +21,7 @@ export default function GameArenaHeader({
   onSetMute,
   remotePeerNickname,
   onOpenDrawer,
+  onOpenSettings,
 }) {
   return (
     <div className="game-header">
@@ -62,6 +63,18 @@ export default function GameArenaHeader({
           onSetMute={onSetMute}
           remotePeerNickname={remotePeerNickname}
         />
+
+        {onOpenSettings && (
+          <button 
+            type="button"
+            onClick={onOpenSettings} 
+            className="btn btn-icon btn-xs" 
+            title="Settings (Theme, Surface, Sounds)"
+            style={{ width: '28px', height: '28px' }}
+          >
+            <Settings size={14} />
+          </button>
+        )}
 
         <button 
           onClick={onOpenDrawer} 

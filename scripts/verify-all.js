@@ -305,6 +305,96 @@ async function runTests() {
   assert(indexCss.includes("@import './styles/groupChat.css';"), 'index.css imports groupChat.css');
   assert(indexCss.includes("@import './styles/activeMatchStage.css';"), 'index.css imports activeMatchStage.css');
 
+  // ─── [Suite 8] WebRTC In-Chat Game & Nudge Wire Protocol Dispatching ──
+  console.log('\n[Test Suite 8] WebRTC In-Chat Game & Nudge Wire Protocol Dispatching');
+  let dispatchedGameEvent = null;
+  let dispatchedNudge = null;
+  let dispatchedMessage = null;
+  let broadcastedData = null;
+
+  const mockGameEngineHost = {
+    isHost: true,
+    myPeerId: 'host-1',
+    connections: new Map([['peer-2', { peer: 'peer-2', open: true }]]),
+    emit: (evt, payload) => {
+      if (evt === 'game_event') dispatchedGameEvent = payload;
+      if (evt === 'peer_nudge') dispatchedNudge = payload;
+      if (evt === 'message') dispatchedMessage = payload;
+    },
+    broadcast: (data, excludePeer) => {
+      broadcastedData = { data, excludePeer };
+    }
+  };
+
+  const gameMovePacket = {
+    type: GROUP_PACKET_TYPES.GAME_ACTION,
+    action: 'game_event',
+    data: {
+      type: 'move',
+      cardId: 'card-123',
+      col: 3,
+      row: 5,
+      player: 1
+    }
+  };
+
+  handleGroupPacket(mockGameEngineHost, gameMovePacket, { peer: 'peer-2' });
+  assert(dispatchedGameEvent !== null && dispatchedGameEvent.type === 'move', 'GAME_ACTION game_event is emitted to game listener');
+  assert(dispatchedMessage === null, 'GAME_ACTION game_event does NOT pollute the chat messages feed');
+  assert(broadcastedData && broadcastedData.excludePeer === 'peer-2', 'Host broadcasts game_event to all other peers');
+
+  // Test turn nudge packet in squad
+  const nudgePacket = {
+    type: GROUP_PACKET_TYPES.GAME_ACTION,
+    action: 'game_event',
+    data: {
+      type: 'game_nudge',
+      sender: 'Alice',
+      message: "It's your turn in Connect 4!"
+    }
+  };
+  handleGroupPacket(mockGameEngineHost, nudgePacket, { peer: 'peer-2' });
+  assert(dispatchedNudge && dispatchedNudge.senderNickname === 'Alice', 'Game nudge event correctly triggers peer_nudge with sender nickname');
+
+  // ─── [Suite 9] WebRTC Reaction Wire Protocol & Aggregation ───────────
+  console.log('\n[Test Suite 9] WebRTC Reaction Wire Protocol & Aggregation');
+  let dispatchedReaction = null;
+  let broadcastedReaction = null;
+
+  const mockReactionHost = {
+    isHost: true,
+    connections: new Map([['peer-3', { peer: 'peer-3', open: true }]]),
+    emit: (evt, payload) => {
+      if (evt === 'reaction') dispatchedReaction = payload;
+    },
+    broadcast: (data, excludePeer) => {
+      broadcastedReaction = { data, excludePeer };
+    }
+  };
+
+  const reactionPacket = {
+    type: GROUP_PACKET_TYPES.REACTION,
+    messageId: 'msg-999',
+    emoji: '🔥',
+    authorId: 'peer-3',
+    authorName: 'Charlie'
+  };
+
+  handleGroupPacket(mockReactionHost, reactionPacket, { peer: 'peer-3' });
+  assert(dispatchedReaction && dispatchedReaction.emoji === '🔥', 'REACTION packet correctly emitted on host');
+  assert(broadcastedReaction && broadcastedReaction.excludePeer === 'peer-3', 'Host broadcasts reaction to other squad peers');
+
+  // ─── [Suite 10] CSS Design Tokens & Surface Themes ──────────────────
+  console.log('\n[Test Suite 10] CSS Design Tokens & Surface Themes');
+  const variablesCss = fs.readFileSync(path.join(ROOT, 'src', 'styles', 'variables.css'), 'utf8');
+  assert(variablesCss.includes('[data-surface="ultra-glass"]'), 'variables.css contains ultra-glass surface specification');
+  assert(variablesCss.includes('[data-surface="solid-dark"]'), 'variables.css contains solid-dark surface specification');
+  assert(variablesCss.includes('[data-surface="oled-black"]'), 'variables.css contains oled-black surface specification');
+  assert(variablesCss.includes('--bg-main: #000000 !important;'), 'oled-black sets pure deep black background for OLED screens');
+  assert(variablesCss.includes('--bg-main: #090d16 !important;'), 'solid-dark sets rich matte dark background');
+  assert(variablesCss.includes('--accent-cyan:'), 'variables.css defines cyber-cyan accent token');
+  assert(variablesCss.includes('--accent-purple:'), 'variables.css defines cyber-purple accent token');
+
   // ─── Summary ───────────────────────────────────────────────────────
   console.log('\n====================================================');
   console.log(` Verification Complete: ${passedTests}/${totalTests} tests passed`);

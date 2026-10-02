@@ -125,6 +125,23 @@ export function useChatTransfers({ soundEnabled, mobileTab, showToast }) {
       }
     });
 
+    const unsubReaction = peerService.on('chat_reaction', ({ messageId, emoji }) => {
+      setMessages((prev) => prev.map(m => {
+        if (m.id !== messageId) return m;
+        const reactions = { ...(m.reactions || {}) };
+        const users = new Set(reactions[emoji] || []);
+        if (users.has('remote')) {
+          users.delete('remote');
+          if (users.size === 0) delete reactions[emoji];
+          else reactions[emoji] = Array.from(users);
+        } else {
+          users.add('remote');
+          reactions[emoji] = Array.from(users);
+        }
+        return { ...m, reactions };
+      }));
+    });
+
     return () => {
       unsubMessage();
       unsubAck();
@@ -134,6 +151,7 @@ export function useChatTransfers({ soundEnabled, mobileTab, showToast }) {
       unsubFileComplete();
       unsubFileCancelled();
       unsubSessionBurned();
+      unsubReaction();
     };
   }, [showToast]);
 
@@ -264,6 +282,24 @@ export function useChatTransfers({ soundEnabled, mobileTab, showToast }) {
     }
   }, [showToast]);
 
+  const handleReaction = useCallback((messageId, emoji) => {
+    setMessages((prev) => prev.map(m => {
+      if (m.id !== messageId) return m;
+      const reactions = { ...(m.reactions || {}) };
+      const users = new Set(reactions[emoji] || []);
+      if (users.has('local')) {
+        users.delete('local');
+        if (users.size === 0) delete reactions[emoji];
+        else reactions[emoji] = Array.from(users);
+      } else {
+        users.add('local');
+        reactions[emoji] = Array.from(users);
+      }
+      return { ...m, reactions };
+    }));
+    peerService.sendReaction(messageId, emoji);
+  }, []);
+
   return {
     messages,
     setMessages,
@@ -273,6 +309,7 @@ export function useChatTransfers({ soundEnabled, mobileTab, showToast }) {
     handleSendMessage,
     handleSendFile,
     handleCancelTransfer,
+    handleReaction,
     resetHistory,
     handleBurnSession,
   };

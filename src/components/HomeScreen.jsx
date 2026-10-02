@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ShieldCheck, Zap, Gamepad2, Users, Cloud, Lock, Sparkles, ArrowRight, Palette, Info, QrCode, Flame, Radio, Share2 } from 'lucide-react';
+import { ShieldCheck, Zap, Gamepad2, Users, Cloud, Lock, Sparkles, ArrowRight, Palette, Info, QrCode, Flame, Radio, Share2, Settings, User } from 'lucide-react';
 import { normalizeRoomId } from '../services/webrtc/constants';
 
 export default function HomeScreen({
@@ -15,7 +15,11 @@ export default function HomeScreen({
   onOpenSquadModal,
   onBurnSession,
   activePeerNickname,
-  latency
+  latency,
+  myNickname,
+  myAvatarBg,
+  onOpenNicknameModal,
+  onOpenSettings,
 }) {
   const [inputCode, setInputCode] = useState('');
   const [connectingSeconds, setConnectingSeconds] = useState(0);
@@ -76,17 +80,39 @@ export default function HomeScreen({
         </div>
 
         <div className="home-header-actions">
-          {/* Theme Switcher Button */}
-          <button 
-            onClick={onToggleTheme} 
-            className="btn btn-icon theme-toggle-btn" 
-            title={`Active Theme: ${theme}. Click to switch theme.`}
-          >
-            <Palette size={16} />
-          </button>
+          {/* User Profile Button / Pill */}
+          {onOpenNicknameModal && (
+            <button 
+              type="button"
+              onClick={onOpenNicknameModal}
+              className="user-profile-pill"
+              title="Profile & Nickname Settings"
+            >
+              <span 
+                className="user-avatar-circle"
+                style={{ background: myAvatarBg || 'linear-gradient(135deg, #00f2fe, #4facfe)' }}
+              >
+                {myNickname ? myNickname.charAt(0).toUpperCase() : 'U'}
+              </span>
+              <span className="user-profile-name">{myNickname || 'Set Name'}</span>
+            </button>
+          )}
+
+          {/* Settings Modal Button */}
+          {onOpenSettings && (
+            <button 
+              type="button"
+              onClick={onOpenSettings} 
+              className="btn btn-icon settings-btn" 
+              title="Settings (Themes, Surface, Sounds)"
+            >
+              <Settings size={16} />
+            </button>
+          )}
 
           {/* Guide / Info */}
           <button 
+            type="button"
             onClick={onOpenInfoModal} 
             className="btn btn-icon" 
             title="Zero-Knowledge Privacy Guide"
@@ -96,6 +122,7 @@ export default function HomeScreen({
 
           {/* QR Code */}
           <button 
+            type="button"
             onClick={onOpenRoomModal} 
             className="btn btn-icon" 
             title="Scan QR Code to Connect"
@@ -105,6 +132,7 @@ export default function HomeScreen({
 
           {/* Clear Chat */}
           <button 
+            type="button"
             onClick={onBurnSession} 
             className="btn btn-danger text-xs font-semibold"
             title="Wipe & Leave: clear conversation and leave room"

@@ -23,6 +23,7 @@ export default function P2PGameArena({
   onToggleAudio,
   onExit,
   showToast,
+  onOpenSettings,
 }) {
   const [activeGame, setActiveGame] = useState('grid');
   const [activeCardId, setActiveCardId] = useState(null);
@@ -249,6 +250,7 @@ export default function P2PGameArena({
         onSetMute={handleSetMute}
         remotePeerNickname={remotePeerNickname}
         onOpenDrawer={() => setIsDrawerOpen(true)}
+        onOpenSettings={onOpenSettings}
       />
 
       {/* Opponent Status Banner when waiting */}

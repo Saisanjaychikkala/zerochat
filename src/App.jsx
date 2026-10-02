@@ -193,6 +193,7 @@ export default function App() {
             onOpenRoomModal={() => setIsRoomModalOpen(true)}
             onOpenNicknameModal={() => setIsNicknameModalOpen(true)}
             onOpenInfoModal={() => setIsInfoModalOpen(true)}
+            onOpenSettings={() => setIsSettingsOpen(true)}
             onBurnSession={onBurnSession}
             onDisconnect={onDisconnect}
             onGoHome={onDisconnect}
@@ -265,6 +266,10 @@ export default function App() {
             onOpenSquadModal={(tab = 'create') => { setSquadModalTab(tab); setIsSquadModalOpen(true); }}
             onBurnSession={onBurnSession}
             activePeerNickname={remoteNickname}
+            myNickname={preferences.myNickname}
+            myAvatarBg={preferences.myAvatarBg}
+            onOpenNicknameModal={() => setIsNicknameModalOpen(true)}
+            onOpenSettings={() => setIsSettingsOpen(true)}
           />
         ) : viewMode === 'game' ? (
           <P2PGameArena 
@@ -281,6 +286,7 @@ export default function App() {
             onEndCall={callSession.handleEndCall}
             onToggleAudio={callSession.handleToggleAudio}
             onExit={onDisconnect}
+            onOpenSettings={() => setIsSettingsOpen(true)}
             showToast={showToast}
           />
         ) : (
