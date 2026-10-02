@@ -201,6 +201,13 @@
   color: var(--text-main);
 }
 
+.member-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
 /* Mobile Responsive */
 @media (max-width: 640px) {
   .squad-member-drawer {
@@ -219,4 +226,18 @@
     z-index: 50;
   }
   .squad-member-drawer.drawer-open { transform: translateY(0); }
+
+  .drawer-member-card {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .member-card-left {
+    min-width: 0;
+    flex: 1;
+  }
+  .member-card-actions {
+    width: 100%;
+    justify-content: flex-end;
+    gap: 6px;
+  }
 }

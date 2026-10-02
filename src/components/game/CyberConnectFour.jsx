@@ -212,11 +212,11 @@ export default function CyberConnectFour({
       <div className="c4-status-bar">
         <div className="grid-score-pills">
           <span className="score-pill you">
-            {myNickname} ({myToken === 'C' ? 'Cyan' : 'Neon'}): {myDisplayScore}
+            {isSpectator ? (player1 || 'Player 1') : myNickname} (Cyan): {isSpectator ? scores.c : myDisplayScore}
           </span>
           <span className="score-pill ties">Ties: {scores.ties}</span>
           <span className="score-pill peer" style={{ color: 'var(--accent-purple)', borderColor: 'var(--accent-purple-glow)' }}>
-            {opponentLabel} ({opponentToken === 'C' ? 'Cyan' : 'Neon'}): {opponentDisplayScore}
+            {isSpectator ? (player2 || 'Player 2') : opponentLabel} (Magenta): {isSpectator ? scores.m : opponentDisplayScore}
           </span>
         </div>
         <button onClick={handleRestart} className="btn btn-icon btn-xs" title="Reset Grid for New Round">

@@ -27,7 +27,7 @@ export function GroupHeaderBar({
   return (
     <header className="squad-header">
       {/* Left: Back Arrow + Channel Title + Copy */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+      <div className="squad-header-left">
         <button
           type="button"
           onClick={onLeaveSquad}
@@ -106,7 +106,8 @@ export function GroupHeaderBar({
           title="Toggle Squad Member Drawer"
         >
           <Users size={13} />
-          <span className="occupancy-label">{memberCount || 1} Members</span>
+          <span className="occupancy-count">{memberCount || 1}</span>
+          <span className="occupancy-label"> Members</span>
         </button>
 
         {/* Settings */}

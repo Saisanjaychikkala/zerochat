@@ -160,7 +160,7 @@ export function MemberDrawer({
                       </div>
                     </div>
 
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <div className="member-card-actions">
                       <span className="latency-chip">{m.latency || 20}ms</span>
 
                       {/* Host Controls */}

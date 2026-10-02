@@ -218,11 +218,11 @@ export default function CyberGridGame({
       <div className="grid-status-bar">
         <div className="grid-score-pills">
           <span className="score-pill you">
-            {myNickname} ({mySymbol}): {myDisplayScore}
+            {isSpectator ? (player1 || 'Player 1') : myNickname} ({isSpectator ? 'X' : mySymbol}): {isSpectator ? scores.x : myDisplayScore}
           </span>
           <span className="score-pill ties">Ties: {scores.ties}</span>
           <span className="score-pill peer">
-            {opponentLabel} ({opponentSymbol}): {opponentDisplayScore}
+            {isSpectator ? (player2 || 'Player 2') : opponentLabel} ({isSpectator ? 'O' : opponentSymbol}): {isSpectator ? scores.o : opponentDisplayScore}
           </span>
         </div>
 

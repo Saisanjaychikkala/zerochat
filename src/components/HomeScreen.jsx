@@ -110,7 +110,7 @@ export default function HomeScreen({
             title="Wipe & Leave: clear conversation and leave room"
           >
             <Flame size={14} />
-            <span>Clear</span>
+            <span className="burn-text">Clear</span>
           </button>
         </div>
 

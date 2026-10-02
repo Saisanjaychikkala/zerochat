@@ -134,18 +134,49 @@
   border-color: #ef4444;
 }
 
+.return-btn-mobile-label { display: none; }
+.spec-badge-mobile { display: none; }
+
+.spectator-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 12px;
+  background: rgba(192, 132, 252, 0.18);
+  border: 1px solid rgba(192, 132, 252, 0.45);
+  color: #c084fc;
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
 @media (max-width: 480px) {
   .active-match-top-nav {
     padding: 6px 8px;
+    gap: 4px;
   }
 
   .return-to-chat-btn {
     padding: 5px 8px;
     font-size: 0.75rem;
+    min-height: 32px;
   }
 
+  .return-btn-label { display: none; }
+  .return-btn-mobile-label { display: inline; }
+
+  .spec-badge-full { display: none; }
+  .spec-badge-mobile { display: inline; }
+  .spectator-status-badge { padding: 3px 6px; font-size: 0.68rem; gap: 3px; }
+
   .match-vs-text {
-    display: none;
+    font-size: 0.65rem;
+    max-width: 100px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .exit-btn-label {

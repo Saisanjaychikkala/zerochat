@@ -219,7 +219,7 @@ export default function InChatGameCard({
                 style={{ flex: 1 }}
               >
                 <Play size={13} />
-                <span>{isPlaying ? `Resume ${card.gameName} Match` : `Launch ${card.gameName} Now!`}</span>
+                <span>{isPlaying ? 'Resume Match' : 'Launch Match'}</span>
               </button>
               {onExitCard && isPlaying && (
                 <button

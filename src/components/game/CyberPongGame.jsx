@@ -295,12 +295,12 @@ export default function CyberPongGame({
 
       {!isSpectator && (
         <div className="pong-mobile-controls" style={{ display: 'flex', justifyContent: 'center', gap: '16px', padding: '8px 0' }}>
-          <button onPointerDown={() => handleNudge(-35)} className="btn btn-secondary text-xs" style={{ minWidth: '90px', height: '38px', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
-            <ChevronUp size={16} />
+          <button onPointerDown={() => handleNudge(-35)} className="btn btn-secondary text-xs" style={{ minWidth: '105px', height: '44px', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+            <ChevronUp size={18} />
             <span>Steer Up</span>
           </button>
-          <button onPointerDown={() => handleNudge(35)} className="btn btn-secondary text-xs" style={{ minWidth: '90px', height: '38px', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
-            <ChevronDown size={16} />
+          <button onPointerDown={() => handleNudge(35)} className="btn btn-secondary text-xs" style={{ minWidth: '105px', height: '44px', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+            <ChevronDown size={18} />
             <span>Steer Down</span>
           </button>
         </div>

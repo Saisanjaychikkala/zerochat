@@ -285,19 +285,16 @@
   }
 
   .home-header-actions .btn-icon {
-    width: 32px !important;
-    height: 32px !important;
-    min-width: 32px !important;
-    padding: 0 !important;
+    width: 32px !important; height: 32px !important;
+    min-width: 32px !important; padding: 0 !important;
   }
 
+  .home-header-actions .burn-text { display: none !important; }
   .home-header-actions .btn-danger {
-    padding: 4px 7px !important;
-    height: 32px !important;
-    font-size: 0.72rem !important;
-    min-width: auto !important;
-    white-space: nowrap !important;
-    flex-shrink: 0 !important;
+    padding: 0 !important; width: 32px !important; height: 32px !important;
+    min-width: 32px !important; border-radius: 50% !important;
+    display: inline-flex !important; align-items: center !important;
+    justify-content: center !important; flex-shrink: 0 !important;
   }
 
   .home-room-status-bar {
@@ -337,12 +334,7 @@
     gap: 8px;
   }
 
-  .quick-join-input-group {
-    max-width: 100%;
-  }
-
-  .quick-join-input-group .btn {
-    white-space: nowrap;
-    flex-shrink: 0;
-  }
+  .quick-join-input-group { max-width: 100%; }
+  .quick-join-input-group input { font-size: 16px !important; }
+  .quick-join-input-group .btn { white-space: nowrap; flex-shrink: 0; }
 }

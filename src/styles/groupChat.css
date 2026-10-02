@@ -34,17 +34,27 @@
   flex-shrink: 0;
 }
 
-.squad-channel-title {
+.squad-header-left {
   display: flex;
   align-items: center;
   gap: 8px;
+  min-width: 0;
+  flex: 1;
+}
+
+.squad-channel-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   font-size: 1rem;
   font-weight: 700;
   color: var(--text-main);
+  min-width: 0;
+  overflow: hidden;
 }
 
 .squad-channel-hash { color: var(--text-dim); font-weight: 500; }
-.squad-header-badges { display: flex; align-items: center; gap: 8px; }
+.squad-header-badges { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
 
 .squad-occupancy-pill {
   display: inline-flex;
@@ -306,33 +316,17 @@
 
 /* ─── Mobile Header Responsive Collapse ────────────────────────────── */
 @media (max-width: 480px) {
-  .squad-header { padding: 0 10px; gap: 6px; }
-  .squad-header-badges { gap: 4px; }
-
-  /* Collapse relay chip text — show only icon + dot status */
-  .relay-chip-label { display: none; }
-  .relay-chip-latency { display: none; }
-  .relay-status-chip { padding: 4px 8px; gap: 4px; }
+  .squad-header { padding: 0 8px; gap: 4px; }
+  .squad-header-left { gap: 4px; }
+  .squad-header-badges { gap: 3px; }
+  .squad-header-badges .btn-icon { width: 30px !important; height: 30px !important; padding: 0 !important; }
+  .relay-chip-label, .relay-chip-latency { display: none; }
+  .relay-status-chip { padding: 4px 6px; gap: 3px; }
   .relay-status-chip::after {
-    content: '';
-    display: inline-block;
-    width: 6px; height: 6px;
-    border-radius: 50%;
-    background: currentColor;
-    opacity: 0.85;
+    content: ''; display: inline-block; width: 6px; height: 6px;
+    border-radius: 50%; background: currentColor; opacity: 0.85;
   }
-
-  /* Truncate channel name gracefully */
-  .squad-channel-title span:first-of-type {
-    max-width: 90px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  /* Hide occupancy text label — show only icon + number */
+  .squad-channel-title span:first-of-type { max-width: 80px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .occupancy-label { display: none; }
-  .squad-occupancy-pill { padding: 4px 8px; gap: 4px; }
+  .squad-occupancy-pill { padding: 4px 6px; gap: 3px; font-size: 0.74rem; }
 }
-
-/* Passcode prompt and Settings modal styles → see settings.css */

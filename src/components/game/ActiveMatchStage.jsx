@@ -112,7 +112,8 @@ export default function ActiveMatchStage({
           title={onReturnToChat ? "Return to Chat Window (Keep Game Running in Background)" : "Exit Active Match to Arena Lobby"}
         >
           <ArrowLeft size={15} />
-          <span>{onReturnToChat ? "Return to Chat" : "Back to Lobby"}</span>
+          <span className="return-btn-label">{onReturnToChat ? "Return to Chat" : "Back to Lobby"}</span>
+          <span className="return-btn-mobile-label">{onReturnToChat ? "Chat" : "Lobby"}</span>
         </button>
 
         {isSpectator ? (
@@ -136,9 +137,10 @@ export default function ActiveMatchStage({
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
           {isSpectator ? (
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '4px 10px', borderRadius: '12px', background: 'rgba(192, 132, 252, 0.18)', border: '1px solid rgba(192, 132, 252, 0.45)', color: '#c084fc', fontSize: '0.74rem', fontWeight: 700, letterSpacing: '0.04em' }}>
+            <span className="spectator-status-badge">
               <Eye size={13} />
-              <span>SPECTATOR • VIEW ONLY</span>
+              <span className="spec-badge-full">SPECTATOR • VIEW ONLY</span>
+              <span className="spec-badge-mobile">LIVE</span>
             </span>
           ) : (
             <>

@@ -153,3 +153,28 @@
   color: #ffffff;
   box-shadow: 0 0 12px var(--accent-cyan-glow);
 }
+
+@media (max-width: 480px) {
+  .modal-overlay {
+    padding: 8px;
+  }
+  .modal-content {
+    padding: 16px 12px;
+    gap: 12px;
+    max-height: 94dvh;
+    border-radius: var(--radius-md);
+  }
+  .modal-tab-switcher, .room-tabs {
+    gap: 4px;
+    padding: 3px;
+  }
+  .modal-tab-btn, .room-tab-btn {
+    padding: 6px 4px;
+    font-size: 0.72rem;
+    gap: 4px;
+    min-height: 34px;
+  }
+  .modal-content input {
+    font-size: 16px !important;
+  }
+}
