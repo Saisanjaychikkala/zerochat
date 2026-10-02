@@ -19,6 +19,10 @@ export function usePreferences(showToast) {
     return localStorage.getItem('zerochat_theme') || 'cyber-cyan';
   });
 
+  const [surface, setSurface] = useState(() => {
+    return localStorage.getItem('zerochat_surface') || 'ultra-glass';
+  });
+
   useEffect(() => {
     localStorage.setItem('zerochat_sound', JSON.stringify(soundEnabled));
   }, [soundEnabled]);
@@ -27,6 +31,11 @@ export function usePreferences(showToast) {
     document.documentElement.setAttribute('data-theme', theme);
     localStorage.setItem('zerochat_theme', theme);
   }, [theme]);
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-surface', surface);
+    localStorage.setItem('zerochat_surface', surface);
+  }, [surface]);
 
   useEffect(() => {
     peerService.setNickname(myNickname);
@@ -71,11 +80,15 @@ export function usePreferences(showToast) {
 
   return {
     myNickname,
+    displayName: myNickname,
     myAvatarBg,
     soundEnabled,
     setSoundEnabled,
     theme,
+    setTheme,
     toggleTheme,
+    surface,
+    setSurface,
     handleSaveNickname,
   };
 }

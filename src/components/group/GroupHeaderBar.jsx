@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Hash, Users, Crown, Zap, SidebarClose, LogOut, ArrowLeft, Copy, Check, QrCode, Lock } from 'lucide-react';
+import { Hash, Users, Crown, Zap, ArrowLeft, Copy, Check, QrCode, Lock, Settings } from 'lucide-react';
 import { copyToClipboard } from '../../utils/clipboard';
 
 export function GroupHeaderBar({
@@ -10,7 +10,8 @@ export function GroupHeaderBar({
   latency,
   onOpenQrModal,
   onToggleDrawer,
-  onLeaveSquad
+  onLeaveSquad,
+  onOpenSettings
 }) {
   const [copied, setCopied] = useState(false);
   const displayRoomName = squadRoomId ? squadRoomId.replace(/^squad-/, '') : 'nexus-squad';
@@ -66,28 +67,28 @@ export function GroupHeaderBar({
         </div>
       </div>
 
-      {/* Right: Relay Status + Occupancy Pill + Drawer Toggle */}
+      {/* Right: Relay Status + Occupancy Pill + Settings + Drawer Toggle */}
       <div className="squad-header-badges">
         {/* Relay Authority Badge */}
         <div className={`relay-status-chip ${isHost ? 'host' : 'guest'}`}>
           {isHost ? (
             <>
               <Crown size={13} />
-              <span>Host (You)</span>
+              <span className="relay-chip-label">Host (You)</span>
             </>
           ) : (
             <>
               <Zap size={13} />
-              <span>Relay Active</span>
+              <span className="relay-chip-label">Relay Active</span>
             </>
           )}
           {latency !== null && (
-            <span style={{ opacity: 0.75, fontSize: '0.7rem' }}>• {latency}ms</span>
+            <span className="relay-chip-latency">• {latency}ms</span>
           )}
         </div>
 
         {/* QR Code Modal Trigger */}
-        <button 
+        <button
           type="button"
           onClick={onOpenQrModal}
           className="btn btn-icon"
@@ -97,15 +98,28 @@ export function GroupHeaderBar({
           <QrCode size={16} />
         </button>
 
+        {/* Settings */}
+        {onOpenSettings && (
+          <button
+            type="button"
+            onClick={onOpenSettings}
+            className="btn btn-icon"
+            title="Settings"
+            style={{ width: '32px', height: '32px' }}
+          >
+            <Settings size={16} />
+          </button>
+        )}
+
         {/* Member Count Pill / Drawer Toggle */}
-        <button 
+        <button
           type="button"
           onClick={onToggleDrawer}
           className="squad-occupancy-pill"
           title="Toggle Squad Member Drawer"
         >
           <Users size={13} />
-          <span>{memberCount || 1} Members</span>
+          <span className="occupancy-label">{memberCount || 1} Members</span>
         </button>
       </div>
     </header>

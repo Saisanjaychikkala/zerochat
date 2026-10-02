@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
-import { Copy, Check, X, ArrowRight, ShieldCheck, Radio, Share2 } from 'lucide-react';
+import { Copy, Check, X, ArrowRight, ShieldCheck, Radio, Share2, Info, BookOpen } from 'lucide-react';
 import { copyToClipboard } from '../utils/clipboard';
 import { normalizeRoomId } from '../services/webrtc/constants';
 
@@ -206,7 +206,7 @@ export default function RoomModal({
           <form onSubmit={handleJoinSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
             <div className="connection-guide-card">
               <div className="guide-step">
-                <span className="guide-step-num">💡</span>
+                <span className="guide-step-num"><Info size={13} /></span>
                 <span>Ask your friend for their <strong>3-word Room Code</strong> or paste the <strong>full invite link</strong> they sent you:</span>
               </div>
             </div>
@@ -268,7 +268,8 @@ export default function RoomModal({
                 gap: '4px'
               }}
             >
-              <span>📖 How it works</span>
+              <BookOpen size={13} />
+              <span>How it works</span>
             </button>
           )}
         </div>

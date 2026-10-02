@@ -119,8 +119,9 @@ export function MemberDrawer({
                   <div className="member-name-text">
                     {hostMember?.nickname || 'Host'} {hostMember?.peerId === myPeerId && '(You)'}
                   </div>
-                  <div style={{ fontSize: '0.7rem', color: 'var(--accent-amber)', fontWeight: 600 }}>
-                    ⚡ Active Relay Host
+                  <div style={{ fontSize: '0.7rem', color: 'var(--accent-amber)', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                    <Zap size={11} />
+                    <span>Active Relay Host</span>
                   </div>
                 </div>
               </div>

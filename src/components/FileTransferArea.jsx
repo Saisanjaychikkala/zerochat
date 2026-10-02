@@ -11,7 +11,8 @@ import {
   HardDriveDownload,
   Zap,
   XCircle,
-  Eye
+  Eye,
+  AlertTriangle
 } from 'lucide-react';
 import AudioPlayerBubble from './AudioPlayerBubble';
 
@@ -282,7 +283,7 @@ export default function FileTransferArea({
 
                 {!item.isSender && item.completed && item.downloadUrl && (
                   <p style={{ fontSize: '0.7rem', color: '#f59e0b', margin: '4px 0 2px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    <span>⚠️</span>
+                    <AlertTriangle size={12} />
                     <span>Tap "Save to Device" to preserve this file before leaving the room.</span>
                   </p>
                 )}

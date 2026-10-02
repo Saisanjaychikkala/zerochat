@@ -20,6 +20,7 @@
 @import './styles/activeMatchStage.css';
 @import './styles/groupChat.css';
 @import './styles/groupDrawer.css';
+@import './styles/settings.css';
 @import './styles/gameDrawer.css';
 @import './styles/connect4.css';
 @import './styles/connectionLoader.css';

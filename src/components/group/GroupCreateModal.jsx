@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Users, Crown, Zap, ShieldCheck, X, ArrowRight, Radio } from 'lucide-react';
+import { Users, Crown, Zap, ShieldCheck, X, ArrowRight, Radio, Award } from 'lucide-react';
 import { generateSquadRoomId, normalizeRoomId } from '../../services/webrtc/constants';
 
 export function GroupCreateModal({
@@ -155,17 +155,19 @@ export function GroupCreateModal({
                   type="button"
                   onClick={() => setPolicy('seniority')}
                   className={`btn ${policy === 'seniority' ? 'btn-primary' : 'btn-secondary'}`}
-                  style={{ flex: 1, padding: '8px 6px', fontSize: '0.76rem', fontWeight: 600 }}
+                  style={{ flex: 1, padding: '8px 6px', fontSize: '0.76rem', fontWeight: 600, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '5px' }}
                 >
-                  ⭐ Co-Host & Seniority
+                  <Award size={13} />
+                  <span>Co-Host & Seniority</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => setPolicy('ping')}
                   className={`btn ${policy === 'ping' ? 'btn-primary' : 'btn-secondary'}`}
-                  style={{ flex: 1, padding: '8px 6px', fontSize: '0.76rem', fontWeight: 600 }}
+                  style={{ flex: 1, padding: '8px 6px', fontSize: '0.76rem', fontWeight: 600, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '5px' }}
                 >
-                  ⚡ Lowest Latency
+                  <Zap size={13} />
+                  <span>Lowest Latency</span>
                 </button>
               </div>
               <p style={{ margin: '6px 0 0 0', fontSize: '0.72rem', color: 'var(--text-muted)', lineHeight: 1.3 }}>

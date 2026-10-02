@@ -119,8 +119,9 @@ export default function InfoModal({ isOpen, onClose }) {
         {activeTab === 'security' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', fontSize: '0.85rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>
             <div style={{ padding: '12px', background: 'rgba(0, 242, 254, 0.04)', borderRadius: 'var(--radius-md)', border: '1px solid rgba(0, 242, 254, 0.15)' }}>
-              <p style={{ color: '#fff', fontWeight: 600, marginBottom: '4px' }}>
-                🔒 100% Zero-Knowledge & Serverless
+              <p style={{ color: '#fff', fontWeight: 600, marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Lock size={15} color="var(--accent-cyan)" />
+                <span>100% Zero-Knowledge & Serverless</span>
               </p>
               <p style={{ fontSize: '0.8rem' }}>
                 Unlike traditional apps (WhatsApp, Slack, Telegram), ZeroChat stores <strong>zero messages, zero logs, and zero files</strong> on any database. All communication travels directly from device to device.

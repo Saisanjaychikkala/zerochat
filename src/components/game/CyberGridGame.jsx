@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { RefreshCw, Trophy, Sparkles, WifiOff } from 'lucide-react';
+import { RefreshCw, Trophy, Sparkles, WifiOff, Handshake, Zap } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { peerService } from '../../services/peerService';
 
@@ -236,14 +236,29 @@ export default function CyberGridGame({
       {/* Turn Banner */}
       <div className="grid-turn-indicator">
         {!winner ? (
-          <span className={isMyTurn ? 'active-turn user' : 'active-turn opponent'}>
-            {isMyTurn 
-              ? `⚡ Your Turn (Place ${mySymbol})` 
-              : `Waiting for ${opponentLabel} (${opponentSymbol})...`}
+          <span className={isMyTurn ? 'active-turn user' : 'active-turn opponent'} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+            {isMyTurn ? (
+              <>
+                <Zap size={13} />
+                <span>Your Turn (Place {mySymbol})</span>
+              </>
+            ) : (
+              <span>Waiting for {opponentLabel} ({opponentSymbol})...</span>
+            )}
           </span>
         ) : (
-          <span className="winner-label">
-            {winner === 'Tie' ? '🤝 Tactical Tie!' : `🏆 ${winner} Wins!`}
+          <span className="winner-label" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+            {winner === 'Tie' ? (
+              <>
+                <Handshake size={14} color="#00e5ff" />
+                <span>Tactical Tie!</span>
+              </>
+            ) : (
+              <>
+                <Trophy size={14} color="#eab308" />
+                <span>{winner} Wins!</span>
+              </>
+            )}
           </span>
         )}
       </div>

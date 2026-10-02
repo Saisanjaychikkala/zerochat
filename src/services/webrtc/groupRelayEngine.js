@@ -123,7 +123,7 @@ export class GroupRelayEngine {
     });
   }
 
-  connectToHost(hostPeerId) {
+  connectToHost(hostPeerId, opts = {}) {
     this.currentHostId = hostPeerId;
     this.emit('status', 'connecting');
     if (!this.peer || this.peer.destroyed) return;
@@ -135,7 +135,8 @@ export class GroupRelayEngine {
         type: GROUP_PACKET_TYPES.KNOCK,
         nickname: this.myProfile.nickname,
         avatarId: this.myProfile.avatarId,
-        passcode: this.enteredPasscode || undefined
+        passcode: this.enteredPasscode || undefined,
+        isReconnecting: !!opts.isReconnecting
       });
       this.emit('status', 'knocking');
     });
@@ -148,11 +149,26 @@ export class GroupRelayEngine {
         this.connectAttempts = (this.connectAttempts || 0) + 1;
         setTimeout(() => {
           if (!this.isDestroyed && (!this.hostConn || !this.hostConn.open)) {
-            this.connectToHost(hostPeerId);
+            this.connectToHost(hostPeerId, opts);
           }
         }, 1400);
       }
     });
+  }
+
+  /**
+   * Retry joining a passcode-protected room after user enters the PIN.
+   * Called by GroupChatWorkspace when the passcode prompt is submitted.
+   */
+  reconnectWithPasscode(passcode) {
+    this.enteredPasscode = passcode || null;
+    if (this.currentHostId && !this.isDestroyed) {
+      if (this.hostConn) {
+        try { this.hostConn.close(); } catch (e) {}
+        this.hostConn = null;
+      }
+      this.connectToHost(this.currentHostId);
+    }
   }
 
   handleIncomingConnection(conn) {

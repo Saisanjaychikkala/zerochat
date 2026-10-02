@@ -39,7 +39,7 @@ export function passBaton(engine, targetPeerId) {
     });
     engine.connections.clear();
     if (!engine.isDestroyed) {
-      engine.connectToHost(targetPeerId);
+      engine.connectToHost(targetPeerId, { isReconnecting: true });
     }
   }, 350);
 }
@@ -76,7 +76,7 @@ export function handleBatonMigrated(engine, newHostId, newRoster) {
     engine.emit('roster_update', engine.roster);
     setTimeout(() => {
       if (!engine.isDestroyed) {
-        engine.connectToHost(newHostId);
+        engine.connectToHost(newHostId, { isReconnecting: true });
       }
     }, 300);
   }
@@ -119,6 +119,6 @@ export function handleHostDisconnect(engine) {
     engine.roster = survivors.map(m => ({ ...m, isHost: m.peerId === successor.peerId }));
     engine.emit('baton_changed', { isHost: false, newHostId: successor.peerId, failover: true });
     engine.emit('roster_update', engine.roster);
-    setTimeout(() => engine.connectToHost(successor.peerId), 500);
+    setTimeout(() => engine.connectToHost(successor.peerId, { isReconnecting: true }), 500);
   }
 }

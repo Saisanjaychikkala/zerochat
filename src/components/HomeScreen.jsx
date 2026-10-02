@@ -153,8 +153,9 @@ export default function HomeScreen({
               <p className="connecting-banner-sub">
                 Setting up a private, encrypted channel. No servers in between.
               </p>
-              <div className="connecting-banner-hint">
-                <span>⚡ Securing direct device link...</span>
+              <div className="connecting-banner-hint" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <Zap size={12} />
+                <span>Securing direct device link...</span>
               </div>
             </div>
           </div>

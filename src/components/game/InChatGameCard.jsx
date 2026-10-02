@@ -1,5 +1,5 @@
 import React from 'react';
-import { Gamepad2, CircleDot, Disc, Users, Check, Play, Ban, Trophy, RefreshCw, X } from 'lucide-react';
+import { Gamepad2, CircleDot, Disc, Users, Check, Play, Ban, Trophy, RefreshCw, X, Handshake, Zap } from 'lucide-react';
 
 const GAME_CONFIGS = {
   pong: {
@@ -151,7 +151,10 @@ export default function InChatGameCard({
             }}>
               {card.winner ? (
                 card.winner === 'draw' || card.winner === 'Tactical Draw' ? (
-                  <span>🤝 Tactical Draw {card.finalScore ? `(${card.finalScore})` : ''}</span>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                    <Handshake size={14} color="#00e5ff" />
+                    <span>Tactical Draw {card.finalScore ? `(${card.finalScore})` : ''}</span>
+                  </span>
                 ) : (
                   <>
                     <Trophy size={14} color="#eab308" />
@@ -227,7 +230,10 @@ export default function InChatGameCard({
           </button>
         ) : (
           <div className="in-chat-waiting-msg">
-            <span className="animate-pulse">⚡ Waiting for opponent to click Join...</span>
+            <span className="animate-pulse" style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+              <Zap size={12} />
+              <span>Waiting for opponent to click Join...</span>
+            </span>
           </div>
         )}
       </div>

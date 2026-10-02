@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { RefreshCw, Sparkles, WifiOff } from 'lucide-react';
+import { RefreshCw, Sparkles, WifiOff, Trophy, Handshake, Zap } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { peerService } from '../../services/peerService';
 
@@ -11,7 +11,6 @@ function createEmptyGrid() {
 }
 
 function checkConnectFourWin(board) {
-  // Horizontal
   for (let r = 0; r < ROWS; r++) {
     for (let c = 0; c <= COLS - 4; c++) {
       const p = board[r][c];
@@ -20,7 +19,6 @@ function checkConnectFourWin(board) {
       }
     }
   }
-  // Vertical
   for (let c = 0; c < COLS; c++) {
     for (let r = 0; r <= ROWS - 4; r++) {
       const p = board[r][c];
@@ -29,7 +27,6 @@ function checkConnectFourWin(board) {
       }
     }
   }
-  // Diagonals (down-right and up-right)
   for (let r = 0; r < ROWS; r++) {
     for (let c = 0; c < COLS; c++) {
       const p = board[r][c];
@@ -105,23 +102,15 @@ export default function CyberConnectFour({
           if (!dropRes) return prev;
           const winRes = checkConnectFourWin(dropRes.newBoard);
           if (winRes) {
-            if (winRes.winner === 'Tie') {
-              setWinner('Tie');
-              setScores((s) => {
-                const next = { ...s, ties: s.ties + 1 };
-                if (onEndRound) onEndRound('Tie', `${next.c} - ${next.m}`);
-                return next;
-              });
-            } else {
-              const winnerName = winRes.winner === myToken ? myNickname : remotePeerNickname;
-              setWinner(winnerName);
-              setWinningCells(winRes.line);
-              setScores((s) => {
-                const next = { ...s, c: winRes.winner === 'C' ? s.c + 1 : s.c, m: winRes.winner === 'M' ? s.m + 1 : s.m };
-                if (onEndRound) onEndRound(winnerName, `${next.c} - ${next.m}`);
-                return next;
-              });
-            }
+            const isTie = winRes.winner === 'Tie';
+            const winnerName = isTie ? 'Tie' : (winRes.winner === myToken ? myNickname : remotePeerNickname);
+            setWinner(winnerName);
+            if (!isTie) setWinningCells(winRes.line);
+            setScores(s => {
+              const next = { ...s, ties: isTie ? s.ties + 1 : s.ties, c: winRes.winner === 'C' ? s.c + 1 : s.c, m: winRes.winner === 'M' ? s.m + 1 : s.m };
+              if (onEndRound) onEndRound(winnerName, `${next.c} - ${next.m}`);
+              return next;
+            });
           } else {
             setTurn(myToken);
           }
@@ -217,24 +206,18 @@ export default function CyberConnectFour({
 
     const winRes = checkConnectFourWin(dropRes.newBoard);
     if (winRes) {
-      if (winRes.winner === 'Tie') {
-        setWinner('Tie');
-        setScores((s) => {
-          const next = { ...s, ties: s.ties + 1 };
-          if (onEndRound) onEndRound('Tie', `${next.c} - ${next.m}`);
-          return next;
-        });
-      } else {
-        const winnerName = myNickname;
-        setWinner(winnerName);
+      const isTie = winRes.winner === 'Tie';
+      const winnerName = isTie ? 'Tie' : myNickname;
+      setWinner(winnerName);
+      if (!isTie) {
         setWinningCells(winRes.line);
         confetti({ particleCount: 90, spread: 80 });
-        setScores((s) => {
-          const next = { ...s, c: myToken === 'C' ? s.c + 1 : s.c, m: myToken === 'M' ? s.m + 1 : s.m };
-          if (onEndRound) onEndRound(winnerName, `${next.c} - ${next.m}`);
-          return next;
-        });
       }
+      setScores(s => {
+        const next = { ...s, ties: isTie ? s.ties + 1 : s.ties, c: myToken === 'C' ? s.c + 1 : s.c, m: myToken === 'M' ? s.m + 1 : s.m };
+        if (onEndRound) onEndRound(winnerName, `${next.c} - ${next.m}`);
+        return next;
+      });
     } else {
       setTurn(opponentToken);
     }
@@ -282,12 +265,29 @@ export default function CyberConnectFour({
       {/* Turn Banner */}
       <div className="grid-turn-indicator">
         {!winner ? (
-          <span className={isMyTurn ? 'active-turn user' : 'active-turn opponent'}>
-            {isMyTurn ? '⚡ Your Turn (Drop Disc)' : `Waiting for ${opponentLabel}...`}
+          <span className={isMyTurn ? 'active-turn user' : 'active-turn opponent'} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+            {isMyTurn ? (
+              <>
+                <Zap size={13} />
+                <span>Your Turn (Drop Disc)</span>
+              </>
+            ) : (
+              <span>Waiting for {opponentLabel}...</span>
+            )}
           </span>
         ) : (
-          <span className="winner-label">
-            {winner === 'Tie' ? '🤝 Tactical Tie!' : `🏆 ${winner} Connects Four!`}
+          <span className="winner-label" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+            {winner === 'Tie' ? (
+              <>
+                <Handshake size={14} color="#00e5ff" />
+                <span>Tactical Tie!</span>
+              </>
+            ) : (
+              <>
+                <Trophy size={14} color="#eab308" />
+                <span>{winner} Connects Four!</span>
+              </>
+            )}
           </span>
         )}
       </div>

@@ -5,6 +5,7 @@ import NicknameModal from './NicknameModal';
 import InfoModal from './InfoModal';
 import ImageLightboxModal from './ImageLightboxModal';
 import ConfirmGameModal from './ConfirmGameModal';
+import SettingsModal from './SettingsModal';
 
 export default function AppModals({
   callState,
@@ -20,6 +21,9 @@ export default function AppModals({
   isConfirmGameOpen,
   setIsConfirmGameOpen,
   onConfirmEnterGame,
+  isSettingsOpen,
+  setIsSettingsOpen,
+  preferences,
   myRoomId,
   status,
   viewMode,
@@ -82,6 +86,19 @@ export default function AppModals({
         onConfirm={onConfirmEnterGame}
         activeRoomId={myRoomId}
       />
+
+      {preferences && (
+        <SettingsModal
+          isOpen={isSettingsOpen}
+          onClose={() => setIsSettingsOpen(false)}
+          currentTheme={preferences.theme}
+          onSetTheme={preferences.setTheme}
+          currentSurface={preferences.surface || 'ultra-glass'}
+          onSetSurface={preferences.setSurface}
+          soundEnabled={preferences.soundEnabled}
+          onToggleSound={() => preferences.setSoundEnabled(!preferences.soundEnabled)}
+        />
+      )}
     </>
   );
 }

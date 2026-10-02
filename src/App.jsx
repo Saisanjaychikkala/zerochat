@@ -42,6 +42,7 @@ export default function App() {
   const [isSquadModalOpen, setIsSquadModalOpen] = useState(false);
   const [squadModalTab, setSquadModalTab] = useState('create');
   const [lightboxImage, setLightboxImage] = useState(null);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   const preferences = usePreferences(showToast);
   const chatTransfers = useChatTransfers({
@@ -243,10 +244,8 @@ export default function App() {
             onPassBaton={groupSession.passBaton}
             onSetSuccessor={groupSession.setDesignatedSuccessor}
             onToggleLock={groupSession.toggleLock}
-            onLeaveSquad={() => {
-              groupSession.leaveSquad();
-              setViewMode('home');
-            }}
+            onLeaveSquad={() => { groupSession.leaveSquad(); setViewMode('home'); }}
+            onOpenSettings={() => setIsSettingsOpen(true)}
           />
         ) : viewMode === 'home' ? (
           <HomeScreen 
@@ -260,10 +259,7 @@ export default function App() {
             onLaunchGame={() => startIsolatedGame()}
             onOpenInfoModal={() => setIsInfoModalOpen(true)}
             onOpenRoomModal={() => setIsRoomModalOpen(true)}
-            onOpenSquadModal={(tab = 'create') => {
-              setSquadModalTab(tab);
-              setIsSquadModalOpen(true);
-            }}
+            onOpenSquadModal={(tab = 'create') => { setSquadModalTab(tab); setIsSquadModalOpen(true); }}
             onBurnSession={onBurnSession}
             activePeerNickname={remoteNickname}
           />
@@ -313,10 +309,10 @@ export default function App() {
           setLightboxImage={setLightboxImage}
           isConfirmGameOpen={isConfirmGameOpen}
           setIsConfirmGameOpen={setIsConfirmGameOpen}
-          onConfirmEnterGame={() => {
-            setIsConfirmGameOpen(false);
-            startIsolatedGame();
-          }}
+          onConfirmEnterGame={() => { setIsConfirmGameOpen(false); startIsolatedGame(); }}
+          isSettingsOpen={isSettingsOpen}
+          setIsSettingsOpen={setIsSettingsOpen}
+          preferences={preferences}
           myRoomId={myRoomId}
           status={status}
           myNickname={preferences.myNickname}

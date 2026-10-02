@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { Radio, ShieldAlert, X, Check } from 'lucide-react';
+import { Radio, ShieldAlert, X, Check, Lock } from 'lucide-react';
 import { GroupHeaderBar } from './GroupHeaderBar';
 import { MemberDrawer } from './MemberDrawer';
 import { SquadQrModal } from './SquadQrModal';
@@ -10,8 +10,8 @@ import GameDrawer from '../game/GameDrawer';
 import ActiveMatchStage from '../game/ActiveMatchStage';
 import { extractSnippet, handleScrollToMessage } from '../chat/chatHelpers';
 import { GROUP_PACKET_TYPES } from '../../services/webrtc/constants';
-
-const GAME_NAMES = { pong: 'Cyber Pong', grid: 'Cyber Grid (3x3)', c4: 'Connect 4' };
+import { groupRelayEngine } from '../../services/webrtc/groupRelayEngine';
+import { buildGameCardMsg } from './groupGameHelpers';
 
 export function GroupChatWorkspace({
   squadRoomId,
@@ -38,7 +38,8 @@ export function GroupChatWorkspace({
   onPassBaton,
   onSetSuccessor,
   onToggleLock,
-  onLeaveSquad
+  onLeaveSquad,
+  onOpenSettings
 }) {
   const [inputText, setInputText] = useState('');
   const [replyingTo, setReplyingTo] = useState(null);
@@ -46,6 +47,7 @@ export function GroupChatWorkspace({
   const [isGameDrawerOpen, setIsGameDrawerOpen] = useState(false);
   const [activeMatch, setActiveMatch] = useState(null);
   const [activeLightbox, setActiveLightbox] = useState(null);
+  const [passcodeInput, setPasscodeInput] = useState('');
 
   const messagesEndRef = useRef(null);
   const isConnected = status === 'connected';
@@ -99,33 +101,21 @@ export function GroupChatWorkspace({
 
   const handleSelectGame = (gameId) => {
     setIsGameDrawerOpen(false);
-    const cardId = 'gc_' + Math.random().toString(36).substring(2, 9) + '_' + Date.now();
-    const gameName = GAME_NAMES[gameId] || gameId;
-    const gameCardMsg = {
-      type: 'game_card',
-      id: cardId,
-      cardId,
-      gameId,
-      gameName,
-      hostNickname: myNickname || 'Player',
-      guestNickname: null,
-      isGuestJoined: false,
-      isConcluded: false,
-      isPlaying: false
-    };
-    onSendMessage(`Challenged squad to ${gameName}!`, null, gameCardMsg);
+    const gameCardMsg = buildGameCardMsg(gameId, myNickname);
+    onSendMessage(`Challenged squad to ${gameCardMsg.gameName}!`, null, gameCardMsg);
   };
 
   const handleLaunchCard = (cardId) => {
     const card = formattedMessages.find(m => m.cardId === cardId);
     if (!card) return;
-    setActiveMatch({
-      cardId: card.cardId,
-      gameId: card.gameId,
-      gameName: card.gameName,
-      isPlaying: true,
-      isVisible: true
-    });
+    setActiveMatch({ cardId: card.cardId, gameId: card.gameId, gameName: card.gameName, isPlaying: true, isVisible: true });
+  };
+
+  const handlePasscodeSubmit = () => {
+    const code = passcodeInput.trim();
+    if (!code) return;
+    groupRelayEngine.reconnectWithPasscode(code);
+    setPasscodeInput('');
   };
 
   return (
@@ -140,6 +130,7 @@ export function GroupChatWorkspace({
           onOpenQrModal={() => setIsQrModalOpen(true)}
           onToggleDrawer={onToggleDrawer}
           onLeaveSquad={onLeaveSquad}
+          onOpenSettings={onOpenSettings}
         />
 
         {/* Floating Knock Alert Dock for Host */}
@@ -167,52 +158,62 @@ export function GroupChatWorkspace({
           </div>
         )}
 
-        {/* Status Overlays */}
-        {status === 'knocking' && (
-          <div style={{ background: 'var(--bg-ambient-1)', borderBottom: '1px solid var(--border-accent)', padding: '12px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Radio size={16} className="animate-spin text-cyan-400" />
-              <span style={{ fontSize: '0.85rem', color: 'var(--accent-cyan)', fontWeight: 600 }}>Knocking for admission... Waiting for squad host to admit you.</span>
+        {/* Passcode Required Prompt */}
+        {status === 'passcode_required' && (
+          <div className="squad-passcode-prompt">
+            <Lock size={20} className="passcode-icon" />
+            <p className="passcode-label">This squad requires a passcode to enter.</p>
+            <input
+              type="password"
+              className="passcode-input"
+              placeholder="Enter squad passcode"
+              value={passcodeInput}
+              onChange={e => setPasscodeInput(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handlePasscodeSubmit()}
+              autoFocus
+            />
+            <div className="passcode-actions">
+              <button type="button" className="btn btn-secondary" onClick={onLeaveSquad}>Cancel</button>
+              <button type="button" className="btn btn-primary" onClick={handlePasscodeSubmit}>Unlock & Join</button>
             </div>
+          </div>
+        )}
+
+        {/* Status: Knocking */}
+        {status === 'knocking' && (
+          <div className="squad-status-banner knocking">
+            <div className="squad-status-banner-left"><Radio size={16} className="animate-spin" /><span>Knocking for admission... Waiting for squad host to admit you.</span></div>
             <button type="button" onClick={onLeaveSquad} className="btn btn-secondary text-xs">Cancel</button>
           </div>
         )}
 
+        {/* Status: Declined */}
         {status === 'declined' && (
-          <div style={{ background: 'rgba(239, 68, 68, 0.15)', borderBottom: '1px solid rgba(239, 68, 68, 0.4)', padding: '14px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <ShieldAlert size={18} color="#f87171" />
-              <span style={{ fontSize: '0.88rem', color: '#f87171', fontWeight: 600 }}>{declineReason || 'Admission was declined by the host.'}</span>
-            </div>
+          <div className="squad-status-banner declined">
+            <div className="squad-status-banner-left"><ShieldAlert size={18} /><span>{declineReason || 'Admission was declined by the host.'}</span></div>
             <button type="button" onClick={onLeaveSquad} className="btn btn-danger text-xs">Return Home</button>
           </div>
         )}
 
-        {/* Cyber Connecting Loader for Guests */}
+        {/* Status: Connecting Loader */}
         {status === 'connecting' && !isHost ? (
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '32px 20px', textAlign: 'center' }}>
-            <div className="connecting-radar-wrap" style={{ width: '56px', height: '56px', marginBottom: '18px' }}>
-              <div className="connecting-radar-ring" style={{ width: '56px', height: '56px' }} />
-              <div className="connecting-radar-ring ring-2" style={{ width: '56px', height: '56px' }} />
-              <div className="connecting-radar-core" style={{ width: '38px', height: '38px' }}>
+          <div className="squad-status-center">
+            <div className="connecting-radar-wrap">
+              <div className="connecting-radar-ring" />
+              <div className="connecting-radar-ring ring-2" />
+              <div className="connecting-radar-core">
                 <Radio size={20} color="var(--accent-cyan)" />
               </div>
             </div>
-            <h3 style={{ margin: '0 0 6px 0', fontSize: '1.15rem', fontWeight: 700, color: 'var(--text-main)' }}>Connecting to Squad...</h3>
-            <p style={{ margin: '0 0 16px 0', fontSize: '0.82rem', color: 'var(--text-muted)', maxWidth: '320px', lineHeight: 1.4 }}>
-              Reaching out to host at <span className="font-mono text-cyan-400">#{squadRoomId}</span> via WebRTC.
-            </p>
+            <h3 className="squad-status-title">Connecting to Squad...</h3>
+            <p className="squad-status-body">Reaching out to host at <span className="font-mono text-cyan-400">#{squadRoomId}</span> via WebRTC.</p>
             <button type="button" onClick={onLeaveSquad} className="btn btn-secondary text-xs">Cancel Connection</button>
           </div>
         ) : status === 'host-unavailable' ? (
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '32px 20px', textAlign: 'center' }}>
-            <div style={{ width: '50px', height: '50px', borderRadius: '50%', background: 'rgba(239, 68, 68, 0.15)', border: '1px solid rgba(239, 68, 68, 0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '14px' }}>
-              <ShieldAlert size={24} color="#f87171" />
-            </div>
-            <h3 style={{ margin: '0 0 6px 0', fontSize: '1.1rem', fontWeight: 700, color: '#f87171' }}>Squad Host Unavailable</h3>
-            <p style={{ margin: '0 0 16px 0', fontSize: '0.82rem', color: 'var(--text-muted)', maxWidth: '320px', lineHeight: 1.4 }}>
-              Could not find active squad host at #{squadRoomId}. The room may be closed or host is offline.
-            </p>
+          <div className="squad-status-center">
+            <div className="squad-status-error-icon"><ShieldAlert size={24} color="#f87171" /></div>
+            <h3 className="squad-status-title error">Squad Host Unavailable</h3>
+            <p className="squad-status-body">Could not find active squad host at #{squadRoomId}. The room may be closed or host is offline.</p>
             <button type="button" onClick={onLeaveSquad} className="btn btn-secondary text-xs">Return to Home Hub</button>
           </div>
         ) : (
@@ -262,7 +263,7 @@ export function GroupChatWorkspace({
               />
             )}
 
-            {/* Common ChatInputBar (Text, Voice Recording, Attachments & Gamepad Drawer) */}
+            {/* Common ChatInputBar */}
             <ChatInputBar
               isConnected={isConnected}
               status={status}

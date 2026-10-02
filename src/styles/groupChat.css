@@ -304,4 +304,35 @@
   flex-shrink: 0;
 }
 
+/* ─── Mobile Header Responsive Collapse ────────────────────────────── */
+@media (max-width: 480px) {
+  .squad-header { padding: 0 10px; gap: 6px; }
+  .squad-header-badges { gap: 4px; }
 
+  /* Collapse relay chip text — show only icon + dot status */
+  .relay-chip-label { display: none; }
+  .relay-chip-latency { display: none; }
+  .relay-status-chip { padding: 4px 8px; gap: 4px; }
+  .relay-status-chip::after {
+    content: '';
+    display: inline-block;
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+    opacity: 0.85;
+  }
+
+  /* Truncate channel name gracefully */
+  .squad-channel-title span:first-of-type {
+    max-width: 90px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* Hide occupancy text label — show only icon + number */
+  .occupancy-label { display: none; }
+  .squad-occupancy-pill { padding: 4px 8px; gap: 4px; }
+}
+
+/* Passcode prompt and Settings modal styles → see settings.css */
