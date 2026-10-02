@@ -1,12 +1,13 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import confetti from 'canvas-confetti';
 import { peerService } from '../services/peerService';
-import { normalizeRoomId } from '../services/webrtc/constants';
+import { normalizeRoomId, isSquadRoomId } from '../services/webrtc/constants';
 import { playSound } from '../utils/soundEffects';
 
 export function usePeerSession({ soundEnabled, showToast, onNewPeerConnection }) {
-  // Extract and normalize initial room from URL hash immediately
-  const initialHash = typeof window !== 'undefined' ? normalizeRoomId(window.location.hash) : '';
+  // Extract and normalize initial room from URL hash immediately (exclude squad rooms)
+  const rawHash = typeof window !== 'undefined' ? normalizeRoomId(window.location.hash) : '';
+  const initialHash = isSquadRoomId(rawHash) ? '' : rawHash;
   const [myRoomId, setMyRoomId] = useState(initialHash);
   const [isHost, setIsHost] = useState(false);
   const [remotePeerId, setRemotePeerId] = useState(null);
@@ -171,8 +172,9 @@ export function usePeerSession({ soundEnabled, showToast, onNewPeerConnection })
   }, [status]);
 
   const handleJoinRoom = useCallback((targetId, asHost = false) => {
-    if (!targetId) return;
+    if (!targetId || isSquadRoomId(targetId)) return;
     const cleanId = normalizeRoomId(targetId);
+    if (!cleanId || isSquadRoomId(cleanId)) return;
 
     if (cleanId) {
       if (cleanId === myRoomId && status === 'connected') {

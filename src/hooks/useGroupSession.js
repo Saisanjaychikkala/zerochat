@@ -112,6 +112,14 @@ export function useGroupSession({ soundEnabled, showToast }) {
       setLatency(lat);
     });
 
+    const unsubError = groupRelayEngine.on('error', (err) => {
+      if (err?.type === 'peer-unavailable') {
+        if (showToast) showToast('Connecting to squad host...', 'info');
+      } else if (err?.type === 'network') {
+        if (showToast) showToast('Network blip. Retrying connection...', 'warning');
+      }
+    });
+
     return () => {
       unsubReady();
       unsubStatus();
@@ -124,6 +132,7 @@ export function useGroupSession({ soundEnabled, showToast }) {
       unsubBaton();
       unsubLock();
       unsubLatency();
+      unsubError();
     };
   }, [showToast]);
 

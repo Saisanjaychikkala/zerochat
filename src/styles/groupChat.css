@@ -296,3 +296,12 @@
   flex-shrink: 0;
 }
 
+.squad-input-dock {
+  padding: 10px 16px;
+  padding-bottom: max(10px, env(safe-area-inset-bottom, 10px));
+  background: var(--bg-panel);
+  border-top: 1px solid var(--border-subtle);
+  flex-shrink: 0;
+}
+
+

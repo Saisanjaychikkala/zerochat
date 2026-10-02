@@ -224,7 +224,7 @@ export function GroupChatWorkspace({
         )}
 
         {/* Input Bar */}
-        <div style={{ padding: '12px 16px', background: 'var(--bg-panel)', borderTop: '1px solid var(--border-subtle)' }}>
+        <div className="squad-input-dock">
           {isRecording ? (
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: 'var(--radius-md)', padding: '8px 14px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -257,13 +257,20 @@ export function GroupChatWorkspace({
 
               <input
                 type="text"
-                placeholder={isConnected ? `Message #${squadRoomId?.replace(/^squad-/, '') || 'squad'}...` : 'Connecting to squad...'}
+                placeholder={
+                  isConnected 
+                    ? `Message #${squadRoomId?.replace(/^squad-/, '') || 'squad'}...` 
+                    : status === 'knocking' 
+                      ? 'Waiting for squad host to admit you...' 
+                      : 'Connecting to squad...'
+                }
                 value={inputText}
                 onChange={(e) => setInputText(e.target.value)}
                 onKeyDown={handleKeyDown}
                 disabled={!isConnected}
                 className="chat-input"
                 style={{ flex: 1, height: '40px' }}
+                autoComplete="off"
               />
 
               <button

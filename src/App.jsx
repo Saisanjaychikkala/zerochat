@@ -81,7 +81,7 @@ export default function App() {
       setViewMode('home');
     });
     const unsubPeerConnected = peerService.on('peer_connected', () => {
-      setViewMode((prev) => (prev === 'home' ? 'room' : prev));
+      setViewMode((prev) => (prev === 'home' && !window.location.hash.includes('squad') ? 'room' : prev));
     });
 
     const onHashNav = () => {
@@ -105,6 +105,7 @@ export default function App() {
         setViewMode('home');
       }
     };
+    onHashNav();
     window.addEventListener('hashchange', onHashNav);
     window.addEventListener('popstate', onHashNav);
 

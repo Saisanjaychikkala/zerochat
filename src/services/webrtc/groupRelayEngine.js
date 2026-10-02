@@ -41,16 +41,15 @@ export class GroupRelayEngine {
   }
 
   off(event, cb) {
-    if (!this.listeners.has(event)) return;
-    this.listeners.set(event, this.listeners.get(event).filter(c => c !== cb));
+    if (this.listeners.has(event)) {
+      this.listeners.set(event, this.listeners.get(event).filter(c => c !== cb));
+    }
   }
 
   emit(event, data) {
-    if (this.listeners.has(event)) {
-      this.listeners.get(event).forEach(cb => {
-        try { cb(data); } catch (e) { console.error('[GroupRelay] error:', e); }
-      });
-    }
+    this.listeners.get(event)?.forEach(cb => {
+      try { cb(data); } catch (e) { console.error('[GroupRelay] error:', e); }
+    });
   }
 
   async init(roomId, isHost = false, profile = {}) {
@@ -99,9 +98,18 @@ export class GroupRelayEngine {
       this.peer.on('error', (err) => {
         if (err.type === 'unavailable-id' && this.isHost) {
           this.isHost = false;
-          this.peer.destroy();
+          try { this.peer.destroy(); } catch (e) {}
           this.init(roomId, false, profile).then(resolve).catch(reject);
           return;
+        }
+        if (err.type === 'peer-unavailable' && !this.isHost) {
+          if ((this.connectAttempts || 0) < 4) {
+            this.connectAttempts = (this.connectAttempts || 0) + 1;
+            setTimeout(() => {
+              if (!this.isDestroyed) this.connectToHost(roomId);
+            }, 1400);
+            return;
+          }
         }
         this.emit('error', err);
       });
@@ -111,6 +119,7 @@ export class GroupRelayEngine {
   connectToHost(hostPeerId) {
     this.currentHostId = hostPeerId;
     this.emit('status', 'connecting');
+    if (!this.peer || this.peer.destroyed) return;
     const conn = this.peer.connect(hostPeerId, { reliable: true });
     this.hostConn = conn;
 
@@ -125,6 +134,17 @@ export class GroupRelayEngine {
 
     conn.on('data', (data) => handleGroupPacket(this, data, conn));
     conn.on('close', () => this.handleHostDisconnect());
+    conn.on('error', (err) => {
+      console.warn('[GroupRelay] Host conn error:', err);
+      if ((this.connectAttempts || 0) < 4) {
+        this.connectAttempts = (this.connectAttempts || 0) + 1;
+        setTimeout(() => {
+          if (!this.isDestroyed && (!this.hostConn || !this.hostConn.open)) {
+            this.connectToHost(hostPeerId);
+          }
+        }, 1400);
+      }
+    });
   }
 
   handleIncomingConnection(conn) {
@@ -148,11 +168,12 @@ export class GroupRelayEngine {
   admitKnocker(peerId) {
     if (!this.isHost) return;
     const knocker = this.pendingKnocks.get(peerId);
-    if (!knocker || !knocker.conn.open) return;
+    if (!knocker) return;
 
     this.pendingKnocks.delete(peerId);
     this.connections.set(peerId, knocker.conn);
 
+    this.roster = this.roster.filter(m => m.peerId !== peerId);
     this.roster.push({
       peerId,
       nickname: knocker.nickname,
@@ -163,13 +184,25 @@ export class GroupRelayEngine {
       joinedAt: Date.now()
     });
 
-    knocker.conn.send({
-      type: GROUP_PACKET_TYPES.ADMIT,
-      roster: this.roster,
-      hostId: this.myPeerId,
-      successorId: this.designatedSuccessorId,
-      isLocked: this.isLocked
-    });
+    const sendAdmitPacket = () => {
+      try {
+        knocker.conn.send({
+          type: GROUP_PACKET_TYPES.ADMIT,
+          roster: this.roster,
+          hostId: this.myPeerId,
+          successorId: this.designatedSuccessorId,
+          isLocked: this.isLocked
+        });
+      } catch (err) {
+        console.warn('[GroupRelay] Admit send error:', err);
+      }
+    };
+
+    if (knocker.conn.open) {
+      sendAdmitPacket();
+    } else {
+      knocker.conn.on('open', sendAdmitPacket);
+    }
 
     this.broadcastRosterSync();
     this.emit('knocks_update', Array.from(this.pendingKnocks.values()));
@@ -292,11 +325,9 @@ export class GroupRelayEngine {
   startHeartbeatLoop() {
     this.heartbeatInterval = setInterval(() => {
       if (this.isDestroyed) return;
-      if (this.isHost) {
-        this.broadcast({ type: GROUP_PACKET_TYPES.HEARTBEAT, time: Date.now() });
-      } else if (this.hostConn?.open) {
-        this.hostConn.send({ type: GROUP_PACKET_TYPES.HEARTBEAT, time: Date.now() });
-      }
+      const pkt = { type: GROUP_PACKET_TYPES.HEARTBEAT, time: Date.now() };
+      if (this.isHost) this.broadcast(pkt);
+      else if (this.hostConn?.open) this.hostConn.send(pkt);
     }, 2500);
   }
 
@@ -306,14 +337,8 @@ export class GroupRelayEngine {
     this.connections.forEach(conn => { try { conn.close(); } catch (e) {} });
     this.connections.clear();
     this.pendingKnocks.clear();
-    if (this.hostConn) {
-      try { this.hostConn.close(); } catch (e) {}
-      this.hostConn = null;
-    }
-    if (this.peer && !this.peer.destroyed) {
-      try { this.peer.destroy(); } catch (e) {}
-      this.peer = null;
-    }
+    if (this.hostConn) { try { this.hostConn.close(); } catch (e) {} this.hostConn = null; }
+    if (this.peer && !this.peer.destroyed) { try { this.peer.destroy(); } catch (e) {} this.peer = null; }
     this.roster = [];
   }
 }
