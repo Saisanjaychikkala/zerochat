@@ -8,6 +8,9 @@ export default function CyberPongGame({
   initialState,
   status,
   isHost = true,
+  isSpectator = false,
+  player1 = 'Player 1',
+  player2 = 'Player 2',
   myNickname = 'You',
   remotePeerNickname = 'Peer',
   onExitMatch,
@@ -45,13 +48,16 @@ export default function CyberPongGame({
       if (cardId && event.cardId && event.cardId !== cardId) return;
 
       if (event.type === 'pong_paddle') {
-        if (roleIsHost) stateRef.current.p2Y = event.y;
+        if (event.player === 1) stateRef.current.p1Y = event.y;
+        else if (event.player === 2) stateRef.current.p2Y = event.y;
+        else if (roleIsHost) stateRef.current.p2Y = event.y;
         else stateRef.current.p1Y = event.y;
       } else if (event.type === 'pong_sync') {
-        if (!roleIsHost) {
+        if (!roleIsHost || isSpectator) {
           stateRef.current.ballX = event.ballX;
           stateRef.current.ballY = event.ballY;
           stateRef.current.p1Y = event.p1Y;
+          if (event.p2Y !== undefined) stateRef.current.p2Y = event.p2Y;
           setScore({ p1: event.p1, p2: event.p2 });
           if (event.winner) {
             setWinner(event.winner);
@@ -72,7 +78,7 @@ export default function CyberPongGame({
     });
 
     return () => unsub();
-  }, [roleIsHost, onEndRound]);
+  }, [roleIsHost, isSpectator, onEndRound, cardId]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -140,9 +146,10 @@ export default function CyberPongGame({
           gs.lastSyncTime = now;
           peerService.sendGameEvent({
             game: 'pong', cardId, type: 'pong_sync',
-            ballX: Math.round(gs.ballX), ballY: Math.round(gs.ballY), p1Y: Math.round(gs.p1Y),
+            ballX: Math.round(gs.ballX), ballY: Math.round(gs.ballY),
+            p1Y: Math.round(gs.p1Y), p2Y: Math.round(gs.p2Y),
             p1: gs.p1Score, p2: gs.p2Score,
-            winner: gs.p1Score >= 5 ? myNickname : gs.p2Score >= 5 ? remotePeerNickname : null,
+            winner: gs.p1Score >= 5 ? (isSpectator ? (player1 || 'Player 1') : myNickname) : gs.p2Score >= 5 ? (isSpectator ? (player2 || 'Player 2') : remotePeerNickname) : null,
           });
         }
       }
@@ -176,18 +183,20 @@ export default function CyberPongGame({
 
     animId = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(animId);
-  }, [winner, isConnected, myNickname, remotePeerNickname, onEndRound, cardId]);
+  }, [winner, isConnected, myNickname, remotePeerNickname, onEndRound, cardId, isSpectator, player1, player2]);
 
   const updatePaddle = useCallback((relativeY) => {
+    if (isSpectator) return;
     const clampedY = Math.max(6, Math.min(324, relativeY));
     const gs = stateRef.current;
     if (roleIsHost) gs.p1Y = clampedY; else gs.p2Y = clampedY;
     if (isConnected) {
-      peerService.sendGameEvent({ game: 'pong', cardId, type: 'pong_paddle', y: Math.round(clampedY) });
+      peerService.sendGameEvent({ game: 'pong', cardId, type: 'pong_paddle', y: Math.round(clampedY), player: roleIsHost ? 1 : 2 });
     }
-  }, [roleIsHost, isConnected, cardId]);
+  }, [roleIsHost, isConnected, isSpectator, cardId]);
 
   const handlePointer = (e) => {
+    if (isSpectator) return;
     const canvas = canvasRef.current;
     if (!canvas) return;
     const rect = canvas.getBoundingClientRect();
@@ -196,12 +205,14 @@ export default function CyberPongGame({
   };
 
   const handleNudge = useCallback((delta) => {
+    if (isSpectator) return;
     const curY = roleIsHost ? stateRef.current.p1Y : stateRef.current.p2Y;
     updatePaddle(curY + delta);
-  }, [roleIsHost, updatePaddle]);
+  }, [roleIsHost, isSpectator, updatePaddle]);
 
   // Desktop keyboard controls (W/S or Up/Down arrows)
   useEffect(() => {
+    if (isSpectator) return;
     const handleKeyDown = (e) => {
       if (e.key === 'ArrowUp' || e.code === 'KeyW') {
         e.preventDefault();
@@ -213,7 +224,7 @@ export default function CyberPongGame({
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleNudge]);
+  }, [handleNudge, isSpectator]);
 
   const handleRestart = () => {
     setWinner(null);
@@ -228,25 +239,35 @@ export default function CyberPongGame({
       <div className="pong-subbar">
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
-            You: <strong style={{ color: roleIsHost ? '#00f2fe' : '#10b981' }}>{roleIsHost ? 'Left (P1)' : 'Right (P2)'}</strong>
+            {isSpectator ? (
+              <strong style={{ color: '#c084fc' }}>Spectator View</strong>
+            ) : (
+              <>You: <strong style={{ color: roleIsHost ? '#00f2fe' : '#10b981' }}>{roleIsHost ? 'Left (P1)' : 'Right (P2)'}</strong></>
+            )}
           </span>
         </div>
 
         <div className="game-scoreboard">
-          <span className="player-tag left">{roleIsHost ? myNickname : remotePeerNickname}: {score.p1}</span>
+          <span className="player-tag left">
+            {isSpectator ? (player1 || 'Player 1') : (roleIsHost ? myNickname : remotePeerNickname)}: {score.p1}
+          </span>
           <span className="vs-divider">:</span>
-          <span className="player-tag right">{!roleIsHost ? myNickname : (isConnected ? remotePeerNickname : 'Bot')}: {score.p2}</span>
+          <span className="player-tag right">
+            {isSpectator ? (player2 || 'Player 2') : (!roleIsHost ? myNickname : (isConnected ? remotePeerNickname : 'Bot'))}: {score.p2}
+          </span>
         </div>
 
-        <button onClick={handleRestart} className="btn btn-icon btn-xs" title="Reset Score">
-          <RefreshCw size={13} />
-        </button>
+        {!isSpectator && (
+          <button onClick={handleRestart} className="btn btn-icon btn-xs" title="Reset Score">
+            <RefreshCw size={13} />
+          </button>
+        )}
       </div>
 
       <div 
         className="game-canvas-wrapper"
-        onMouseMove={handlePointer}
-        onTouchMove={(e) => { e.preventDefault(); handlePointer(e); }}
+        onMouseMove={isSpectator ? undefined : handlePointer}
+        onTouchMove={isSpectator ? undefined : (e) => { e.preventDefault(); handlePointer(e); }}
         style={{ touchAction: 'none' }}
       >
         <canvas ref={canvasRef} width={600} height={400} className="game-canvas" />
@@ -256,10 +277,12 @@ export default function CyberPongGame({
             <Trophy size={42} color="#eab308" className="animate-bounce" />
             <h3 style={{ margin: '8px 0', fontSize: '1.2rem', color: '#fff' }}>{winner} Wins the Duel!</h3>
             <div style={{ display: 'flex', gap: '10px', marginTop: '12px' }}>
-              <button onClick={handleRestart} className="btn btn-primary">
-                <Sparkles size={14} />
-                <span>Play Again</span>
-              </button>
+              {!isSpectator && (
+                <button onClick={handleRestart} className="btn btn-primary">
+                  <Sparkles size={14} />
+                  <span>Play Again</span>
+                </button>
+              )}
               {onExitMatch && (
                 <button onClick={onExitMatch} className="btn btn-secondary">
                   <span>Return to Chat</span>
@@ -270,16 +293,18 @@ export default function CyberPongGame({
         )}
       </div>
 
-      <div className="pong-mobile-controls" style={{ display: 'flex', justifyContent: 'center', gap: '16px', padding: '8px 0' }}>
-        <button onPointerDown={() => handleNudge(-35)} className="btn btn-secondary text-xs" style={{ minWidth: '90px', height: '38px', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
-          <ChevronUp size={16} />
-          <span>Steer Up</span>
-        </button>
-        <button onPointerDown={() => handleNudge(35)} className="btn btn-secondary text-xs" style={{ minWidth: '90px', height: '38px', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
-          <ChevronDown size={16} />
-          <span>Steer Down</span>
-        </button>
-      </div>
+      {!isSpectator && (
+        <div className="pong-mobile-controls" style={{ display: 'flex', justifyContent: 'center', gap: '16px', padding: '8px 0' }}>
+          <button onPointerDown={() => handleNudge(-35)} className="btn btn-secondary text-xs" style={{ minWidth: '90px', height: '38px', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
+            <ChevronUp size={16} />
+            <span>Steer Up</span>
+          </button>
+          <button onPointerDown={() => handleNudge(35)} className="btn btn-secondary text-xs" style={{ minWidth: '90px', height: '38px', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
+            <ChevronDown size={16} />
+            <span>Steer Down</span>
+          </button>
+        </div>
+      )}
     </div>
   );
 }

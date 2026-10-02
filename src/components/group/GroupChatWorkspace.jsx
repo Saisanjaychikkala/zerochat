@@ -42,7 +42,8 @@ export function GroupChatWorkspace({
   onToggleLock,
   onLeaveSquad,
   onOpenSettings,
-  onKickPeer
+  onKickPeer,
+  showToast
 }) {
   const [inputText, setInputText] = useState('');
   const [replyingTo, setReplyingTo] = useState(null);
@@ -301,9 +302,11 @@ export function GroupChatWorkspace({
             status={status}
             isHost={activeMatch.isSpectator ? false : (activeMatch.player1 === myNickname)}
             isSpectator={activeMatch.isSpectator}
+            player1={activeMatch.player1}
+            player2={activeMatch.player2}
             myNickname={myNickname}
             remotePeerNickname={activeMatch.player1 === myNickname ? (activeMatch.player2 || 'Player 2') : (activeMatch.player1 || 'Player 1')}
-            showToast={() => {}}
+            showToast={showToast || (() => {})}
             onExitMatch={() => setActiveMatch(null)}
             onReturnToChat={() => setActiveMatch(null)}
             onEndRound={() => {}}

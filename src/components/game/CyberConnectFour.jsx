@@ -2,51 +2,16 @@ import React, { useState, useEffect } from 'react';
 import { RefreshCw, Sparkles, WifiOff, Trophy, Handshake, Zap } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { peerService } from '../../services/peerService';
-
-const ROWS = 6;
-const COLS = 7;
-
-function createEmptyGrid() {
-  return Array.from({ length: ROWS }, () => Array(COLS).fill(null));
-}
-
-function checkConnectFourWin(board) {
-  for (let r = 0; r < ROWS; r++) {
-    for (let c = 0; c <= COLS - 4; c++) {
-      const p = board[r][c];
-      if (p && p === board[r][c+1] && p === board[r][c+2] && p === board[r][c+3]) {
-        return { winner: p, line: [[r,c], [r,c+1], [r,c+2], [r,c+3]] };
-      }
-    }
-  }
-  for (let c = 0; c < COLS; c++) {
-    for (let r = 0; r <= ROWS - 4; r++) {
-      const p = board[r][c];
-      if (p && p === board[r+1][c] && p === board[r+2][c] && p === board[r+3][c]) {
-        return { winner: p, line: [[r,c], [r+1,c], [r+2,c], [r+3,c]] };
-      }
-    }
-  }
-  for (let r = 0; r < ROWS; r++) {
-    for (let c = 0; c < COLS; c++) {
-      const p = board[r][c];
-      if (!p) continue;
-      if (r <= ROWS - 4 && c <= COLS - 4 && p === board[r+1][c+1] && p === board[r+2][c+2] && p === board[r+3][c+3]) {
-        return { winner: p, line: [[r,c], [r+1,c+1], [r+2,c+2], [r+3,c+3]] };
-      }
-      if (r >= 3 && c <= COLS - 4 && p === board[r-1][c+1] && p === board[r-2][c+2] && p === board[r-3][c+3]) {
-        return { winner: p, line: [[r,c], [r-1,c+1], [r-2,c+2], [r-3,c+3]] };
-      }
-    }
-  }
-  return board.every(row => row.every(Boolean)) ? { winner: 'Tie', line: [] } : null;
-}
+import { ROWS, COLS, createEmptyGrid, checkConnectFourWin } from '../../utils/connectFourLogic';
 
 export default function CyberConnectFour({ 
   cardId,
   initialState,
   status, 
   isHost = true,
+  isSpectator = false,
+  player1 = 'Player 1',
+  player2 = 'Player 2',
   myNickname = 'You',
   remotePeerNickname = 'Peer', 
   onExitMatch,
@@ -67,7 +32,7 @@ export default function CyberConnectFour({
   // Role authority: Host is Cyan ('C'); Guest is Neon ('M')
   const myToken = (!isConnected || isHost) ? 'C' : 'M';
   const opponentToken = myToken === 'C' ? 'M' : 'C';
-  const isMyTurn = turn === myToken;
+  const isMyTurn = !isSpectator && turn === myToken;
   const opponentLabel = isConnected ? remotePeerNickname || 'Peer' : 'AI Bot';
 
   // Persist live grid state in memory cache
@@ -103,7 +68,11 @@ export default function CyberConnectFour({
           const winRes = checkConnectFourWin(dropRes.newBoard);
           if (winRes) {
             const isTie = winRes.winner === 'Tie';
-            const winnerName = isTie ? 'Tie' : (winRes.winner === myToken ? myNickname : remotePeerNickname);
+            const winnerName = isTie
+              ? 'Tie'
+              : isSpectator
+              ? (winRes.winner === 'C' ? (player1 || 'Player 1') : (player2 || 'Player 2'))
+              : (winRes.winner === myToken ? myNickname : remotePeerNickname);
             setWinner(winnerName);
             if (!isTie) setWinningCells(winRes.line);
             setScores(s => {
@@ -112,7 +81,8 @@ export default function CyberConnectFour({
               return next;
             });
           } else {
-            setTurn(myToken);
+            const droppedToken = event.token || opponentToken;
+            setTurn(droppedToken === 'C' ? 'M' : 'C');
           }
           return dropRes.newBoard;
         });
@@ -125,7 +95,7 @@ export default function CyberConnectFour({
     });
 
     return () => unsub();
-  }, [winner, myToken, opponentToken, myNickname, remotePeerNickname, onEndRound, scores]);
+  }, [winner, myToken, opponentToken, myNickname, remotePeerNickname, onEndRound, scores, isSpectator, player1, player2, cardId]);
 
   // Practice AI Bot (Strictly Solo mode only - never triggers during network reconnects)
   useEffect(() => {
@@ -266,7 +236,9 @@ export default function CyberConnectFour({
       <div className="grid-turn-indicator">
         {!winner ? (
           <span className={isMyTurn ? 'active-turn user' : 'active-turn opponent'} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-            {isMyTurn ? (
+            {isSpectator ? (
+              <span>Turn: {turn === 'C' ? (player1 || 'Player 1') : (player2 || 'Player 2')} ({turn === 'C' ? 'Cyan' : 'Magenta'})</span>
+            ) : isMyTurn ? (
               <>
                 <Zap size={13} />
                 <span>Your Turn (Drop Disc)</span>
@@ -333,9 +305,11 @@ export default function CyberConnectFour({
       {/* Victory Actions */}
       {winner && (
         <div className="c4-win-action" style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
-          <button onClick={handleRestart} className="btn btn-primary" style={{ gap: '6px' }}>
-            <Sparkles size={15} /> Play Next Round
-          </button>
+          {!isSpectator && (
+            <button onClick={handleRestart} className="btn btn-primary" style={{ gap: '6px' }}>
+              <Sparkles size={15} /> Play Next Round
+            </button>
+          )}
           {onExitMatch && (
             <button onClick={onExitMatch} className="btn btn-secondary">
               Return to Chat

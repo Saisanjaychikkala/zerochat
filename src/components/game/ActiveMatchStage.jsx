@@ -21,6 +21,8 @@ export default function ActiveMatchStage({
   status,
   isHost,
   isSpectator = false,
+  player1,
+  player2,
   myNickname,
   remotePeerNickname,
   showToast,
@@ -35,18 +37,35 @@ export default function ActiveMatchStage({
 
   // Listen for incoming match emotes and turn nudges
   useEffect(() => {
-    const unsub = peerService.on('game_event', (event) => {
+    const unsubGame = peerService.on('game_event', (event) => {
       if (!event || event.game !== activeGame) return;
       if (cardId && event.cardId && event.cardId !== cardId) return;
       if (event.type === 'game_emote') {
         setActiveEmote({ text: event.emoji, sender: event.sender || 'Opponent' });
         try { playSound('pop', true); } catch (e) {}
         setTimeout(() => setActiveEmote(null), 2500);
+      } else if (event.type === 'game_nudge') {
+        const sender = event.sender || 'Opponent';
+        setActiveEmote({ text: '⚡', sender: `${sender} is nudging you!` });
+        try { playSound('pop', true); } catch (e) {}
+        if (showToast) showToast(`⚡ ${sender} is nudging you! It's your turn in ${GAME_TITLES[activeGame] || 'Game'}!`, 'warning');
+        setTimeout(() => setActiveEmote(null), 3000);
       }
     });
 
-    return () => unsub();
-  }, [activeGame, cardId]);
+    const unsubNudge = peerService.on('peer_nudge', (nudge) => {
+      const sender = nudge.senderNickname || 'Opponent';
+      setActiveEmote({ text: '⚡', sender: `${sender} nudged you!` });
+      try { playSound('pop', true); } catch (e) {}
+      if (showToast) showToast(`⚡ ${sender}: ${nudge.message || "It's your turn!"}`, 'warning');
+      setTimeout(() => setActiveEmote(null), 3000);
+    });
+
+    return () => {
+      unsubGame();
+      unsubNudge();
+    };
+  }, [activeGame, cardId, showToast]);
 
   const handleSendEmote = (emoji) => {
     setActiveEmote({ text: emoji, sender: myNickname || 'You' });
@@ -96,20 +115,30 @@ export default function ActiveMatchStage({
           <span>{onReturnToChat ? "Return to Chat" : "Back to Lobby"}</span>
         </button>
 
-        <div className="active-match-title-pill">
-          <Gamepad2 size={13} color="var(--accent-cyan, #00f2fe)" />
-          <span className="match-title-text">{GAME_TITLES[activeGame] || 'P2P Duel'}</span>
-          <span className="match-vs-text">
-            {myNickname || 'You'} vs {opponentLabel}
-          </span>
-          <span className={`status-dot ${status}`} />
-        </div>
+        {isSpectator ? (
+          <div className="active-match-title-pill" style={{ background: 'rgba(192, 132, 252, 0.12)', borderColor: 'rgba(192, 132, 252, 0.35)' }}>
+            <Gamepad2 size={13} color="#c084fc" />
+            <span className="match-title-text" style={{ color: '#e9d5ff' }}>{GAME_TITLES[activeGame] || 'P2P Duel'}</span>
+            <span className="match-vs-text" style={{ color: '#d8b4fe' }}>
+              <span style={{ color: 'var(--accent-cyan, #00f2fe)', fontWeight: 600 }}>{player1 || 'Player 1'}</span> vs <span style={{ color: 'var(--accent-purple, #c084fc)', fontWeight: 600 }}>{player2 || 'Player 2'}</span>
+            </span>
+          </div>
+        ) : (
+          <div className="active-match-title-pill">
+            <Gamepad2 size={13} color="var(--accent-cyan, #00f2fe)" />
+            <span className="match-title-text">{GAME_TITLES[activeGame] || 'P2P Duel'}</span>
+            <span className="match-vs-text">
+              {myNickname || 'You'} vs {opponentLabel}
+            </span>
+            <span className={`status-dot ${status}`} />
+          </div>
+        )}
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
           {isSpectator ? (
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '3px 8px', borderRadius: '12px', background: 'rgba(192, 132, 252, 0.15)', border: '1px solid rgba(192, 132, 252, 0.4)', color: '#c084fc', fontSize: '0.72rem', fontWeight: 700 }}>
-              <Eye size={12} />
-              <span>Spectating</span>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '4px 10px', borderRadius: '12px', background: 'rgba(192, 132, 252, 0.18)', border: '1px solid rgba(192, 132, 252, 0.45)', color: '#c084fc', fontSize: '0.74rem', fontWeight: 700, letterSpacing: '0.04em' }}>
+              <Eye size={13} />
+              <span>SPECTATOR • VIEW ONLY</span>
             </span>
           ) : (
             <>
@@ -174,6 +203,9 @@ export default function ActiveMatchStage({
             initialState={initialState}
             status={status}
             isHost={isHost}
+            isSpectator={isSpectator}
+            player1={player1}
+            player2={player2}
             myNickname={myNickname}
             remotePeerNickname={remotePeerNickname}
             onExitMatch={onReturnToChat || onExitMatch}
@@ -186,6 +218,9 @@ export default function ActiveMatchStage({
             initialState={initialState}
             status={status} 
             isHost={isHost}
+            isSpectator={isSpectator}
+            player1={player1}
+            player2={player2}
             myNickname={myNickname}
             remotePeerNickname={remotePeerNickname} 
             showToast={showToast}
@@ -199,6 +234,9 @@ export default function ActiveMatchStage({
             initialState={initialState}
             status={status}
             isHost={isHost}
+            isSpectator={isSpectator}
+            player1={player1}
+            player2={player2}
             myNickname={myNickname}
             remotePeerNickname={remotePeerNickname}
             showToast={showToast}

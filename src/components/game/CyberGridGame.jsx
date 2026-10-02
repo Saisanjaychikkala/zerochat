@@ -14,6 +14,9 @@ export default function CyberGridGame({
   initialState,
   status,
   isHost = true,
+  isSpectator = false,
+  player1 = 'Player 1',
+  player2 = 'Player 2',
   myNickname = 'You',
   remotePeerNickname = 'Peer',
   showToast,
@@ -34,7 +37,7 @@ export default function CyberGridGame({
   // Role authority: Host is X (Cyan, moves first); Guest is O (Neon, moves second)
   const mySymbol = (!isConnected || isHost) ? 'X' : 'O';
   const opponentSymbol = mySymbol === 'X' ? 'O' : 'X';
-  const isMyTurn = turn === mySymbol;
+  const isMyTurn = !isSpectator && turn === mySymbol;
 
   // Persist live board state in memory cache
   useEffect(() => {
@@ -67,7 +70,8 @@ export default function CyberGridGame({
         setBoard((prev) => {
           if (prev[event.index] || winner) return prev;
           const nextBoard = [...prev];
-          nextBoard[event.index] = event.symbol || opponentSymbol;
+          const symbolPlayed = event.symbol || opponentSymbol;
+          nextBoard[event.index] = symbolPlayed;
 
           const res = checkWinner(nextBoard);
           if (res) {
@@ -79,7 +83,9 @@ export default function CyberGridGame({
                 return next;
               });
             } else {
-              const winnerName = res.winner === mySymbol ? myNickname : remotePeerNickname;
+              const winnerName = isSpectator
+                ? (res.winner === 'X' ? (player1 || 'Player 1') : (player2 || 'Player 2'))
+                : (res.winner === mySymbol ? myNickname : remotePeerNickname);
               setWinner(winnerName);
               setWinningLine(res.line);
               setScores((s) => {
@@ -93,7 +99,7 @@ export default function CyberGridGame({
               });
             }
           } else {
-            setTurn(mySymbol);
+            setTurn(symbolPlayed === 'X' ? 'O' : 'X');
           }
           return nextBoard;
         });
@@ -106,7 +112,7 @@ export default function CyberGridGame({
     });
 
     return () => unsub();
-  }, [winner, mySymbol, opponentSymbol, myNickname, remotePeerNickname, onEndRound, scores]);
+  }, [winner, mySymbol, opponentSymbol, myNickname, remotePeerNickname, onEndRound, scores, isSpectator, player1, player2, cardId]);
 
   // AI Move (Strictly Practice / Solo Mode ONLY - Never during network reconnection)
   useEffect(() => {
@@ -237,7 +243,9 @@ export default function CyberGridGame({
       <div className="grid-turn-indicator">
         {!winner ? (
           <span className={isMyTurn ? 'active-turn user' : 'active-turn opponent'} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-            {isMyTurn ? (
+            {isSpectator ? (
+              <span>Turn: {turn === 'X' ? (player1 || 'Player 1') : (player2 || 'Player 2')} ({turn})</span>
+            ) : isMyTurn ? (
               <>
                 <Zap size={13} />
                 <span>Your Turn (Place {mySymbol})</span>
@@ -283,10 +291,12 @@ export default function CyberGridGame({
       {/* Victory Celebration Overlay */}
       {winner && (
         <div className="grid-win-action" style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
-          <button onClick={handleRestart} className="btn btn-primary">
-            <Sparkles size={15} />
-            <span>Play Next Round</span>
-          </button>
+          {!isSpectator && (
+            <button onClick={handleRestart} className="btn btn-primary">
+              <Sparkles size={15} />
+              <span>Play Next Round</span>
+            </button>
+          )}
           {onExitMatch && (
             <button onClick={onExitMatch} className="btn btn-secondary">
               <span>Return to Chat</span>

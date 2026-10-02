@@ -98,19 +98,6 @@ export function GroupHeaderBar({
           <QrCode size={16} />
         </button>
 
-        {/* Settings */}
-        {onOpenSettings && (
-          <button
-            type="button"
-            onClick={onOpenSettings}
-            className="btn btn-icon"
-            title="Settings"
-            style={{ width: '32px', height: '32px' }}
-          >
-            <Settings size={16} />
-          </button>
-        )}
-
         {/* Member Count Pill / Drawer Toggle */}
         <button
           type="button"
@@ -121,6 +108,19 @@ export function GroupHeaderBar({
           <Users size={13} />
           <span className="occupancy-label">{memberCount || 1} Members</span>
         </button>
+
+        {/* Settings */}
+        {onOpenSettings && (
+          <button
+            type="button"
+            onClick={onOpenSettings}
+            className="btn btn-icon squad-settings-btn"
+            title="Settings"
+            style={{ width: '32px', height: '32px' }}
+          >
+            <Settings size={16} />
+          </button>
+        )}
       </div>
     </header>
   );

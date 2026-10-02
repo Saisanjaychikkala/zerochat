@@ -5,6 +5,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { groupRelayEngine } from '../services/webrtc/groupRelayEngine';
+import { peerService } from '../services/peerService';
 import { playSound } from '../utils/soundEffects';
 
 export function useGroupSession({ soundEnabled, showToast }) {
@@ -64,6 +65,20 @@ export function useGroupSession({ soundEnabled, showToast }) {
 
     const unsubMessage = groupRelayEngine.on('message', (msg) => {
       if (msg.type === 'game_action') {
+        if (msg.action === 'game_event') {
+          if (msg.senderPeerId && msg.senderPeerId === groupRelayEngine.myPeerId) return;
+          peerService.emit('game_event', msg.data);
+          return;
+        }
+        if (msg.action === 'peer_nudge') {
+          if (msg.senderPeerId && msg.senderPeerId === groupRelayEngine.myPeerId) return;
+          peerService.emit('peer_nudge', {
+            message: msg.message,
+            senderNickname: msg.senderNickname,
+            nudgeType: msg.nudgeType,
+          });
+          return;
+        }
         if (msg.action === 'join' && groupRelayEngine.isHost) {
           setMessages(prev => {
             const target = prev.find(m => m.cardId === msg.cardId);

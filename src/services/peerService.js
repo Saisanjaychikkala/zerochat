@@ -12,6 +12,7 @@ import Peer from 'peerjs';
 import { ICE_SERVERS, STUN_ONLY_ICE_SERVERS, UNIVERSAL_ICE_SERVERS, generateRoomId, normalizeRoomId } from './webrtc/constants';
 import { FileStreamEngine } from './webrtc/fileStreamEngine';
 import { MediaCallEngine } from './webrtc/mediaCallEngine';
+import { groupRelayEngine } from './webrtc/groupRelayEngine';
 
 class PeerService {
   constructor() {
@@ -733,6 +734,16 @@ class PeerService {
 
   sendNudge(message = "I'll be calling you in 5 seconds! Get ready.", nudgeType = 'calling_soon') {
     const text = (typeof message === 'string' && message.trim()) ? message.trim() : "I'll be calling you in 5 seconds! Get ready.";
+    if (groupRelayEngine.roomId && (groupRelayEngine.isHost || groupRelayEngine.isAdmitted)) {
+      groupRelayEngine.sendGameAction({
+        action: 'peer_nudge',
+        message: text,
+        nudgeType: typeof nudgeType === 'string' ? nudgeType : 'calling_soon',
+        senderNickname: this.myNickname,
+        senderPeerId: groupRelayEngine.myPeerId,
+      });
+      return;
+    }
     this.sendJson({
       type: 'peer_nudge',
       message: text,
@@ -742,6 +753,14 @@ class PeerService {
   }
 
   sendGameEvent(data) {
+    if (groupRelayEngine.roomId && (groupRelayEngine.isHost || groupRelayEngine.isAdmitted)) {
+      groupRelayEngine.sendGameAction({
+        action: 'game_event',
+        data,
+        senderPeerId: groupRelayEngine.myPeerId,
+      });
+      return;
+    }
     this.sendJson({
       type: 'game_event',
       data,

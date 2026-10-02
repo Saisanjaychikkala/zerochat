@@ -192,83 +192,118 @@
 }
 
 /* ─── Surface Modes (Ultra Glass, Solid Dark, OLED Pure Black) ────── */
-[data-surface="ultra-glass"] {
-  --glass-blur: blur(24px);
-  --border-subtle: rgba(255, 255, 255, 0.1);
+html[data-surface="ultra-glass"] {
+  --glass-blur: blur(28px) saturate(180%);
+  --border-subtle: rgba(255, 255, 255, 0.12);
   --shadow-card: 0 12px 36px -8px rgba(0, 0, 0, 0.7), 0 0 0 1px var(--border-subtle);
 }
 
-[data-surface="solid-dark"] {
+html[data-surface="ultra-glass"] .glass-panel,
+html[data-surface="ultra-glass"] .modal-panel,
+html[data-surface="ultra-glass"] .home-header,
+html[data-surface="ultra-glass"] .feature-hub-card,
+html[data-surface="ultra-glass"] .squad-header,
+html[data-surface="ultra-glass"] .chat-header,
+html[data-surface="ultra-glass"] .chat-input-bar,
+html[data-surface="ultra-glass"] .squad-member-drawer,
+html[data-surface="ultra-glass"] .game-drawer,
+html[data-surface="ultra-glass"] .active-match-stage {
+  backdrop-filter: blur(28px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(28px) saturate(180%) !important;
+  background: rgba(14, 20, 36, 0.52) !important;
+}
+
+html[data-surface="ultra-glass"] body::before {
+  opacity: 1 !important;
+  display: block !important;
+}
+
+/* Solid Dark (100% Matte Opaque, Zero Blur, High Contrast) */
+html[data-surface="solid-dark"] {
   --glass-blur: none !important;
-  --bg-primary: #07090e !important;
-  --bg-secondary: #0c101a !important;
-  --bg-tertiary: #141b29 !important;
-  --bg-card: #0f1523 !important;
-  --bg-card-hover: #172033 !important;
-  --bg-input: #090e18 !important;
-  --border-subtle: rgba(255, 255, 255, 0.16) !important;
-  --border-hover: rgba(255, 255, 255, 0.28) !important;
+  --bg-primary: #0a0e17 !important;
+  --bg-secondary: #0f1523 !important;
+  --bg-tertiary: #161e31 !important;
+  --bg-card: #111827 !important;
+  --bg-card-hover: #1e293b !important;
+  --bg-input: #090d15 !important;
+  --border-subtle: #1f2937 !important;
+  --border-hover: #374151 !important;
+}
+
+html[data-surface="solid-dark"] body,
+html[data-surface="solid-dark"] #root,
+html[data-surface="solid-dark"] .app-container,
+html[data-surface="solid-dark"] .home-hub-container,
+html[data-surface="solid-dark"] .squad-layout-container,
+html[data-surface="solid-dark"] .squad-main-feed,
+html[data-surface="solid-dark"] .chat-workspace {
+  background: #090d16 !important;
+}
+
+html[data-surface="solid-dark"] .glass-panel,
+html[data-surface="solid-dark"] .modal-panel,
+html[data-surface="solid-dark"] .home-header,
+html[data-surface="solid-dark"] .feature-hub-card,
+html[data-surface="solid-dark"] .squad-header,
+html[data-surface="solid-dark"] .chat-header,
+html[data-surface="solid-dark"] .chat-input-bar,
+html[data-surface="solid-dark"] .squad-member-drawer,
+html[data-surface="solid-dark"] .game-drawer,
+html[data-surface="solid-dark"] .active-match-stage,
+html[data-surface="solid-dark"] .in-chat-active-match-overlay {
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
+  background: #111827 !important;
+  border-color: #1f2937 !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4) !important;
 }
 
-[data-surface="solid-dark"] .glass-panel,
-[data-surface="solid-dark"] .modal-content,
-[data-surface="solid-dark"] .squad-member-drawer,
-[data-surface="solid-dark"] .squad-header-bar,
-[data-surface="solid-dark"] .squad-input-dock,
-[data-surface="solid-dark"] .game-drawer,
-[data-surface="solid-dark"] .chat-header {
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
-  background: var(--bg-card) !important;
+html[data-surface="solid-dark"] body::before {
+  opacity: 0.04 !important;
 }
 
-[data-surface="solid-dark"] body,
-[data-surface="solid-dark"] #root,
-[data-surface="solid-dark"] .app-container,
-[data-surface="solid-dark"] .chat-workspace,
-[data-surface="solid-dark"] .squad-main-feed,
-[data-surface="solid-dark"] .squad-layout-container {
-  background: #07090e !important;
-}
-
-[data-surface="solid-dark"] body::before {
-  opacity: 0.12 !important;
-}
-
-[data-surface="oled-black"] {
+/* OLED Pure Black (Zero Glare, True Pitch Black) */
+html[data-surface="oled-black"] {
   --glass-blur: none !important;
   --bg-primary: #000000 !important;
-  --bg-secondary: #040404 !important;
-  --bg-tertiary: #080808 !important;
-  --bg-card: #080808 !important;
+  --bg-secondary: #000000 !important;
+  --bg-tertiary: #0a0a0a !important;
+  --bg-card: #000000 !important;
   --bg-card-hover: #121212 !important;
-  --bg-input: #030303 !important;
-  --border-subtle: rgba(255, 255, 255, 0.12) !important;
-  --border-hover: rgba(255, 255, 255, 0.22) !important;
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
+  --bg-input: #000000 !important;
+  --border-subtle: #27272a !important;
+  --border-hover: #3f3f46 !important;
 }
 
-[data-surface="oled-black"] .glass-panel,
-[data-surface="oled-black"] .modal-content,
-[data-surface="oled-black"] .squad-member-drawer,
-[data-surface="oled-black"] .squad-header-bar,
-[data-surface="oled-black"] .squad-input-dock,
-[data-surface="oled-black"] .game-drawer,
-[data-surface="oled-black"] .chat-header,
-[data-surface="oled-black"] body,
-[data-surface="oled-black"] #root,
-[data-surface="oled-black"] .app-container,
-[data-surface="oled-black"] .chat-workspace,
-[data-surface="oled-black"] .squad-main-feed,
-[data-surface="oled-black"] .squad-layout-container {
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
+html[data-surface="oled-black"] body,
+html[data-surface="oled-black"] #root,
+html[data-surface="oled-black"] .app-container,
+html[data-surface="oled-black"] .home-hub-container,
+html[data-surface="oled-black"] .squad-layout-container,
+html[data-surface="oled-black"] .squad-main-feed,
+html[data-surface="oled-black"] .chat-workspace {
   background: #000000 !important;
 }
 
-[data-surface="oled-black"] body::before {
+html[data-surface="oled-black"] .glass-panel,
+html[data-surface="oled-black"] .modal-panel,
+html[data-surface="oled-black"] .home-header,
+html[data-surface="oled-black"] .feature-hub-card,
+html[data-surface="oled-black"] .squad-header,
+html[data-surface="oled-black"] .chat-header,
+html[data-surface="oled-black"] .chat-input-bar,
+html[data-surface="oled-black"] .squad-member-drawer,
+html[data-surface="oled-black"] .game-drawer,
+html[data-surface="oled-black"] .active-match-stage,
+html[data-surface="oled-black"] .in-chat-active-match-overlay {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  background: #000000 !important;
+  border-color: #27272a !important;
+  box-shadow: none !important;
+}
+
+html[data-surface="oled-black"] body::before {
   display: none !important;
 }

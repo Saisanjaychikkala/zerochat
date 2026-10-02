@@ -248,6 +248,7 @@ export default function App() {
             onKickPeer={groupSession.kickPeer}
             onLeaveSquad={() => { groupSession.leaveSquad(); setViewMode('home'); }}
             onOpenSettings={() => setIsSettingsOpen(true)}
+            showToast={showToast}
           />
         ) : viewMode === 'home' ? (
           <HomeScreen 
