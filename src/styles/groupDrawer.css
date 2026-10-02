@@ -1,0 +1,175 @@
+/* ZeroChat - Group Member Drawer & Mobile Sheet CSS */
+.squad-member-drawer {
+  width: 320px;
+  height: 100%;
+  background: #161b22;
+  border-left: 1px solid #30363d;
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  z-index: 20;
+}
+
+.drawer-header {
+  height: 56px;
+  padding: 0 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid #30363d;
+  font-weight: 700;
+  font-size: 0.92rem;
+  color: #f0f6fc;
+}
+
+.drawer-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.drawer-section-title {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: #8b949e;
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;
+}
+
+/* Knock Card */
+.pending-knock-card {
+  background: rgba(31, 111, 235, 0.08);
+  border: 1px solid rgba(56, 139, 253, 0.3);
+  border-radius: 8px;
+  padding: 10px;
+  margin-bottom: 8px;
+}
+
+.knock-top-line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.knock-name { font-weight: 700; font-size: 0.85rem; color: #58a6ff; }
+.knock-actions { display: flex; gap: 6px; }
+
+.btn-knock-admit {
+  background: #238636;
+  border: none;
+  color: #fff;
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-knock-decline {
+  background: #21262d;
+  border: 1px solid #30363d;
+  color: #f85149;
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* Host / Member Cards in Drawer */
+.drawer-member-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #0d1117;
+  border: 1px solid #30363d;
+  border-radius: 8px;
+  padding: 8px 10px;
+  margin-bottom: 6px;
+}
+
+.drawer-member-card.is-host-card {
+  border-color: rgba(210, 153, 34, 0.4);
+  background: rgba(210, 153, 34, 0.06);
+}
+
+.member-card-left { display: flex; align-items: center; gap: 8px; }
+
+.status-dot-sm {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #3fb950;
+  box-shadow: 0 0 6px rgba(63, 185, 80, 0.6);
+}
+
+.member-name-text { font-size: 0.84rem; font-weight: 600; color: #f0f6fc; }
+.latency-chip { font-size: 0.7rem; color: #8b949e; font-family: monospace; }
+
+.btn-pass-baton {
+  background: rgba(210, 153, 34, 0.15);
+  border: 1px solid rgba(210, 153, 34, 0.4);
+  color: #f2cc60;
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-pass-baton:hover { background: #d29922; color: #0d1117; }
+
+.btn-star-cohost {
+  background: transparent;
+  border: none;
+  color: #8b949e;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+}
+
+.btn-star-cohost.active { color: #d2a8ff; }
+
+/* Drawer Footer */
+.drawer-footer {
+  padding: 14px 16px;
+  border-top: 1px solid #30363d;
+  background: #161b22;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.lock-toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #c9d1d9;
+}
+
+/* Mobile Responsive */
+@media (max-width: 640px) {
+  .squad-member-drawer {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
+    max-height: 80vh;
+    border-top: 1px solid #30363d;
+    border-left: none;
+    border-radius: 16px 16px 0 0;
+    box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.7);
+    transform: translateY(100%);
+    transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .squad-member-drawer.drawer-open { transform: translateY(0); }
+}

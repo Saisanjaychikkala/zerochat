@@ -13,11 +13,15 @@ import { usePreferences } from './hooks/usePreferences';
 import { usePeerSession } from './hooks/usePeerSession';
 import { useCallSession } from './hooks/useCallSession';
 import { useChatTransfers } from './hooks/useChatTransfers';
+import { useGroupSession } from './hooks/useGroupSession';
+import { GroupChatWorkspace } from './components/group/GroupChatWorkspace';
+import { GroupCreateModal } from './components/group/GroupCreateModal';
 
 export default function App() {
   const [viewMode, setViewMode] = useState(() => {
     if (typeof window !== 'undefined' && window.location.hash && window.location.hash.length > 3) {
       const parsed = parseRoomHash(window.location.hash);
+      if (parsed.isSquad) return 'squad';
       if (parsed.isGame) return 'game';
       if (parsed.roomId) return 'room';
     }
@@ -35,6 +39,7 @@ export default function App() {
   const [isNicknameModalOpen, setIsNicknameModalOpen] = useState(false);
   const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
   const [isConfirmGameOpen, setIsConfirmGameOpen] = useState(false);
+  const [isSquadModalOpen, setIsSquadModalOpen] = useState(false);
   const [lightboxImage, setLightboxImage] = useState(null);
 
   const preferences = usePreferences(showToast);
@@ -57,6 +62,11 @@ export default function App() {
     showToast,
   });
 
+  const groupSession = useGroupSession({
+    soundEnabled: preferences.soundEnabled,
+    showToast,
+  });
+
   const { myRoomId, status, latency, remoteNickname, handleJoinRoom, handleCreateNewRoom, handleDisconnect } = peerSession;
   const { handleEndCall, stopActiveRingtones } = callSession;
 
@@ -75,7 +85,12 @@ export default function App() {
 
     const onHashNav = () => {
       const parsed = parseRoomHash(window.location.hash);
-      if (parsed.isGame) {
+      if (parsed.isSquad) {
+        setViewMode('squad');
+        if (parsed.roomId && parsed.roomId !== groupSession.squadRoomId) {
+          groupSession.initSquad(parsed.roomId, false, { nickname: preferences.myNickname, avatarId: 1 });
+        }
+      } else if (parsed.isGame) {
         setViewMode('game');
         if (parsed.roomId && parsed.roomId !== myRoomId) {
           handleJoinRoom(parsed.roomId);
@@ -98,7 +113,7 @@ export default function App() {
       window.removeEventListener('hashchange', onHashNav);
       window.removeEventListener('popstate', onHashNav);
     };
-  }, [handleEndCall, stopActiveRingtones, handleJoinRoom, myRoomId]);
+  }, [handleEndCall, stopActiveRingtones, handleJoinRoom, myRoomId, groupSession.squadRoomId, preferences.myNickname]);
 
   const handleLaunchRoomFromHome = () => {
     if (!myRoomId) handleCreateNewRoom();
@@ -107,7 +122,10 @@ export default function App() {
 
   const handleJoinRoomFromHome = (code) => {
     const parsed = parseRoomHash(code);
-    if (parsed.isGame) {
+    if (parsed.isSquad) {
+      groupSession.initSquad(parsed.roomId, false, { nickname: preferences.myNickname, avatarId: 1 });
+      setViewMode('squad');
+    } else if (parsed.isGame) {
       handleJoinRoom(parsed.roomId);
       setViewMode('game');
     } else {
@@ -194,7 +212,37 @@ export default function App() {
           />
         )}
 
-        {viewMode === 'home' ? (
+        {viewMode === 'squad' ? (
+          <GroupChatWorkspace 
+            squadRoomId={groupSession.squadRoomId}
+            isHost={groupSession.isHost}
+            currentHostId={groupSession.currentHostId}
+            designatedSuccessorId={groupSession.designatedSuccessorId}
+            status={groupSession.status}
+            declineReason={groupSession.declineReason}
+            members={groupSession.members}
+            pendingKnocks={groupSession.pendingKnocks}
+            messages={groupSession.messages}
+            latency={groupSession.latency}
+            isLocked={groupSession.isLocked}
+            isDrawerOpen={groupSession.isDrawerOpen}
+            myPeerId={groupSession.isHost ? groupSession.squadRoomId : undefined}
+            onToggleDrawer={groupSession.toggleDrawer}
+            onCloseDrawer={() => groupSession.setIsDrawerOpen(false)}
+            onSendMessage={groupSession.sendGroupChat}
+            onSendVoice={groupSession.sendGroupVoice}
+            onSendReaction={groupSession.sendGroupReaction}
+            onAdmitKnocker={groupSession.admitKnocker}
+            onDeclineKnocker={groupSession.declineKnocker}
+            onPassBaton={groupSession.passBaton}
+            onSetSuccessor={groupSession.setDesignatedSuccessor}
+            onToggleLock={groupSession.toggleLock}
+            onLeaveSquad={() => {
+              groupSession.leaveSquad();
+              setViewMode('home');
+            }}
+          />
+        ) : viewMode === 'home' ? (
           <HomeScreen 
             myRoomId={myRoomId}
             status={status}
@@ -206,6 +254,7 @@ export default function App() {
             onLaunchGame={() => startIsolatedGame()}
             onOpenInfoModal={() => setIsInfoModalOpen(true)}
             onOpenRoomModal={() => setIsRoomModalOpen(true)}
+            onOpenSquadModal={() => setIsSquadModalOpen(true)}
             onBurnSession={onBurnSession}
             activePeerNickname={remoteNickname}
           />
@@ -265,6 +314,18 @@ export default function App() {
           myAvatarBg={preferences.myAvatarBg}
           handleJoinRoom={handleJoinRoom}
           handleSaveNickname={preferences.handleSaveNickname}
+        />
+
+        <GroupCreateModal 
+          isOpen={isSquadModalOpen}
+          onClose={() => setIsSquadModalOpen(false)}
+          onCreateSquad={(config) => {
+            groupSession.initSquad(config.roomId, true, { nickname: preferences.myNickname, avatarId: 1 });
+            setViewMode('squad');
+            if (typeof window !== 'undefined') {
+              window.history.replaceState(null, '', '#' + config.roomId);
+            }
+          }}
         />
       </div>
     </Suspense>

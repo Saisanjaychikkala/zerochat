@@ -311,6 +311,55 @@ async function runTests() {
   assert(chatAreaSrc.includes("display: inChatGames.activeMatch.isVisible ? 'flex' : 'none'"), 'ChatArea preserves ActiveMatchStage state across Return to Chat');
   assert(chatAreaSrc.includes('End') && chatAreaSrc.includes('handleExitMatch'), 'ChatArea floating dock provides End Match button');
 
+  // 10. Baton Pass Group Chat & Star Relay Architecture
+  console.log('\n[Test Suite 10] Baton Pass Group Chat & Star Relay Architecture');
+  const { generateSquadRoomId, isSquadRoomId } = await import('../src/services/webrtc/constants.js');
+  assert(typeof generateSquadRoomId === 'function', 'generateSquadRoomId is exported');
+  assert(typeof isSquadRoomId === 'function', 'isSquadRoomId is exported');
+
+  const squadId = generateSquadRoomId();
+  assert(squadId.startsWith('squad-'), 'generateSquadRoomId produces unified squad prefix (squad-word-word-num)');
+  assert(isSquadRoomId(squadId) === true, 'isSquadRoomId identifies squad room ID');
+
+  const parsedSquad = parseRoomHash('#squad-nexus-orbit-421');
+  assert(parsedSquad.isSquad === true, 'parseRoomHash identifies squad room');
+  assert(parsedSquad.roomId === 'squad-nexus-orbit-421', 'parseRoomHash normalizes full squad room ID');
+
+  const { GroupRelayEngine } = await import('../src/services/webrtc/groupRelayEngine.js');
+  assert(typeof GroupRelayEngine === 'function', 'GroupRelayEngine class is exported');
+
+  const relayEngineSrc = fs.readFileSync(path.join(ROOT, 'src', 'services', 'webrtc', 'groupRelayEngine.js'), 'utf8');
+  assert(relayEngineSrc.includes('admitKnocker(') && relayEngineSrc.includes('declineKnocker('), 'GroupRelayEngine implements knock admission protocol');
+  assert(relayEngineSrc.includes('passBaton(') && relayEngineSrc.includes('handleHostDisconnect('), 'GroupRelayEngine implements baton pass and failover');
+
+  const batonMgrSrc = fs.readFileSync(path.join(ROOT, 'src', 'services', 'webrtc', 'groupBatonManager.js'), 'utf8');
+  assert(batonMgrSrc.includes('setDesignatedSuccessor'), 'groupBatonManager implements designated Co-Host succession');
+
+  // Verify group component files existence and line budgets
+  const groupFiles = [
+    { name: 'groupRelayEngine.js', path: path.join(ROOT, 'src', 'services', 'webrtc', 'groupRelayEngine.js'), max: 350 },
+    { name: 'groupPacketHandler.js', path: path.join(ROOT, 'src', 'services', 'webrtc', 'groupPacketHandler.js'), max: 350 },
+    { name: 'groupBatonManager.js', path: path.join(ROOT, 'src', 'services', 'webrtc', 'groupBatonManager.js'), max: 350 },
+    { name: 'useGroupSession.js', path: path.join(ROOT, 'src', 'hooks', 'useGroupSession.js'), max: 350 },
+    { name: 'GroupHeaderBar.jsx', path: path.join(ROOT, 'src', 'components', 'group', 'GroupHeaderBar.jsx'), max: 350 },
+    { name: 'CompactStreamMessage.jsx', path: path.join(ROOT, 'src', 'components', 'group', 'CompactStreamMessage.jsx'), max: 350 },
+    { name: 'MemberDrawer.jsx', path: path.join(ROOT, 'src', 'components', 'group', 'MemberDrawer.jsx'), max: 350 },
+    { name: 'GroupCreateModal.jsx', path: path.join(ROOT, 'src', 'components', 'group', 'GroupCreateModal.jsx'), max: 350 },
+    { name: 'GroupChatWorkspace.jsx', path: path.join(ROOT, 'src', 'components', 'group', 'GroupChatWorkspace.jsx'), max: 350 },
+    { name: 'groupChat.css', path: path.join(ROOT, 'src', 'styles', 'groupChat.css'), max: 350 },
+    { name: 'groupDrawer.css', path: path.join(ROOT, 'src', 'styles', 'groupDrawer.css'), max: 350 }
+  ];
+
+  groupFiles.forEach(({ name, path: fPath, max }) => {
+    assert(fs.existsSync(fPath), `Group file ${name} exists`);
+    const lines = fs.readFileSync(fPath, 'utf8').split('\n').length;
+    assert(lines <= max, `${name} complies with line budget (${lines}/${max} lines)`);
+  });
+
+  const indexCssSrc = fs.readFileSync(path.join(ROOT, 'src', 'index.css'), 'utf8');
+  assert(indexCssSrc.includes('groupChat.css'), 'index.css imports groupChat.css');
+  assert(indexCssSrc.includes('groupDrawer.css'), 'index.css imports groupDrawer.css');
+
   // Summary
   console.log('\n====================================================');
   console.log(` Verification Complete: ${passedTests}/${totalTests} tests passed`);

@@ -28,6 +28,7 @@ export default function HomeScreen({
   onLaunchGame,
   onOpenInfoModal,
   onOpenRoomModal,
+  onOpenSquadModal,
   onBurnSession,
   activePeerNickname,
   latency
@@ -260,28 +261,31 @@ export default function HomeScreen({
           </div>
         </div>
 
-        {/* Card 3: Private Group Mesh (Locked) */}
-        <div className="feature-hub-card glass-panel locked-card">
-          <div className="card-top-badge lock-badge">
-            <Lock size={12} />
-            <span>Roadmap • Under Development</span>
+        {/* Card 3: Squad Group Chat (Baton Pass) */}
+        <div className="feature-hub-card glass-panel highlight-blue">
+          <div className="card-top-badge" style={{ color: '#58a6ff' }}>
+            <Zap size={14} />
+            <span>Baton Pass Relay • Star Hub</span>
           </div>
           <div className="card-icon-title">
-            <div className="card-icon-box dim">
+            <div className="card-icon-box cyan">
               <Users size={24} />
             </div>
             <div>
-              <h3>Private Group Mesh</h3>
-              <span className="card-sub-tag">4-Peer Ephemeral Rooms</span>
+              <h3>Squad Group Chat</h3>
+              <span className="card-sub-tag">Up to 8 Peers • $0 Cost</span>
             </div>
           </div>
           <p className="card-desc">
-            Small-circle ephemeral group voice, video, and mesh transfers without servers. Full-mesh WebRTC architecture currently under active development.
+            Multi-user ephemeral group chat with Baton Pass Relay. Designate Co-Hosts, pass relay authority seamlessly, and zero servers or databases needed.
           </p>
           <div className="card-action-bar">
-            <button disabled className="btn btn-secondary w-full opacity-50 cursor-not-allowed">
-              <Lock size={14} />
-              <span>Feature Locked</span>
+            <button 
+              onClick={onOpenSquadModal} 
+              className="btn btn-primary w-full"
+            >
+              <span>Launch Squad Room</span>
+              <ArrowRight size={15} />
             </button>
           </div>
         </div>

@@ -80,18 +80,53 @@ export function generateGameRoomId() {
   return `game-${generateRoomId()}`;
 }
 
+export function generateSquadRoomId() {
+  return `squad-${generateRoomId()}`;
+}
+
+export function isSquadRoomId(raw) {
+  if (!raw || typeof raw !== 'string') return false;
+  const normalized = normalizeRoomId(raw);
+  return normalized.startsWith('squad-') || raw.toLowerCase().includes('/squad/');
+}
+
 export function parseRoomHash(raw) {
-  if (!raw || typeof raw !== 'string') return { isGame: false, roomId: '' };
+  if (!raw || typeof raw !== 'string') return { isGame: false, isSquad: false, roomId: '' };
   const lower = raw.toLowerCase();
   const isExplicitGame = lower.includes('/game/') || lower.includes('game-');
+  const isExplicitSquad = lower.includes('/squad/') || lower.includes('squad-');
   const normalized = normalizeRoomId(raw);
-  if (!normalized) return { isGame: false, roomId: '' };
+  if (!normalized) return { isGame: false, isSquad: false, roomId: '' };
   if (normalized.startsWith('game-') || isExplicitGame) {
     const cleanGameId = normalized.startsWith('game-') 
       ? normalized 
       : `game-${normalized.replace(/^game-?/, '')}`;
-    return { isGame: true, roomId: cleanGameId };
+    return { isGame: true, isSquad: false, roomId: cleanGameId };
   }
-  return { isGame: false, roomId: normalized };
+  if (normalized.startsWith('squad-') || isExplicitSquad) {
+    const cleanSquadId = normalized.startsWith('squad-')
+      ? normalized
+      : `squad-${normalized.replace(/^squad-?/, '')}`;
+    return { isGame: false, isSquad: true, roomId: cleanSquadId };
+  }
+  return { isGame: false, isSquad: false, roomId: normalized };
 }
+
+export const GROUP_PACKET_TYPES = {
+  KNOCK: 'group_knock',
+  KNOCK_ACK: 'group_knock_ack',
+  ADMIT: 'group_admit',
+  DECLINE: 'group_decline',
+  ROSTER_SYNC: 'group_roster_sync',
+  CHAT: 'group_chat',
+  VOICE: 'group_voice',
+  REACTION: 'group_reaction',
+  BATON_OFFER: 'group_baton_offer',
+  BATON_ACCEPT: 'group_baton_accept',
+  BATON_MIGRATED: 'group_baton_migrated',
+  LOCK_SYNC: 'group_lock_sync',
+  HEARTBEAT: 'group_heartbeat',
+  HEARTBEAT_ACK: 'group_heartbeat_ack'
+};
+
 
