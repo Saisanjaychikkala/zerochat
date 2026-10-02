@@ -27,20 +27,22 @@ export default function InfoModal({ isOpen, onClose }) {
         </div>
 
         {/* Tab Switcher */}
-        <div className="room-tabs" style={{ marginBottom: '14px' }}>
+        <div className="modal-tab-switcher" style={{ marginBottom: '14px' }}>
           <button
-            className={`room-tab-btn ${activeTab === 'guide' ? 'active' : ''}`}
+            type="button"
+            className={`modal-tab-btn ${activeTab === 'guide' ? 'active' : ''}`}
             onClick={() => setActiveTab('guide')}
           >
-            <BookOpen size={14} />
-            <span>📖 Quick Start Guide</span>
+            <BookOpen size={15} />
+            <span>Quick Start Guide</span>
           </button>
           <button
-            className={`room-tab-btn ${activeTab === 'security' ? 'active' : ''}`}
+            type="button"
+            className={`modal-tab-btn ${activeTab === 'security' ? 'active' : ''}`}
             onClick={() => setActiveTab('security')}
           >
-            <ShieldCheck size={14} />
-            <span>🛡️ Privacy & Tech</span>
+            <ShieldCheck size={15} />
+            <span>Privacy & Architecture</span>
           </button>
         </div>
 

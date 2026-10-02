@@ -79,27 +79,22 @@ export default function RoomModal({
         </div>
 
         {/* Tab Selector */}
-        <div style={{ 
-          display: 'grid', 
-          gridTemplateColumns: '1fr 1fr', 
-          background: 'rgba(255,255,255,0.03)', 
-          padding: '4px', 
-          borderRadius: 'var(--radius-md)',
-          border: '1px solid var(--border-subtle)'
-        }}>
+        <div className="modal-tab-switcher">
           <button 
+            type="button"
             onClick={() => setActiveTab('share')}
-            className={`btn ${activeTab === 'share' ? 'btn-primary' : 'btn-secondary'}`}
-            style={{ padding: '7px 12px', fontSize: '0.8rem' }}
+            className={`modal-tab-btn ${activeTab === 'share' ? 'active' : ''}`}
           >
-            📤 Invite Friend (Host)
+            <Radio size={14} />
+            <span>Invite Friend (Host)</span>
           </button>
           <button 
+            type="button"
             onClick={() => setActiveTab('join')}
-            className={`btn ${activeTab === 'join' ? 'btn-primary' : 'btn-secondary'}`}
-            style={{ padding: '7px 12px', fontSize: '0.8rem' }}
+            className={`modal-tab-btn ${activeTab === 'join' ? 'active' : ''}`}
           >
-            📥 Join a Friend (Guest)
+            <ArrowRight size={14} />
+            <span>Join a Friend (Guest)</span>
           </button>
         </div>
 
