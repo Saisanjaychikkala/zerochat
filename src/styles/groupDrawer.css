@@ -1,13 +1,31 @@
 /* ZeroChat - Group Member Drawer & Mobile Sheet CSS */
+
+/* Backdrop overlay */
+.drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(4px);
+  z-index: 45;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+
+.drawer-backdrop.active {
+  opacity: 1;
+  pointer-events: auto;
+}
+
 .squad-member-drawer {
   width: 320px;
   height: 100%;
-  background: #161b22;
-  border-left: 1px solid #30363d;
+  background: var(--bg-panel);
+  border-left: 1px solid var(--border-subtle);
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
-  z-index: 20;
+  z-index: 50;
 }
 
 .drawer-header {
@@ -16,10 +34,10 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  border-bottom: 1px solid #30363d;
+  border-bottom: 1px solid var(--border-subtle);
   font-weight: 700;
   font-size: 0.92rem;
-  color: #f0f6fc;
+  color: var(--text-main);
 }
 
 .drawer-content {
@@ -35,16 +53,16 @@
   font-size: 0.72rem;
   font-weight: 700;
   text-transform: uppercase;
-  color: #8b949e;
+  color: var(--text-dim);
   letter-spacing: 0.5px;
   margin-bottom: 8px;
 }
 
 /* Knock Card */
 .pending-knock-card {
-  background: rgba(31, 111, 235, 0.08);
-  border: 1px solid rgba(56, 139, 253, 0.3);
-  border-radius: 8px;
+  background: rgba(0, 242, 254, 0.08);
+  border: 1px solid rgba(0, 242, 254, 0.3);
+  border-radius: var(--radius-md);
   padding: 10px;
   margin-bottom: 8px;
 }
@@ -56,11 +74,11 @@
   margin-bottom: 8px;
 }
 
-.knock-name { font-weight: 700; font-size: 0.85rem; color: #58a6ff; }
+.knock-name { font-weight: 700; font-size: 0.85rem; color: var(--accent-cyan); }
 .knock-actions { display: flex; gap: 6px; }
 
 .btn-knock-admit {
-  background: #238636;
+  background: var(--accent-emerald);
   border: none;
   color: #fff;
   border-radius: 4px;
@@ -71,9 +89,9 @@
 }
 
 .btn-knock-decline {
-  background: #21262d;
-  border: 1px solid #30363d;
-  color: #f85149;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border-subtle);
+  color: #f87171;
   border-radius: 4px;
   padding: 4px 8px;
   font-size: 0.75rem;
@@ -86,16 +104,16 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: #0d1117;
-  border: 1px solid #30363d;
-  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
   padding: 8px 10px;
   margin-bottom: 6px;
 }
 
 .drawer-member-card.is-host-card {
-  border-color: rgba(210, 153, 34, 0.4);
-  background: rgba(210, 153, 34, 0.06);
+  border-color: rgba(245, 158, 11, 0.4);
+  background: rgba(245, 158, 11, 0.08);
 }
 
 .member-card-left { display: flex; align-items: center; gap: 8px; }
@@ -104,17 +122,17 @@
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: #3fb950;
-  box-shadow: 0 0 6px rgba(63, 185, 80, 0.6);
+  background: var(--accent-emerald);
+  box-shadow: 0 0 6px rgba(16, 185, 129, 0.6);
 }
 
-.member-name-text { font-size: 0.84rem; font-weight: 600; color: #f0f6fc; }
-.latency-chip { font-size: 0.7rem; color: #8b949e; font-family: monospace; }
+.member-name-text { font-size: 0.84rem; font-weight: 600; color: var(--text-main); }
+.latency-chip { font-size: 0.7rem; color: var(--text-dim); font-family: var(--font-mono); }
 
 .btn-pass-baton {
-  background: rgba(210, 153, 34, 0.15);
-  border: 1px solid rgba(210, 153, 34, 0.4);
-  color: #f2cc60;
+  background: rgba(245, 158, 11, 0.15);
+  border: 1px solid rgba(245, 158, 11, 0.4);
+  color: var(--accent-amber);
   font-size: 0.7rem;
   font-weight: 700;
   padding: 3px 8px;
@@ -123,24 +141,24 @@
   transition: all 0.15s ease;
 }
 
-.btn-pass-baton:hover { background: #d29922; color: #0d1117; }
+.btn-pass-baton:hover { background: var(--accent-amber); color: #000; }
 
 .btn-star-cohost {
   background: transparent;
   border: none;
-  color: #8b949e;
+  color: var(--text-dim);
   cursor: pointer;
   padding: 4px;
   border-radius: 4px;
 }
 
-.btn-star-cohost.active { color: #d2a8ff; }
+.btn-star-cohost.active { color: var(--accent-purple); }
 
 /* Drawer Footer */
 .drawer-footer {
   padding: 14px 16px;
-  border-top: 1px solid #30363d;
-  background: #161b22;
+  border-top: 1px solid var(--border-subtle);
+  background: var(--bg-panel);
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -152,7 +170,7 @@
   justify-content: space-between;
   font-size: 0.82rem;
   font-weight: 600;
-  color: #c9d1d9;
+  color: var(--text-main);
 }
 
 /* Mobile Responsive */
@@ -163,13 +181,14 @@
     left: 0;
     right: 0;
     width: 100%;
-    max-height: 80vh;
-    border-top: 1px solid #30363d;
+    max-height: 80dvh;
+    border-top: 1px solid var(--border-hover);
     border-left: none;
-    border-radius: 16px 16px 0 0;
-    box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.7);
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.85);
     transform: translateY(100%);
-    transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+    z-index: 50;
   }
   .squad-member-drawer.drawer-open { transform: translateY(0); }
 }

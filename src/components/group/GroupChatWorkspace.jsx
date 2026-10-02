@@ -116,28 +116,28 @@ export function GroupChatWorkspace({
 
         {/* Status Overlays */}
         {status === 'knocking' && (
-          <div style={{ background: 'rgba(56, 139, 253, 0.12)', borderBottom: '1px solid #30363d', padding: '12px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ background: 'rgba(0, 242, 254, 0.08)', borderBottom: '1px solid var(--border-subtle)', padding: '12px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <Radio size={16} className="animate-spin text-cyan-400" />
-              <span style={{ fontSize: '0.85rem', color: '#58a6ff', fontWeight: 600 }}>
+              <span style={{ fontSize: '0.85rem', color: 'var(--accent-cyan)', fontWeight: 600 }}>
                 Knocking for admission... Waiting for squad host to admit you.
               </span>
             </div>
-            <button onClick={onLeaveSquad} className="btn btn-secondary text-xs">
+            <button type="button" onClick={onLeaveSquad} className="btn btn-secondary text-xs">
               Cancel
             </button>
           </div>
         )}
 
         {status === 'declined' && (
-          <div style={{ background: 'rgba(248, 81, 73, 0.15)', borderBottom: '1px solid rgba(248, 81, 73, 0.4)', padding: '14px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ background: 'rgba(239, 68, 68, 0.15)', borderBottom: '1px solid rgba(239, 68, 68, 0.4)', padding: '14px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <ShieldAlert size={18} color="#f85149" />
-              <span style={{ fontSize: '0.88rem', color: '#f85149', fontWeight: 600 }}>
+              <ShieldAlert size={18} color="#f87171" />
+              <span style={{ fontSize: '0.88rem', color: '#f87171', fontWeight: 600 }}>
                 {declineReason || 'Admission was declined by the host.'}
               </span>
             </div>
-            <button onClick={onLeaveSquad} className="btn btn-danger text-xs">
+            <button type="button" onClick={onLeaveSquad} className="btn btn-danger text-xs">
               Return Home
             </button>
           </div>
@@ -147,11 +147,11 @@ export function GroupChatWorkspace({
         <div className="squad-stream-scroll">
           {messages.length === 0 && (
             <div style={{ textAlign: 'center', margin: 'auto', maxWidth: '360px', padding: '24px 0' }}>
-              <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: '#21262d', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px auto' }}>
-                <Radio size={22} color="#58a6ff" />
+              <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: 'var(--bg-panel)', border: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px auto' }}>
+                <Radio size={22} color="var(--accent-cyan)" />
               </div>
-              <h4 style={{ margin: '0 0 6px 0', fontSize: '0.95rem' }}>Welcome to the Squad!</h4>
-              <p style={{ margin: 0, fontSize: '0.78rem', color: '#8b949e' }}>
+              <h4 style={{ margin: '0 0 6px 0', fontSize: '1rem', color: 'var(--text-main)' }}>Welcome to the Squad!</h4>
+              <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-muted)' }}>
                 Zero servers, zero database. Messages are relayed peer-to-peer using the Baton Pass Star Topology.
               </p>
             </div>
@@ -173,31 +173,31 @@ export function GroupChatWorkspace({
 
         {/* Reply Preview Dock */}
         {replyTarget && (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#161b22', borderTop: '1px solid #30363d', padding: '6px 16px', fontSize: '0.78rem', color: '#8b949e' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'var(--bg-panel)', borderTop: '1px solid var(--border-subtle)', padding: '6px 16px', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
             <div>
-              Replying to <span style={{ color: '#58a6ff', fontWeight: 600 }}>{replyTarget.author}</span>: {replyTarget.text?.slice(0, 50)}
+              Replying to <span style={{ color: 'var(--accent-cyan)', fontWeight: 600 }}>{replyTarget.author}</span>: {replyTarget.text?.slice(0, 50)}
             </div>
-            <button onClick={() => setReplyTarget(null)} className="btn btn-icon" style={{ width: '22px', height: '22px' }}>
+            <button type="button" onClick={() => setReplyTarget(null)} className="btn btn-icon" style={{ width: '22px', height: '22px' }}>
               <X size={13} />
             </button>
           </div>
         )}
 
         {/* Input Bar */}
-        <div style={{ padding: '12px 16px', background: '#161b22', borderTop: '1px solid #30363d' }}>
+        <div style={{ padding: '12px 16px', background: 'var(--bg-panel)', borderTop: '1px solid var(--border-subtle)' }}>
           {isRecording ? (
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(248, 81, 73, 0.1)', border: '1px solid rgba(248, 81, 73, 0.3)', borderRadius: '8px', padding: '8px 14px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: 'var(--radius-md)', padding: '8px 14px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <span className="record-dot animate-ping" />
-                <span style={{ fontSize: '0.82rem', fontWeight: 600, color: '#f85149' }}>
+                <span style={{ fontSize: '0.82rem', fontWeight: 600, color: '#f87171' }}>
                   Recording audio... {recordSeconds}s
                 </span>
               </div>
               <div style={{ display: 'flex', gap: '8px' }}>
-                <button onClick={cancelVoice} className="btn btn-secondary text-xs">
+                <button type="button" onClick={cancelVoice} className="btn btn-secondary text-xs">
                   Cancel
                 </button>
-                <button onClick={stopAndSendVoice} className="btn btn-primary text-xs" style={{ background: '#238636' }}>
+                <button type="button" onClick={stopAndSendVoice} className="btn btn-primary text-xs" style={{ background: 'var(--accent-emerald)' }}>
                   Send Voice Note
                 </button>
               </div>
@@ -210,7 +210,7 @@ export function GroupChatWorkspace({
                 disabled={!isConnected}
                 className="btn btn-icon"
                 title="Record Voice Note"
-                style={{ width: '38px', height: '38px' }}
+                style={{ width: '40px', height: '40px', flexShrink: 0 }}
               >
                 <Mic size={17} />
               </button>
@@ -230,7 +230,7 @@ export function GroupChatWorkspace({
                 type="submit"
                 disabled={!isConnected || !inputText.trim()}
                 className="btn btn-primary"
-                style={{ width: '40px', height: '40px', padding: 0, justifyContent: 'center' }}
+                style={{ width: '40px', height: '40px', padding: 0, justifyContent: 'center', flexShrink: 0 }}
               >
                 <Send size={15} />
               </button>

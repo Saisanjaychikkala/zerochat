@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Play, Pause, Reply, Copy, Smile, Check } from 'lucide-react';
+import { copyToClipboard } from '../../utils/clipboard';
 
 export function CompactStreamMessage({
   msg,
@@ -28,9 +29,9 @@ export function CompactStreamMessage({
     ? new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     : '';
 
-  const handleCopy = () => {
-    if (msg.text && navigator.clipboard) {
-      navigator.clipboard.writeText(msg.text);
+  const handleCopy = async () => {
+    if (msg.text) {
+      await copyToClipboard(msg.text);
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
     }
@@ -65,14 +66,14 @@ export function CompactStreamMessage({
         </div>
 
         {msg.replyTo && (
-          <div style={{ fontSize: '0.75rem', color: '#8b949e', borderLeft: '2px solid #58a6ff', paddingLeft: '6px', marginBottom: '4px' }}>
-            Replying to <span style={{ color: '#c9d1d9', fontWeight: 600 }}>{msg.replyTo.author}</span>: {msg.replyTo.text?.slice(0, 40)}
+          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', borderLeft: '2px solid var(--accent-cyan)', paddingLeft: '6px', marginBottom: '4px' }}>
+            Replying to <span style={{ color: 'var(--text-main)', fontWeight: 600 }}>{msg.replyTo.author}</span>: {msg.replyTo.text?.slice(0, 40)}
           </div>
         )}
 
         {msg.type === 'group_voice' ? (
           <div className="stream-voice-player">
-            <button onClick={handlePlayVoice} className="voice-play-btn" title="Play Voice Note">
+            <button type="button" onClick={handlePlayVoice} className="voice-play-btn" title="Play Voice Note">
               {isPlaying ? <Pause size={14} /> : <Play size={14} style={{ marginLeft: '2px' }} />}
             </button>
             <div className="voice-waveform-preview">
@@ -80,7 +81,7 @@ export function CompactStreamMessage({
                 <div key={i} className="waveform-bar" style={{ height: `${h}px` }} />
               ))}
             </div>
-            <span style={{ fontSize: '0.72rem', color: '#8b949e', fontFamily: 'monospace' }}>
+            <span style={{ fontSize: '0.72rem', color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>
               {msg.duration ? `${Math.round(msg.duration)}s` : '0:15'}
             </span>
           </div>
@@ -94,10 +95,11 @@ export function CompactStreamMessage({
             {Object.entries(msg.reactions).map(([emoji, users]) => (
               <button
                 key={emoji}
+                type="button"
                 onClick={() => onReact && onReact(msg.id, emoji)}
                 style={{
-                  background: users.includes(myPeerId) ? 'rgba(56, 139, 253, 0.2)' : '#21262d',
-                  border: users.includes(myPeerId) ? '1px solid #58a6ff' : '1px solid #30363d',
+                  background: users.includes(myPeerId) ? 'rgba(0, 242, 254, 0.15)' : 'rgba(255, 255, 255, 0.05)',
+                  border: users.includes(myPeerId) ? '1px solid var(--accent-cyan)' : '1px solid var(--border-subtle)',
                   borderRadius: '12px',
                   padding: '2px 6px',
                   fontSize: '0.75rem',
@@ -105,7 +107,7 @@ export function CompactStreamMessage({
                   display: 'inline-flex',
                   alignItems: 'center',
                   gap: '4px',
-                  color: '#c9d1d9'
+                  color: 'var(--text-main)'
                 }}
               >
                 <span>{emoji}</span>
@@ -119,6 +121,7 @@ export function CompactStreamMessage({
       {/* Hover Action Bar */}
       <div className="stream-action-bar">
         <button 
+          type="button"
           onClick={() => setShowReactMenu(!showReactMenu)} 
           className="stream-action-btn"
           title="Add Reaction"
@@ -127,10 +130,11 @@ export function CompactStreamMessage({
         </button>
 
         {showReactMenu && (
-          <div style={{ display: 'flex', gap: '2px', background: '#21262d', padding: '2px', borderRadius: '4px' }}>
+          <div style={{ display: 'flex', gap: '2px', background: 'var(--bg-panel)', padding: '2px', borderRadius: '4px', border: '1px solid var(--border-subtle)' }}>
             {emojis.map(e => (
               <button
                 key={e}
+                type="button"
                 onClick={() => {
                   if (onReact) onReact(msg.id, e);
                   setShowReactMenu(false);
@@ -144,6 +148,7 @@ export function CompactStreamMessage({
         )}
 
         <button 
+          type="button"
           onClick={() => onReply && onReply(msg)} 
           className="stream-action-btn"
           title="Reply"
@@ -152,11 +157,12 @@ export function CompactStreamMessage({
         </button>
 
         <button 
+          type="button"
           onClick={handleCopy} 
           className="stream-action-btn"
           title="Copy Text"
         >
-          {copied ? <Check size={13} color="#3fb950" /> : <Copy size={13} />}
+          {copied ? <Check size={13} color="var(--accent-emerald)" /> : <Copy size={13} />}
         </button>
       </div>
     </div>

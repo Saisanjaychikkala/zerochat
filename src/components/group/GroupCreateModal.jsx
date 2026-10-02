@@ -28,28 +28,29 @@ export function GroupCreateModal({
   };
 
   return (
-    <div className="modal-backdrop">
-      <div className="modal-card" style={{ maxWidth: '440px' }}>
-        <div className="modal-header">
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <div className="card-icon-box cyan" style={{ width: '32px', height: '32px' }}>
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '440px' }}>
+        {/* Modal Header */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div className="card-icon-box cyan" style={{ width: '34px', height: '34px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '10px' }}>
               <Users size={18} />
             </div>
             <div>
-              <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 700 }}>Launch Squad Group</h3>
-              <p style={{ margin: 0, fontSize: '0.75rem', color: '#8b949e' }}>
+              <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-main)' }}>Launch Squad Room</h3>
+              <p style={{ margin: 0, fontSize: '0.74rem', color: 'var(--text-muted)' }}>
                 Baton Pass Relay • Up to 8 Peers • $0 Cost
               </p>
             </div>
           </div>
-          <button onClick={onClose} className="btn btn-icon">
-            <X size={16} />
+          <button type="button" onClick={onClose} className="btn btn-icon">
+            <X size={18} />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginTop: '12px' }}>
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
           <div>
-            <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '4px', color: '#c9d1d9' }}>
+            <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, marginBottom: '6px', color: 'var(--text-main)' }}>
               Squad Room Name (Optional)
             </label>
             <input
@@ -63,7 +64,7 @@ export function GroupCreateModal({
           </div>
 
           <div>
-            <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '6px', color: '#c9d1d9' }}>
+            <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, marginBottom: '6px', color: 'var(--text-main)' }}>
               Max Capacity
             </label>
             <div style={{ display: 'flex', gap: '8px' }}>
@@ -73,7 +74,7 @@ export function GroupCreateModal({
                   key={cap}
                   onClick={() => setCapacity(cap)}
                   className={`btn ${capacity === cap ? 'btn-primary' : 'btn-secondary'}`}
-                  style={{ flex: 1, fontSize: '0.8rem', padding: '6px 0' }}
+                  style={{ flex: 1, padding: '8px 0', fontSize: '0.8rem', fontWeight: 600 }}
                 >
                   {cap} Peers {cap === 8 && '(Max)'}
                 </button>
@@ -82,7 +83,7 @@ export function GroupCreateModal({
           </div>
 
           <div>
-            <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '6px', color: '#c9d1d9' }}>
+            <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, marginBottom: '6px', color: 'var(--text-main)' }}>
               Baton Failover Policy
             </label>
             <div style={{ display: 'flex', gap: '8px' }}>
@@ -90,7 +91,7 @@ export function GroupCreateModal({
                 type="button"
                 onClick={() => setPolicy('seniority')}
                 className={`btn ${policy === 'seniority' ? 'btn-primary' : 'btn-secondary'}`}
-                style={{ flex: 1, fontSize: '0.76rem', padding: '6px 4px' }}
+                style={{ flex: 1, padding: '8px 6px', fontSize: '0.76rem', fontWeight: 600 }}
               >
                 ⭐ Co-Host & Seniority
               </button>
@@ -98,31 +99,33 @@ export function GroupCreateModal({
                 type="button"
                 onClick={() => setPolicy('ping')}
                 className={`btn ${policy === 'ping' ? 'btn-primary' : 'btn-secondary'}`}
-                style={{ flex: 1, fontSize: '0.76rem', padding: '6px 4px' }}
+                style={{ flex: 1, padding: '8px 6px', fontSize: '0.76rem', fontWeight: 600 }}
               >
                 ⚡ Lowest Latency
               </button>
             </div>
-            <p style={{ margin: '4px 0 0 0', fontSize: '0.72rem', color: '#8b949e' }}>
+            <p style={{ margin: '6px 0 0 0', fontSize: '0.72rem', color: 'var(--text-muted)', lineHeight: 1.3 }}>
               If the host disconnects, the baton automatically transfers according to this policy with zero downtime.
             </p>
           </div>
 
-          <div style={{ background: 'rgba(56, 139, 253, 0.08)', border: '1px solid rgba(56, 139, 253, 0.25)', borderRadius: '8px', padding: '10px', fontSize: '0.75rem', color: '#c9d1d9' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 600, color: '#58a6ff', marginBottom: '2px' }}>
+          <div className="connection-guide-card" style={{ padding: '10px 12px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 700, fontSize: '0.76rem', color: 'var(--accent-cyan)' }}>
               <ShieldCheck size={14} />
-              <span>Zero-Storage Relay Guarantee</span>
+              <span>100% Serverless Relay Guarantee</span>
             </div>
-            All squad messages and voice notes exist only in browser memory while connected. You will hold the Relay Authority (Baton) upon launch.
+            <p style={{ margin: '3px 0 0 0', fontSize: '0.73rem', color: 'var(--text-muted)', lineHeight: 1.35 }}>
+              All squad messages and voice notes exist only in browser memory. You will hold the Relay Authority (Baton) upon launch.
+            </p>
           </div>
 
-          <div style={{ display: 'flex', gap: '8px', marginTop: '6px' }}>
-            <button type="button" onClick={onClose} className="btn btn-secondary" style={{ flex: 1 }}>
+          <div style={{ display: 'flex', gap: '10px', marginTop: '4px' }}>
+            <button type="button" onClick={onClose} className="btn btn-secondary" style={{ flex: 1, height: '40px' }}>
               Cancel
             </button>
-            <button type="submit" className="btn btn-primary" style={{ flex: 2, gap: '6px' }}>
+            <button type="submit" className="btn btn-primary" style={{ flex: 2, height: '40px', gap: '6px', justifyContent: 'center' }}>
               <Crown size={15} />
-              <span>Launch & Take Baton</span>
+              <span>Launch Squad</span>
               <ArrowRight size={14} />
             </button>
           </div>
