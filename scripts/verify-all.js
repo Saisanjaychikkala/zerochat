@@ -345,6 +345,7 @@ async function runTests() {
     { name: 'CompactStreamMessage.jsx', path: path.join(ROOT, 'src', 'components', 'group', 'CompactStreamMessage.jsx'), max: 350 },
     { name: 'MemberDrawer.jsx', path: path.join(ROOT, 'src', 'components', 'group', 'MemberDrawer.jsx'), max: 350 },
     { name: 'GroupCreateModal.jsx', path: path.join(ROOT, 'src', 'components', 'group', 'GroupCreateModal.jsx'), max: 350 },
+    { name: 'SquadQrModal.jsx', path: path.join(ROOT, 'src', 'components', 'group', 'SquadQrModal.jsx'), max: 350 },
     { name: 'GroupChatWorkspace.jsx', path: path.join(ROOT, 'src', 'components', 'group', 'GroupChatWorkspace.jsx'), max: 350 },
     { name: 'groupChat.css', path: path.join(ROOT, 'src', 'styles', 'groupChat.css'), max: 350 },
     { name: 'groupDrawer.css', path: path.join(ROOT, 'src', 'styles', 'groupDrawer.css'), max: 350 }

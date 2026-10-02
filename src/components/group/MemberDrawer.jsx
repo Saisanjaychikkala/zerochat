@@ -9,7 +9,8 @@ import {
   Share2, 
   Check, 
   Zap, 
-  ShieldCheck 
+  ShieldCheck,
+  QrCode
 } from 'lucide-react';
 import { copyToClipboard } from '../../utils/clipboard';
 
@@ -24,6 +25,7 @@ export function MemberDrawer({
   pendingKnocks,
   isLocked,
   squadRoomId,
+  onOpenQrModal,
   onAdmitKnocker,
   onDeclineKnocker,
   onPassBaton,
@@ -212,15 +214,27 @@ export function MemberDrawer({
             <span>Failover: Co-Host & Seniority</span>
           </div>
 
-          <button 
-            type="button"
-            onClick={handleShare}
-            className="btn btn-primary w-full"
-            style={{ fontSize: '0.8rem', gap: '6px', height: '36px', justifyContent: 'center' }}
-          >
-            <Share2 size={14} />
-            <span>Share Squad Invite Link</span>
-          </button>
+          <div style={{ display: 'flex', gap: '8px', width: '100%' }}>
+            <button 
+              type="button"
+              onClick={onOpenQrModal}
+              className="btn btn-secondary"
+              style={{ flex: 1, fontSize: '0.78rem', gap: '5px', height: '36px', justifyContent: 'center' }}
+              title="Show Squad QR Code"
+            >
+              <QrCode size={14} />
+              <span>Show QR</span>
+            </button>
+            <button 
+              type="button"
+              onClick={handleShare}
+              className="btn btn-primary"
+              style={{ flex: 2, fontSize: '0.78rem', gap: '5px', height: '36px', justifyContent: 'center' }}
+            >
+              <Share2 size={14} />
+              <span>Share Link</span>
+            </button>
+          </div>
         </div>
       </aside>
     </>

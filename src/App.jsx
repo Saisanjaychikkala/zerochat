@@ -40,6 +40,7 @@ export default function App() {
   const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
   const [isConfirmGameOpen, setIsConfirmGameOpen] = useState(false);
   const [isSquadModalOpen, setIsSquadModalOpen] = useState(false);
+  const [squadModalTab, setSquadModalTab] = useState('create');
   const [lightboxImage, setLightboxImage] = useState(null);
 
   const preferences = usePreferences(showToast);
@@ -125,6 +126,9 @@ export default function App() {
     if (parsed.isSquad) {
       groupSession.initSquad(parsed.roomId, false, { nickname: preferences.myNickname, avatarId: 1 });
       setViewMode('squad');
+      if (typeof window !== 'undefined') {
+        window.history.replaceState(null, '', '#' + parsed.roomId);
+      }
     } else if (parsed.isGame) {
       handleJoinRoom(parsed.roomId);
       setViewMode('game');
@@ -254,7 +258,10 @@ export default function App() {
             onLaunchGame={() => startIsolatedGame()}
             onOpenInfoModal={() => setIsInfoModalOpen(true)}
             onOpenRoomModal={() => setIsRoomModalOpen(true)}
-            onOpenSquadModal={() => setIsSquadModalOpen(true)}
+            onOpenSquadModal={(tab = 'create') => {
+              setSquadModalTab(tab);
+              setIsSquadModalOpen(true);
+            }}
             onBurnSession={onBurnSession}
             activePeerNickname={remoteNickname}
           />
@@ -312,12 +319,13 @@ export default function App() {
           status={status}
           myNickname={preferences.myNickname}
           myAvatarBg={preferences.myAvatarBg}
-          handleJoinRoom={handleJoinRoom}
+          handleJoinRoom={handleJoinRoomFromHome}
           handleSaveNickname={preferences.handleSaveNickname}
         />
 
         <GroupCreateModal 
           isOpen={isSquadModalOpen}
+          initialTab={squadModalTab}
           onClose={() => setIsSquadModalOpen(false)}
           onCreateSquad={(config) => {
             groupSession.initSquad(config.roomId, true, { nickname: preferences.myNickname, avatarId: 1 });
@@ -326,6 +334,7 @@ export default function App() {
               window.history.replaceState(null, '', '#' + config.roomId);
             }
           }}
+          onJoinSquad={(code) => handleJoinRoomFromHome(code)}
         />
       </div>
     </Suspense>

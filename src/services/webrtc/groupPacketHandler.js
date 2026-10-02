@@ -11,6 +11,21 @@ export function handleGroupPacket(engine, data, conn) {
   switch (data.type) {
     case GROUP_PACKET_TYPES.KNOCK:
       if (engine.isHost) {
+        const isExistingMember = engine.roster.some(m => m.peerId === conn.peer);
+        if (isExistingMember || data.isReconnecting) {
+          engine.connections.set(conn.peer, conn);
+          conn.send({
+            type: GROUP_PACKET_TYPES.ADMIT,
+            roster: engine.roster,
+            hostId: engine.myPeerId,
+            successorId: engine.designatedSuccessorId,
+            isLocked: engine.isLocked
+          });
+          engine.broadcastRosterSync();
+          engine.emit('roster_update', engine.roster);
+          break;
+        }
+
         engine.pendingKnocks.set(conn.peer, {
           peerId: conn.peer,
           nickname: data.nickname || 'Guest',

@@ -13,6 +13,7 @@ import {
 import { GroupHeaderBar } from './GroupHeaderBar';
 import { CompactStreamMessage } from './CompactStreamMessage';
 import { MemberDrawer } from './MemberDrawer';
+import { SquadQrModal } from './SquadQrModal';
 import { voiceRecorder } from '../../utils/voiceRecorder';
 
 export function GroupChatWorkspace({
@@ -45,6 +46,7 @@ export function GroupChatWorkspace({
   const [replyTarget, setReplyTarget] = useState(null);
   const [isRecording, setIsRecording] = useState(false);
   const [recordSeconds, setRecordSeconds] = useState(0);
+  const [isQrModalOpen, setIsQrModalOpen] = useState(false);
   const recordIntervalRef = useRef(null);
   const streamBottomRef = useRef(null);
 
@@ -110,9 +112,47 @@ export function GroupChatWorkspace({
           memberCount={members.length}
           isHost={isHost}
           latency={latency}
+          onOpenQrModal={() => setIsQrModalOpen(true)}
           onToggleDrawer={onToggleDrawer}
           onLeaveSquad={onLeaveSquad}
         />
+
+        {/* Floating Knock Alert Dock for Host */}
+        {isHost && pendingKnocks && pendingKnocks.length > 0 && (
+          <div className="squad-knock-alert-dock">
+            <div className="squad-knock-alert-info">
+              <span className="knock-pulse-dot" />
+              <div className="squad-knock-text">
+                <span className="squad-knock-title">
+                  <strong>{pendingKnocks[0].nickname}</strong> wants to join
+                </span>
+                {pendingKnocks.length > 1 && (
+                  <span className="squad-knock-count">+{pendingKnocks.length - 1} more in queue</span>
+                )}
+              </div>
+            </div>
+            <div className="squad-knock-alert-actions">
+              <button
+                type="button"
+                onClick={() => onDeclineKnocker(pendingKnocks[0].peerId)}
+                className="btn btn-secondary btn-knock-decline"
+                title="Decline admission"
+              >
+                <X size={14} />
+                <span>Decline</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => onAdmitKnocker(pendingKnocks[0].peerId)}
+                className="btn btn-primary btn-knock-admit"
+                title="Admit into squad"
+              >
+                <Check size={14} />
+                <span>Admit</span>
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Status Overlays */}
         {status === 'knocking' && (
@@ -251,11 +291,19 @@ export function GroupChatWorkspace({
         pendingKnocks={pendingKnocks}
         isLocked={isLocked}
         squadRoomId={squadRoomId}
+        onOpenQrModal={() => setIsQrModalOpen(true)}
         onAdmitKnocker={onAdmitKnocker}
         onDeclineKnocker={onDeclineKnocker}
         onPassBaton={onPassBaton}
         onSetSuccessor={onSetSuccessor}
         onToggleLock={onToggleLock}
+      />
+
+      {/* Shareable QR Modal */}
+      <SquadQrModal
+        isOpen={isQrModalOpen}
+        onClose={() => setIsQrModalOpen(false)}
+        squadRoomId={squadRoomId}
       />
     </div>
   );

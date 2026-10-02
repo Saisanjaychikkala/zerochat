@@ -1,21 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  ShieldCheck, 
-  Zap, 
-  Gamepad2, 
-  Users, 
-  Cloud, 
-  Lock, 
-  Sparkles, 
-  ArrowRight, 
-  Palette, 
-  Info, 
-  QrCode, 
-  Flame, 
-  Radio,
-  Loader2,
-  Share2
-} from 'lucide-react';
+import { ShieldCheck, Zap, Gamepad2, Users, Cloud, Lock, Sparkles, ArrowRight, Palette, Info, QrCode, Flame, Radio, Share2 } from 'lucide-react';
 import { normalizeRoomId } from '../services/webrtc/constants';
 
 export default function HomeScreen({
@@ -279,13 +263,19 @@ export default function HomeScreen({
           <p className="card-desc">
             Multi-user ephemeral group chat with Baton Pass Relay. Designate Co-Hosts, pass relay authority seamlessly, and zero servers or databases needed.
           </p>
-          <div className="card-action-bar">
+          <div className="card-action-bar" style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
             <button 
-              onClick={onOpenSquadModal} 
+              onClick={() => onOpenSquadModal && onOpenSquadModal('create')} 
               className="btn btn-primary w-full"
             >
-              <span>Launch Squad Room</span>
+              <span>Launch Squad (Host)</span>
               <ArrowRight size={15} />
+            </button>
+            <button 
+              onClick={() => onOpenSquadModal && onOpenSquadModal('join')} 
+              className="btn btn-secondary w-full"
+            >
+              <span>Join Squad with Code (Guest)</span>
             </button>
           </div>
         </div>
@@ -326,7 +316,7 @@ export default function HomeScreen({
           <div className="quick-join-input-group">
             <input 
               type="text" 
-              placeholder="e.g. cosmic-radar-780" 
+              placeholder="e.g. cosmic-radar-780 or squad-nexus-421" 
               value={inputCode}
               onChange={(e) => setInputCode(e.target.value)}
               className="chat-input text-sm font-mono"

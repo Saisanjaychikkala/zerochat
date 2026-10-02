@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Hash, Users, Crown, Zap, SidebarClose, LogOut, ArrowLeft, Copy, Check } from 'lucide-react';
+import { Hash, Users, Crown, Zap, SidebarClose, LogOut, ArrowLeft, Copy, Check, QrCode } from 'lucide-react';
 import { copyToClipboard } from '../../utils/clipboard';
 
 export function GroupHeaderBar({
@@ -7,6 +7,7 @@ export function GroupHeaderBar({
   memberCount,
   isHost,
   latency,
+  onOpenQrModal,
   onToggleDrawer,
   onLeaveSquad
 }) {
@@ -63,6 +64,17 @@ export function GroupHeaderBar({
             <span style={{ opacity: 0.75, fontSize: '0.7rem' }}>• {latency}ms</span>
           )}
         </div>
+
+        {/* QR Code Modal Trigger */}
+        <button 
+          type="button"
+          onClick={onOpenQrModal}
+          className="btn btn-icon"
+          title="Share Squad QR Code"
+          style={{ width: '32px', height: '32px' }}
+        >
+          <QrCode size={16} />
+        </button>
 
         {/* Member Count Pill */}
         <button 

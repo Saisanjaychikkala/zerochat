@@ -1,20 +1,24 @@
-/* ZeroChat - Group Member Drawer & Mobile Sheet CSS */
-
-/* Backdrop overlay */
+/* Backdrop overlay - mobile only */
 .drawer-backdrop {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.65);
-  backdrop-filter: blur(4px);
-  z-index: 45;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.2s ease;
+  display: none;
 }
 
-.drawer-backdrop.active {
-  opacity: 1;
-  pointer-events: auto;
+@media (max-width: 640px) {
+  .drawer-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.65);
+    backdrop-filter: blur(4px);
+    z-index: 45;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+  }
+  .drawer-backdrop.active {
+    opacity: 1;
+    pointer-events: auto;
+  }
 }
 
 .squad-member-drawer {
@@ -26,6 +30,13 @@
   flex-direction: column;
   flex-shrink: 0;
   z-index: 50;
+  transition: all 0.2s ease;
+}
+
+@media (min-width: 641px) {
+  .squad-member-drawer:not(.drawer-open) {
+    display: none;
+  }
 }
 
 .drawer-header {
