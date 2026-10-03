@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
 import { peerService } from '../services/peerService';
 import { groupRelayEngine } from '../services/webrtc/groupRelayEngine';
+import { getClientProfile, getClientId, getDiscriminatorTag } from '../services/identity';
 
 export function usePreferences(showToast) {
+  const [clientProfile] = useState(() => getClientProfile());
   const [myNickname, setMyNickname] = useState(() => {
     return localStorage.getItem('zerochat_nickname') || 'User-' + Math.floor(100 + Math.random() * 900);
   });
@@ -147,5 +149,8 @@ export function usePreferences(showToast) {
     surface,
     setSurface: handleSetSurface,
     handleSaveNickname,
+    clientId: clientProfile.clientId,
+    discriminatorTag: clientProfile.discriminator,
+    clientProfile,
   };
 }

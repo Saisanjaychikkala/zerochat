@@ -481,6 +481,124 @@ async function runTests() {
   assert(normalizedWave.every(val => typeof val === 'number' && val >= 0.08 && val <= 1.0), 'All waveform points normalized within [0.08, 1.0]');
   assert(Math.max(...normalizedWave) === 1.0, 'Peak volume normalized to 1.0');
 
+  // ─── [Suite 15] Persistent Client Identity & Tab Takeover Wire Protocol
+  console.log('\n[Test Suite 15] Persistent Identity & Tab Takeover Protocol');
+  const { getClientId, getDiscriminatorTag, getTabId, getClientProfile } = await import('../src/services/identity.js');
+  const { buildGameCardMsg } = await import('../src/components/group/groupGameHelpers.js');
+
+  const cId = getClientId();
+  assert(typeof cId === 'string' && cId.startsWith('cli_'), 'getClientId generates valid persistent client ID');
+
+  const disc = getDiscriminatorTag(cId);
+  assert(typeof disc === 'string' && /^#[0-9A-F]{4}$/.test(disc), 'getDiscriminatorTag produces valid 4-hex tag (#XXXX)');
+
+  const tId = getTabId();
+  assert(typeof tId === 'string' && tId.startsWith('tab_'), 'getTabId generates valid tab ID');
+
+  const prof = getClientProfile();
+  assert(prof.clientId === cId && prof.discriminator === disc && prof.tabId === tId, 'getClientProfile bundles all identity facets');
+
+  // Tab Takeover Test: Host supersedes old tab and auto-admits new tab
+  const mockTabHostEngine = {
+    isHost: true,
+    myPeerId: 'host-peer-1',
+    roomId: 'squad-test-takeover',
+    designatedSuccessorId: null,
+    isLocked: false,
+    myProfile: { clientId: 'cli_host_unique', nickname: 'Host' },
+    connections: new Map(),
+    pendingKnocks: new Map(),
+    roster: [
+      { peerId: 'host-peer-1', clientId: 'cli_host_unique', nickname: 'Host', isHost: true },
+      { peerId: 'guest-tab-1', clientId: 'cli_guest_same', nickname: 'Alice', isHost: false }
+    ],
+    broadcastRosterSync: () => {},
+    emit: (event, payload) => {
+      mockTabHostEngine.lastEvent = { event, payload };
+    }
+  };
+
+  const oldTabPackets = [];
+  const oldTabConn = {
+    peer: 'guest-tab-1',
+    open: true,
+    send: (pkt) => oldTabPackets.push(pkt),
+    close: () => { oldTabConn.open = false; }
+  };
+  mockTabHostEngine.connections.set('guest-tab-1', oldTabConn);
+
+  const newTabPackets = [];
+  const newTabConn = {
+    peer: 'guest-tab-2',
+    open: true,
+    send: (pkt) => newTabPackets.push(pkt),
+    close: () => { newTabConn.open = false; }
+  };
+
+  // Guest opens Tab 2 with the same clientId
+  const knockFromTab2 = {
+    type: GROUP_PACKET_TYPES.KNOCK,
+    clientId: 'cli_guest_same',
+    discriminator: '#A1B2',
+    tabId: 'tab_tab2',
+    nickname: 'Alice',
+    avatarId: 1
+  };
+
+  handleGroupPacket(mockTabHostEngine, knockFromTab2, newTabConn);
+
+  // Verification 1: Old tab received SESSION_SUPERSEDED
+  assert(
+    oldTabPackets.some(p => p.type === GROUP_PACKET_TYPES.SESSION_SUPERSEDED),
+    'Old tab receives SESSION_SUPERSEDED packet on tab takeover'
+  );
+
+  // Verification 2: Roster does not duplicate; peerId is updated
+  assert(
+    mockTabHostEngine.roster.length === 2,
+    'Host roster does not duplicate member on tab takeover (remains 2 peers)'
+  );
+  const updatedRosterMember = mockTabHostEngine.roster.find(m => m.clientId === 'cli_guest_same');
+  assert(
+    updatedRosterMember && updatedRosterMember.peerId === 'guest-tab-2',
+    'Member roster slot updated with new tab peerId'
+  );
+
+  // Verification 3: New tab connection registered, old connection removed
+  assert(
+    !mockTabHostEngine.connections.has('guest-tab-1') && mockTabHostEngine.connections.has('guest-tab-2'),
+    'Host connection map replaced old peer with new tab peer'
+  );
+
+  // Verification 4: New tab receives instant ADMIT
+  assert(
+    newTabPackets.some(p => p.type === GROUP_PACKET_TYPES.ADMIT),
+    'New tab is auto-admitted with verified roster without manual host approval'
+  );
+
+  // Verification 5: Host prevents self-knock from same browser
+  const hostDuplicateConnPackets = [];
+  const hostDuplicateConn = {
+    peer: 'host-tab-2',
+    open: true,
+    send: (pkt) => hostDuplicateConnPackets.push(pkt),
+    close: () => {}
+  };
+  handleGroupPacket(mockTabHostEngine, {
+    type: GROUP_PACKET_TYPES.KNOCK,
+    clientId: 'cli_host_unique',
+    nickname: 'Host'
+  }, hostDuplicateConn);
+
+  assert(
+    hostDuplicateConnPackets.some(p => p.type === GROUP_PACKET_TYPES.DECLINE && p.reason.includes('already hosting')),
+    'Host declines second tab opened with same host client ID to avoid split-brain'
+  );
+
+  // Verification 6: Game card helper embeds identity attributes
+  const gCard = buildGameCardMsg('pong', 'Alice', 'guest-tab-2', 'cli_guest_same');
+  assert(gCard.creatorPeerId === 'guest-tab-2' && gCard.creatorClientId === 'cli_guest_same', 'buildGameCardMsg records creatorPeerId and creatorClientId');
+
   // ─── Summary ───────────────────────────────────────────────────────
   console.log('\n====================================================');
   console.log(` Verification Complete: ${passedTests}/${totalTests} tests passed`);

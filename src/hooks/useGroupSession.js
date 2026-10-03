@@ -39,7 +39,7 @@ export function useGroupSession({ soundEnabled, showToast }) {
       if (newStatus === 'connected') {
         playSound('connect', soundRef.current);
         if (showToast) showToast('Connected to squad room!', 'success');
-      } else if (newStatus === 'declined') {
+      } else if (newStatus === 'declined' || newStatus === 'superseded') {
         playSound('disconnect', soundRef.current);
       }
     });
@@ -47,6 +47,11 @@ export function useGroupSession({ soundEnabled, showToast }) {
     const unsubDeclined = groupRelayEngine.on('declined', (reason) => {
       setDeclineReason(reason);
       if (showToast) showToast(`Admission declined: ${reason}`, 'error');
+    });
+
+    const unsubSuperseded = groupRelayEngine.on('superseded', (reason) => {
+      setDeclineReason(reason);
+      if (showToast) showToast(`Session superseded: ${reason}`, 'warning');
     });
 
     const unsubRoster = groupRelayEngine.on('roster_update', (newRoster) => {
@@ -85,14 +90,20 @@ export function useGroupSession({ soundEnabled, showToast }) {
             const target = prev.find(m => m.cardId === msg.cardId);
             if (!target) return prev;
             const updates = {};
-            if (!target.hostNickname) {
+            const isSameHost = (target.hostClientId && msg.playerClientId && target.hostClientId === msg.playerClientId) ||
+              (target.hostPeerId && msg.playerPeerId && target.hostPeerId === msg.playerPeerId) ||
+              (!target.hostClientId && !target.hostPeerId && target.hostNickname === msg.playerNickname);
+
+            if (!target.hostNickname && !target.hostPeerId) {
               updates.hostNickname = msg.playerNickname;
               updates.hostAvatarBg = msg.avatarBg;
               updates.hostPeerId = msg.playerPeerId;
-            } else if (!target.guestNickname && target.hostNickname !== msg.playerNickname) {
+              updates.hostClientId = msg.playerClientId;
+            } else if (!target.guestNickname && !target.guestPeerId && !isSameHost) {
               updates.guestNickname = msg.playerNickname;
               updates.guestAvatarBg = msg.avatarBg;
               updates.guestPeerId = msg.playerPeerId;
+              updates.guestClientId = msg.playerClientId;
               updates.isGuestJoined = true;
             }
             if (Object.keys(updates).length > 0) {
@@ -259,6 +270,7 @@ export function useGroupSession({ soundEnabled, showToast }) {
       unsubProgress();
       unsubComplete();
       unsubFileError();
+      unsubSuperseded();
     };
   }, [showToast]);
 
@@ -329,6 +341,12 @@ export function useGroupSession({ soundEnabled, showToast }) {
     if (typeof window !== 'undefined' && window.location.hash) {
       window.history.replaceState(null, '', window.location.pathname);
     }
+  }, []);
+
+  const resumeSquad = useCallback(() => {
+    setStatus('connecting');
+    setDeclineReason(null);
+    groupRelayEngine.resumeSquad();
   }, []);
 
   const offerGroupFile = useCallback(async (file, previewData = null) => {
@@ -421,6 +439,7 @@ export function useGroupSession({ soundEnabled, showToast }) {
     setDesignatedSuccessor,
     toggleLock,
     toggleDrawer,
-    leaveSquad
+    leaveSquad,
+    resumeSquad
   };
 }

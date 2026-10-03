@@ -1,5 +1,5 @@
 import React from 'react';
-import { Radio, ShieldAlert, Lock } from 'lucide-react';
+import { Radio, ShieldAlert, Lock, RefreshCw } from 'lucide-react';
 
 export function SquadStatusOverlays({
   status,
@@ -9,7 +9,8 @@ export function SquadStatusOverlays({
   passcodeInput,
   setPasscodeInput,
   handlePasscodeSubmit,
-  onLeaveSquad
+  onLeaveSquad,
+  onResumeSquad
 }) {
   return (
     <>
@@ -53,6 +54,30 @@ export function SquadStatusOverlays({
             <span>{declineReason || 'Admission was declined by the host.'}</span>
           </div>
           <button type="button" onClick={onLeaveSquad} className="btn btn-danger text-xs">Return Home</button>
+        </div>
+      )}
+
+      {/* Status: Superseded (Session transferred to another tab) */}
+      {status === 'superseded' && (
+        <div className="squad-status-center">
+          <div className="squad-status-error-icon">
+            <ShieldAlert size={28} color="var(--accent-cyan)" />
+          </div>
+          <h3 className="squad-status-title">Squad Active in Another Tab</h3>
+          <p className="squad-status-body">
+            {declineReason || 'You opened this squad in another tab. ZeroChat keeps a single active peer per device to prevent duplicate messages.'}
+          </p>
+          <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', marginTop: '16px' }}>
+            {onResumeSquad && (
+              <button type="button" onClick={onResumeSquad} className="btn btn-primary text-xs" style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                <RefreshCw size={13} />
+                <span>Use in this Tab</span>
+              </button>
+            )}
+            <button type="button" onClick={onLeaveSquad} className="btn btn-secondary text-xs">
+              Return Home
+            </button>
+          </div>
         </div>
       )}
 

@@ -13,6 +13,7 @@ import { extractSnippet, handleScrollToMessage } from '../chat/chatHelpers';
 import { GROUP_PACKET_TYPES } from '../../services/webrtc/constants';
 import { groupRelayEngine } from '../../services/webrtc/groupRelayEngine';
 import { buildGameCardMsg } from './groupGameHelpers';
+import { getClientId } from '../../services/identity';
 
 export function GroupChatWorkspace({
   squadRoomId,
@@ -46,6 +47,7 @@ export function GroupChatWorkspace({
   onLeaveSquad,
   onOpenSettings,
   onKickPeer,
+  onResumeSquad,
   showToast
 }) {
   const [inputText, setInputText] = useState('');
@@ -118,7 +120,7 @@ export function GroupChatWorkspace({
 
   const handleSelectGame = (gameId) => {
     setIsGameDrawerOpen(false);
-    const gameCardMsg = buildGameCardMsg(gameId, myNickname);
+    const gameCardMsg = buildGameCardMsg(gameId, myNickname, myPeerId, getClientId());
     onSendMessage(`Challenged squad to ${gameCardMsg.gameName}!`, null, gameCardMsg);
   };
 
@@ -144,7 +146,8 @@ export function GroupChatWorkspace({
       cardId,
       playerNickname: myNickname,
       avatarBg: myAvatarBg,
-      playerPeerId: myPeerId
+      playerPeerId: myPeerId,
+      playerClientId: getClientId()
     });
   };
 
@@ -206,6 +209,7 @@ export function GroupChatWorkspace({
             setPasscodeInput={setPasscodeInput}
             handlePasscodeSubmit={handlePasscodeSubmit}
             onLeaveSquad={onLeaveSquad}
+            onResumeSquad={onResumeSquad}
           />
         ) : (
           <>
@@ -229,6 +233,7 @@ export function GroupChatWorkspace({
                   msg={msg}
                   myNickname={myNickname}
                   myPeerId={myPeerId}
+                  myClientId={getClientId()}
                   remotePeerNickname="Squad Member"
                   hostPeerId={currentHostId}
                   coHostPeerId={designatedSuccessorId}

@@ -102,7 +102,8 @@ export function setDesignatedSuccessor(engine, targetPeerId) {
 }
 
 export function handleHostDisconnect(engine) {
-  if (engine.isHost || !engine.roster.length) return;
+  if (engine.isHost || !engine.roster.length || engine.isSuperseded) return;
+  if (engine.isAdmitted === false && !engine.roster.some(m => m.peerId === engine.myPeerId)) return;
   const survivors = engine.roster.filter(m => m.peerId !== engine.currentHostId);
   if (!survivors.length) return;
 

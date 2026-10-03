@@ -12,7 +12,7 @@ export const GAME_NAMES = {
 /**
  * Builds a game_card message payload with open slots for first-come-first-serve joining.
  */
-export function buildGameCardMsg(gameId, myNickname) {
+export function buildGameCardMsg(gameId, myNickname, myPeerId = null, myClientId = null) {
   const cardId = 'gc_' + Math.random().toString(36).substring(2, 9) + '_' + Date.now();
   const gameName = GAME_NAMES[gameId] || gameId;
   return {
@@ -22,12 +22,16 @@ export function buildGameCardMsg(gameId, myNickname) {
     gameId,
     gameName,
     createdBy: myNickname || 'Squad Member',
+    creatorPeerId: myPeerId || null,
+    creatorClientId: myClientId || null,
     hostNickname: null,
     hostAvatarBg: null,
     hostPeerId: null,
+    hostClientId: null,
     guestNickname: null,
     guestAvatarBg: null,
     guestPeerId: null,
+    guestClientId: null,
     isGuestJoined: false,
     isConcluded: false,
     isPlaying: false

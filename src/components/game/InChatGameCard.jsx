@@ -22,6 +22,8 @@ const GAME_CONFIGS = {
 export default function InChatGameCard({
   card,
   myNickname,
+  myPeerId,
+  myClientId,
   onJoinCard,
   onLaunchCard,
   onResumeCard,
@@ -31,8 +33,12 @@ export default function InChatGameCard({
   const config = GAME_CONFIGS[card.gameId] || GAME_CONFIGS.pong;
   const Icon = config.icon;
   const isConcluded = !!card.isConcluded;
-  const isHostSlot = card.hostNickname && myNickname && card.hostNickname.toLowerCase() === myNickname.toLowerCase();
-  const isGuestSlot = card.guestNickname && myNickname && card.guestNickname.toLowerCase() === myNickname.toLowerCase();
+  const isHostSlot = (card.hostClientId && myClientId && card.hostClientId === myClientId) ||
+    (card.hostPeerId && myPeerId && card.hostPeerId === myPeerId) ||
+    (!card.hostClientId && !card.hostPeerId && card.hostNickname && myNickname && card.hostNickname.toLowerCase() === myNickname.toLowerCase());
+  const isGuestSlot = (card.guestClientId && myClientId && card.guestClientId === myClientId) ||
+    (card.guestPeerId && myPeerId && card.guestPeerId === myPeerId) ||
+    (!card.guestClientId && !card.guestPeerId && card.guestNickname && myNickname && card.guestNickname.toLowerCase() === myNickname.toLowerCase());
   const isPlayer = isHostSlot || isGuestSlot;
   const joinedCount = (card.hostNickname ? 1 : 0) + (card.guestNickname ? 1 : 0);
   const isFull = joinedCount >= 2;

@@ -19,13 +19,74 @@ export function handleGroupPacket(engine, data, conn) {
   switch (data.type) {
     case GROUP_PACKET_TYPES.KNOCK:
       if (engine.isHost) {
-        // Auto-admit any peer in verified roster OR reconnecting from baton transfer
+        const knockerClientId = data.clientId;
+
+        // 1. Host Self-Knock Guard: prevent duplicate host peers on the same machine
+        if (knockerClientId && knockerClientId === engine.myProfile?.clientId && conn.peer !== engine.myPeerId) {
+          sendPacket(conn, {
+            type: GROUP_PACKET_TYPES.DECLINE,
+            reason: 'You are already hosting this squad in another tab.'
+          });
+          setTimeout(() => { try { conn.close(); } catch (e) {} }, 300);
+          break;
+        }
+
+        // 2. Tab Takeover: Gracefully transfer session if this user opens or switches tabs
+        const existingByClient = knockerClientId
+          ? engine.roster.find(m => m.clientId && m.clientId === knockerClientId)
+          : null;
+
+        if (existingByClient && existingByClient.peerId !== conn.peer) {
+          const oldPeerId = existingByClient.peerId;
+          const oldConn = engine.connections.get(oldPeerId);
+          if (oldConn && oldConn.open) {
+            try {
+              oldConn.send({
+                type: GROUP_PACKET_TYPES.SESSION_SUPERSEDED,
+                reason: 'Squad active in another tab.'
+              });
+            } catch (e) {}
+            setTimeout(() => { try { oldConn.close(); } catch (e) {} }, 100);
+          }
+          engine.connections.delete(oldPeerId);
+          engine.connections.set(conn.peer, conn);
+
+          // Update member record in-place (no duplicate array items)
+          existingByClient.peerId = conn.peer;
+          if (data.nickname) existingByClient.nickname = data.nickname;
+          if (data.avatarId) existingByClient.avatarId = data.avatarId;
+          if (data.discriminator) existingByClient.discriminator = data.discriminator;
+
+          // Clear any pending knock from same client or peer
+          for (const [pId, knocker] of engine.pendingKnocks.entries()) {
+            if (knocker.clientId === knockerClientId || pId === conn.peer || pId === oldPeerId) {
+              engine.pendingKnocks.delete(pId);
+            }
+          }
+
+          // Knocker immediately receives updated roster
+          sendPacket(conn, {
+            type: GROUP_PACKET_TYPES.ADMIT,
+            roster: engine.roster,
+            hostId: engine.myPeerId,
+            successorId: engine.designatedSuccessorId,
+            isLocked: engine.isLocked
+          });
+          engine.broadcastRosterSync();
+          engine.emit('roster_update', engine.roster);
+          engine.emit('knocks_update', Array.from(engine.pendingKnocks.values()));
+          break;
+        }
+
+        // 3. Auto-admit any peer in verified roster OR reconnecting from baton transfer
         const isExistingMember = engine.roster.some(m => m.peerId === conn.peer) || !!data.isReconnecting;
         if (isExistingMember) {
           engine.connections.set(conn.peer, conn);
           if (!engine.roster.some(m => m.peerId === conn.peer)) {
             engine.roster.push({
               peerId: conn.peer,
+              clientId: data.clientId,
+              discriminator: data.discriminator,
               nickname: data.nickname || 'Member',
               avatarId: data.avatarId || 1,
               isHost: false,
@@ -46,13 +107,15 @@ export function handleGroupPacket(engine, data, conn) {
           break;
         }
 
-        // Passcode squad unlock
+        // 4. Passcode squad unlock
         if (engine.roomPasscode) {
           if (data.passcode === engine.roomPasscode) {
             engine.connections.set(conn.peer, conn);
-            engine.roster = engine.roster.filter(m => m.peerId !== conn.peer);
+            engine.roster = engine.roster.filter(m => m.peerId !== conn.peer && (!knockerClientId || m.clientId !== knockerClientId));
             engine.roster.push({
               peerId: conn.peer,
+              clientId: data.clientId,
+              discriminator: data.discriminator,
               nickname: data.nickname || 'Guest',
               avatarId: data.avatarId || 1,
               isHost: false,
@@ -79,9 +142,21 @@ export function handleGroupPacket(engine, data, conn) {
           }
         }
 
-        // Genuine new knocker (no passcode room) — queue for host admission
+        // 5. Clean up any previous pending knock from the same client before adding new one
+        if (knockerClientId) {
+          for (const [pId, knocker] of engine.pendingKnocks.entries()) {
+            if (knocker.clientId === knockerClientId) {
+              try { knocker.conn.close(); } catch (e) {}
+              engine.pendingKnocks.delete(pId);
+            }
+          }
+        }
+
+        // 6. Genuine new knocker (no passcode room) — queue for host admission
         engine.pendingKnocks.set(conn.peer, {
           peerId: conn.peer,
+          clientId: data.clientId,
+          discriminator: data.discriminator,
           nickname: data.nickname || 'Guest',
           avatarId: data.avatarId || 1,
           hasPasscode: !!data.passcode,
@@ -118,6 +193,17 @@ export function handleGroupPacket(engine, data, conn) {
       engine.isAdmitted = false;
       engine.emit('status', 'declined');
       engine.emit('declined', data.reason || 'You were removed from the squad by the host.');
+      if (engine.hostConn) {
+        try { engine.hostConn.close(); } catch (e) {}
+        engine.hostConn = null;
+      }
+      break;
+
+    case GROUP_PACKET_TYPES.SESSION_SUPERSEDED:
+      engine.isSuperseded = true;
+      engine.isAdmitted = false;
+      engine.emit('status', 'superseded');
+      engine.emit('superseded', data.reason || 'Squad active in another tab.');
       if (engine.hostConn) {
         try { engine.hostConn.close(); } catch (e) {}
         engine.hostConn = null;

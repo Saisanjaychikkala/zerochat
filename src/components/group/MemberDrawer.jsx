@@ -84,7 +84,10 @@ export function MemberDrawer({
               {pendingKnocks.map(k => (
                 <div key={k.peerId} className="pending-knock-card">
                   <div className="knock-top-line">
-                    <span className="knock-name">{k.nickname}</span>
+                    <span className="knock-name">
+                      {k.nickname}
+                      {k.discriminator && <span style={{ opacity: 0.6, fontSize: '0.72rem', marginLeft: '4px', fontFamily: 'monospace' }}>{k.discriminator}</span>}
+                    </span>
                     <span style={{ fontSize: '0.68rem', color: 'var(--text-dim)' }}>Knocking...</span>
                   </div>
                   <div className="knock-actions">
@@ -119,7 +122,9 @@ export function MemberDrawer({
                 <Crown size={16} color="var(--accent-amber)" />
                 <div>
                   <div className="member-name-text">
-                    {hostMember?.nickname || 'Host'} {hostMember?.peerId === myPeerId && '(You)'}
+                    {hostMember?.nickname || 'Host'}
+                    {hostMember?.discriminator && <span style={{ opacity: 0.6, fontSize: '0.72rem', marginLeft: '4px', fontFamily: 'monospace' }}>{hostMember.discriminator}</span>}
+                    {hostMember?.peerId === myPeerId && ' (You)'}
                   </div>
                   <div style={{ fontSize: '0.7rem', color: 'var(--accent-amber)', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
                     <Zap size={11} />
@@ -149,7 +154,9 @@ export function MemberDrawer({
                       <span className="status-dot-sm" />
                       <div>
                         <div className="member-name-text">
-                          {m.nickname} {isMe && '(You)'}
+                          {m.nickname}
+                          {m.discriminator && <span style={{ opacity: 0.6, fontSize: '0.72rem', marginLeft: '4px', fontFamily: 'monospace' }}>{m.discriminator}</span>}
+                          {isMe && ' (You)'}
                         </div>
                         {isCoHost && (
                           <div style={{ fontSize: '0.68rem', color: 'var(--accent-purple)', display: 'flex', alignItems: 'center', gap: '3px' }}>

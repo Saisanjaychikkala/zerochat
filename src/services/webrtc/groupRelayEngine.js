@@ -7,6 +7,7 @@ import Peer from 'peerjs';
 import { ICE_SERVERS, GROUP_PACKET_TYPES } from './constants.js';
 import { handleGroupPacket } from './groupPacketHandler.js';
 import { FileStreamEngine, unpackBinaryChunk } from './fileStreamEngine.js';
+import { getClientProfile } from '../identity.js';
 import {
   passBaton,
   acceptBatonHandoff,
@@ -37,6 +38,7 @@ export class GroupRelayEngine {
     this.listeners = new Map();
     this.heartbeatInterval = null;
     this.isDestroyed = false;
+    this.isSuperseded = false;
 
     // Sub-engines & On-Demand Optimizations
     this.fileStream = new FileStreamEngine();
@@ -74,8 +76,16 @@ export class GroupRelayEngine {
     this.roomPasscode = isHost ? (passcode || null) : null;
     this.enteredPasscode = !isHost ? (passcode || null) : null;
     this.isAdmitted = isHost;
+    this.isSuperseded = false;
     this.connectAttempts = 0;
-    this.myProfile = { nickname: profile.nickname || 'Anonymous', avatarId: profile.avatarId || 1 };
+    const clientProfile = getClientProfile();
+    this.myProfile = {
+      nickname: profile.nickname || 'Anonymous',
+      avatarId: profile.avatarId || 1,
+      clientId: profile.clientId || clientProfile.clientId,
+      discriminator: profile.discriminator || clientProfile.discriminator,
+      tabId: profile.tabId || clientProfile.tabId
+    };
 
     const config = { config: { iceServers: ICE_SERVERS, iceCandidatePoolSize: 4 }, debug: 1 };
     const peerId = isHost ? roomId : undefined;
@@ -95,6 +105,8 @@ export class GroupRelayEngine {
           this.currentHostId = id;
           this.roster = [{
             peerId: id,
+            clientId: this.myProfile.clientId,
+            discriminator: this.myProfile.discriminator,
             nickname: this.myProfile.nickname,
             avatarId: this.myProfile.avatarId,
             isHost: true,
@@ -152,6 +164,9 @@ export class GroupRelayEngine {
         type: GROUP_PACKET_TYPES.KNOCK,
         nickname: this.myProfile.nickname,
         avatarId: this.myProfile.avatarId,
+        clientId: this.myProfile.clientId,
+        discriminator: this.myProfile.discriminator,
+        tabId: this.myProfile.tabId,
         passcode: this.enteredPasscode || undefined,
         isReconnecting: !!opts.isReconnecting
       });
@@ -173,7 +188,7 @@ export class GroupRelayEngine {
   }
 
   scheduleHostRetry(hostPeerId, opts = {}) {
-    if (this.isDestroyed || this.isHost) return;
+    if (this.isDestroyed || this.isHost || this.isSuperseded) return;
     if (this.retryTimer) return;
     if ((this.connectAttempts || 0) < 4) {
       this.connectAttempts = (this.connectAttempts || 0) + 1;
@@ -218,6 +233,25 @@ export class GroupRelayEngine {
     }
   }
 
+  resumeSquad() {
+    if (this.isDestroyed) return;
+    this.isSuperseded = false;
+    this.connectAttempts = 0;
+    const targetHost = this.currentHostId || this.roomId;
+    if (targetHost) {
+      if (this.hostConn) {
+        try { this.hostConn.close(); } catch (e) {}
+        this.hostConn = null;
+      }
+      this.connectToHost(targetHost, { isReconnecting: true });
+    }
+  }
+
+  handleHostDisconnect() {
+    if (this.isDestroyed || !this.isAdmitted || this.isSuperseded) return;
+    handleHostDisconnect(this);
+  }
+
   handleIncomingConnection(conn) {
     if (!this.isHost) return;
     const isExisting = this.roster.some(m => m.peerId === conn.peer);
@@ -252,6 +286,8 @@ export class GroupRelayEngine {
 
     const newMember = {
       peerId,
+      clientId: knocker.clientId,
+      discriminator: knocker.discriminator,
       nickname: knocker.nickname,
       avatarId: knocker.avatarId,
       isHost: false,
@@ -260,7 +296,7 @@ export class GroupRelayEngine {
       joinedAt: Date.now()
     };
 
-    this.roster = this.roster.filter(m => m.peerId !== peerId);
+    this.roster = this.roster.filter(m => m.peerId !== peerId && (!knocker.clientId || m.clientId !== knocker.clientId));
     this.roster.push(newMember);
 
     // Knocker receives full verified roster

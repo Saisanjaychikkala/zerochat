@@ -256,6 +256,7 @@ export default function App() {
             onSetSuccessor={groupSession.setDesignatedSuccessor}
             onToggleLock={groupSession.toggleLock}
             onKickPeer={groupSession.kickPeer}
+            onResumeSquad={groupSession.resumeSquad}
             onLeaveSquad={() => { groupSession.leaveSquad(); setViewMode('home'); }}
             onOpenSettings={() => setIsSettingsOpen(true)}
             showToast={showToast}

@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { peerService } from '../services/peerService';
+import { getClientId } from '../services/identity';
 
 const GAME_NAMES = {
   pong: 'Cyber Pong',
@@ -121,8 +122,12 @@ export function useInChatGames({
       gameName: GAME_NAMES[gameId] || gameId,
       hostNickname: myNickname || 'Player 1',
       hostAvatarBg: myAvatarBg,
+      hostPeerId: peerService.myPeerId || null,
+      hostClientId: getClientId(),
       guestNickname: isConnected ? null : 'AI Bot',
       guestAvatarBg: null,
+      guestPeerId: null,
+      guestClientId: null,
       isGuestJoined: !isConnected, // offline readies bot for instant test
       isConcluded: false,
       isPlaying: false,
@@ -147,6 +152,7 @@ export function useInChatGames({
 
   // Join existing game card
   const handleJoinCard = useCallback((cardId) => {
+    const myId = getClientId();
     if (setMessages) {
       setMessages((prev) =>
         prev.map((msg) => {
@@ -156,6 +162,8 @@ export function useInChatGames({
               isGuestJoined: true,
               guestNickname: myNickname || 'Player 2',
               guestAvatarBg: myAvatarBg,
+              guestPeerId: peerService.myPeerId || null,
+              guestClientId: myId,
             };
           }
           return msg;
@@ -169,6 +177,8 @@ export function useInChatGames({
         cardId,
         nickname: myNickname || 'Player 2',
         avatarBg: myAvatarBg,
+        peerId: peerService.myPeerId || null,
+        clientId: myId,
       });
     }
 

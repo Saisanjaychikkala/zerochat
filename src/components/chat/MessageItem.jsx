@@ -15,6 +15,7 @@ import ReplyQuoteBox from './ReplyQuoteBox';
 import InChatGameCard from '../game/InChatGameCard';
 import FilePreviewCard from './FilePreviewCard';
 import { copyToClipboard } from '../../utils/clipboard';
+import { getClientId } from '../../services/identity';
 
 const QUICK_EMOJIS = ['❤️', '🔥', '👍', '😂', '🎉', '👏'];
 
@@ -22,6 +23,7 @@ export default function MessageItem({
   msg,
   myNickname = 'You',
   myPeerId,
+  myClientId,
   remotePeerNickname = 'Peer',
   hostPeerId,
   coHostPeerId,
@@ -96,6 +98,8 @@ export default function MessageItem({
         <InChatGameCard 
           card={msg}
           myNickname={myNickname}
+          myPeerId={myPeerId}
+          myClientId={myClientId || getClientId()}
           onJoinCard={onJoinCard}
           onLaunchCard={onLaunchCard}
           onResumeCard={onResumeCard}

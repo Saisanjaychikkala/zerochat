@@ -147,5 +147,6 @@ export const GROUP_PACKET_TYPES = {
   CALL_END: 'group_call_end',
   HEARTBEAT: 'group_heartbeat',
   HEARTBEAT_ACK: 'group_heartbeat_ack',
+  SESSION_SUPERSEDED: 'group_session_superseded',
   BATCH: 'group_batch'
 };
