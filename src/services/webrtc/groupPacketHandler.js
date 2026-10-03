@@ -247,6 +247,7 @@ export function handleGroupPacket(engine, data, conn) {
       break;
 
     case GROUP_PACKET_TYPES.FILE_OFFER:
+    case 'file_offer':
       if (engine.isHost) {
         if (!engine.connections.has(conn.peer)) return;
         engine.emit('file_offer', data);
@@ -258,8 +259,10 @@ export function handleGroupPacket(engine, data, conn) {
       break;
 
     case GROUP_PACKET_TYPES.FILE_REQUEST:
+    case 'file_request':
       if (engine.isHost) {
-        engine.fileRequests.set(data.fileId, conn.peer);
+        const requesterId = data.requesterId || conn.peer;
+        engine.fileRequests.set(data.fileId, requesterId);
         if (data.authorId === engine.myPeerId) {
           engine.fileStream.serveFileRequest(
             conn,
@@ -291,10 +294,64 @@ export function handleGroupPacket(engine, data, conn) {
       }
       break;
 
-    case GROUP_PACKET_TYPES.FILE_ERROR:
+    case GROUP_PACKET_TYPES.FILE_META:
+    case 'file_meta':
       if (engine.isHost) {
         const reqPeerId = engine.fileRequests.get(data.fileId);
-        if (reqPeerId) {
+        if (reqPeerId === engine.myPeerId) {
+          engine.fileStream.handleFileMeta(data, data.senderNickname, (e, d) => engine.emit(e, d));
+        } else if (reqPeerId) {
+          const targetConn = engine.connections.get(reqPeerId);
+          if (targetConn?.open) {
+            try { targetConn.send(data); } catch (e) {}
+          }
+        }
+      } else {
+        engine.fileStream.handleFileMeta(data, data.senderNickname, (e, d) => engine.emit(e, d));
+      }
+      break;
+
+    case GROUP_PACKET_TYPES.FILE_CHUNK_META:
+    case 'file_chunk_meta':
+      if (engine.isHost) {
+        const reqPeerId = engine.fileRequests.get(data.fileId);
+        if (reqPeerId === engine.myPeerId) {
+          engine.fileStream.handleFileChunkMeta(data);
+        } else if (reqPeerId) {
+          const targetConn = engine.connections.get(reqPeerId);
+          if (targetConn?.open) {
+            try { targetConn.send(data); } catch (e) {}
+          }
+        }
+      } else {
+        engine.fileStream.handleFileChunkMeta(data);
+      }
+      break;
+
+    case GROUP_PACKET_TYPES.FILE_CANCEL:
+    case 'file_cancel':
+      if (engine.isHost) {
+        const reqPeerId = engine.fileRequests.get(data.fileId);
+        if (reqPeerId === engine.myPeerId) {
+          engine.fileStream.handleFileCancel(data.fileId, (e, d) => engine.emit(e, d));
+        } else if (reqPeerId) {
+          const targetConn = engine.connections.get(reqPeerId);
+          if (targetConn?.open) {
+            try { targetConn.send(data); } catch (e) {}
+          }
+        }
+      } else {
+        engine.fileStream.handleFileCancel(data.fileId, (e, d) => engine.emit(e, d));
+      }
+      break;
+
+    case GROUP_PACKET_TYPES.FILE_ERROR:
+    case 'file_error':
+      if (engine.isHost) {
+        const reqPeerId = engine.fileRequests.get(data.fileId);
+        if (reqPeerId === engine.myPeerId) {
+          engine.emit('file_error', data);
+        } else if (reqPeerId) {
           const reqConn = engine.connections.get(reqPeerId);
           if (reqConn?.open) {
             try { reqConn.send(data); } catch (e) {}

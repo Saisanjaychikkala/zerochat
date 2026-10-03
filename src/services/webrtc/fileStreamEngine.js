@@ -19,20 +19,29 @@ export function packBinaryChunk(fileId, chunkIndex, totalChunks, rawBuffer) {
   return combined.buffer;
 }
 
-export function unpackBinaryChunk(buffer) {
-  if (!buffer || buffer.byteLength < 14) return null;
-  const u8 = new Uint8Array(buffer);
+export function unpackBinaryChunk(input) {
+  if (!input) return null;
+  const isView = ArrayBuffer.isView(input);
+  const arrayBuffer = isView ? input.buffer : input;
+  if (!(arrayBuffer instanceof ArrayBuffer)) return null;
+
+  const byteOffset = isView ? input.byteOffset : 0;
+  const totalLength = isView ? input.byteLength : arrayBuffer.byteLength;
+  if (totalLength < 14) return null;
+
+  const u8 = new Uint8Array(arrayBuffer, byteOffset, totalLength);
   if (u8[0] !== 0x5A || u8[1] !== 0x43 || u8[2] !== 0x46 || u8[3] !== 0x43) {
     return null;
   }
   const idLen = u8[4];
-  if (buffer.byteLength < 13 + idLen) return null;
+  if (totalLength < 13 + idLen) return null;
+
   const dec = new TextDecoder();
   const fileId = dec.decode(u8.subarray(5, 5 + idLen));
-  const view = new DataView(buffer, 5 + idLen, 8);
+  const view = new DataView(arrayBuffer, byteOffset + 5 + idLen, 8);
   const chunkIndex = view.getUint32(0, false);
   const totalChunks = view.getUint32(4, false);
-  const payload = new Uint8Array(buffer.slice(13 + idLen));
+  const payload = u8.subarray(13 + idLen);
   return { fileId, chunkIndex, totalChunks, payload };
 }
 

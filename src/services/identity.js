@@ -7,14 +7,17 @@
 export function getClientId() {
   if (typeof window === 'undefined') return 'cli_server';
   try {
-    let id = localStorage.getItem('zerochat_client_id');
+    // SessionStorage guarantees unique client identity per tab while surviving page reloads.
+    // This enables 3+ tabs in the same browser to connect simultaneously as distinct squad peers
+    // without triggering false self-knock declines or tab takeover collisions.
+    let id = sessionStorage.getItem('zerochat_client_session_id');
     if (!id) {
       if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
         id = `cli_${crypto.randomUUID()}`;
       } else {
         id = `cli_${Date.now().toString(36)}_${Math.random().toString(36).substr(2, 9)}`;
       }
-      localStorage.setItem('zerochat_client_id', id);
+      sessionStorage.setItem('zerochat_client_session_id', id);
     }
     return id;
   } catch (e) {

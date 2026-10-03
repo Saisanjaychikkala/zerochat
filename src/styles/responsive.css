@@ -332,4 +332,113 @@
     font-size: 0.65rem;
     padding: 3px 10px;
   }
+
+  /* Message Bubbles, Cards & Media Mobile Bounds (Zero Overflow) */
+  .message-row {
+    max-width: 90% !important;
+  }
+
+  .message-bubble {
+    font-size: 0.88rem;
+    padding: 8px 12px;
+    max-width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  .wa-media-card,
+  .telegram-doc-card {
+    max-width: 100% !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  .wa-media-backdrop {
+    height: 160px;
+  }
+
+  .wa-media-img {
+    max-height: 220px;
+  }
+
+  .in-chat-game-card {
+    max-width: 100% !important;
+    padding: 10px 10px !important;
+    box-sizing: border-box !important;
+  }
+
+  /* Squad Header Responsive Constraints */
+  .squad-header {
+    padding: 0 10px !important;
+    gap: 6px !important;
+    height: 52px !important;
+  }
+
+  .squad-header-left {
+    min-width: 0 !important;
+    flex: 1 1 auto !important;
+    overflow: hidden !important;
+    gap: 6px !important;
+  }
+
+  .squad-channel-title {
+    max-width: 110px !important;
+    font-size: 0.85rem !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+  }
+
+  .squad-channel-title span:first-of-type {
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+  }
+
+  .squad-header-badges {
+    gap: 4px !important;
+    flex-shrink: 0 !important;
+  }
+
+  .relay-status-chip {
+    padding: 0 8px !important;
+    height: 32px !important;
+    font-size: 0.7rem !important;
+    gap: 4px !important;
+  }
+
+  .relay-status-chip .relay-chip-label {
+    display: none !important;
+  }
+
+  .squad-occupancy-pill {
+    padding: 0 8px !important;
+    height: 32px !important;
+    font-size: 0.72rem !important;
+    gap: 4px !important;
+  }
+
+  .squad-occupancy-pill .occupancy-label {
+    display: none !important;
+  }
+
+  .squad-back-btn,
+  .squad-qr-btn,
+  .squad-settings-btn {
+    width: 32px !important;
+    height: 32px !important;
+    min-width: 32px !important;
+    padding: 0 !important;
+  }
+
+  .squad-stream-scroll {
+    padding: 12px 10px !important;
+    gap: 10px !important;
+  }
+
+  .squad-knock-alert-dock {
+    left: 8px !important;
+    right: 8px !important;
+    max-width: calc(100vw - 16px) !important;
+    padding: 8px 10px !important;
+  }
 }

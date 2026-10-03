@@ -1,6 +1,7 @@
 /**
- * ZeroChat - Cyber-Glass On-Demand File Preview Card
- * WhatsApp-style lazy file & media card supporting Idle, Downloading, Ready, and Expired states.
+ * ZeroChat - Cyber-Glass On-Demand File & Media Preview Card
+ * WhatsApp-Style Media Previews & Telegram-Style Distinctive Document Cards
+ * Supports: Idle, Downloading, Ready, and Expired states with zero database RAM-only WebRTC streaming.
  */
 import React from 'react';
 import { 
@@ -13,7 +14,9 @@ import {
   FileCode, 
   File as FileGeneric, 
   CheckCircle, 
-  AlertTriangle 
+  AlertTriangle,
+  Eye,
+  Sparkles
 } from 'lucide-react';
 import AudioPlayerBubble from '../AudioPlayerBubble';
 
@@ -25,25 +28,85 @@ function formatFileSize(bytes) {
   return (bytes / (1024 * 1024 * 1024)).toFixed(1) + ' GB';
 }
 
-function getFileIcon(fileName = '', fileType = '') {
+function getFileCategory(fileName = '', fileType = '') {
   const ext = fileName.split('.').pop()?.toLowerCase() || '';
-  if (fileType.startsWith('image/')) return null;
-  if (fileType.startsWith('audio/') || ['mp3', 'wav', 'ogg', 'm4a'].includes(ext)) {
-    return <Music size={20} className="file-type-icon audio" />;
+  if (fileType.startsWith('image/') || ['jpg', 'jpeg', 'png', 'webp', 'gif', 'svg', 'bmp', 'ico'].includes(ext)) {
+    return 'image';
   }
-  if (fileType.startsWith('video/') || ['mp4', 'webm', 'mkv', 'mov'].includes(ext)) {
-    return <Film size={20} className="file-type-icon video" />;
+  if (['pdf'].includes(ext)) {
+    return 'pdf';
   }
-  if (['zip', 'rar', '7z', 'tar', 'gz'].includes(ext)) {
-    return <FileArchive size={20} className="file-type-icon archive" />;
+  if (['zip', 'rar', '7z', 'tar', 'gz', 'bz2', 'xz'].includes(ext)) {
+    return 'archive';
   }
-  if (['js', 'jsx', 'ts', 'tsx', 'html', 'css', 'json', 'py', 'rs', 'go', 'c', 'cpp'].includes(ext)) {
-    return <FileCode size={20} className="file-type-icon code" />;
+  if (['js', 'jsx', 'ts', 'tsx', 'html', 'htm', 'css', 'json', 'py', 'rs', 'go', 'c', 'cpp', 'h', 'hpp', 'sh', 'sql', 'yaml', 'yml', 'xml', 'md'].includes(ext)) {
+    return 'code';
   }
-  if (['pdf', 'doc', 'docx', 'txt', 'md'].includes(ext)) {
-    return <FileText size={20} className="file-type-icon doc" />;
+  if (['doc', 'docx', 'txt', 'rtf', 'odt', 'xls', 'xlsx', 'csv', 'ppt', 'pptx'].includes(ext)) {
+    return 'doc';
   }
-  return <FileGeneric size={20} className="file-type-icon generic" />;
+  if (fileType.startsWith('audio/') || ['mp3', 'wav', 'ogg', 'm4a', 'flac', 'aac'].includes(ext)) {
+    return 'audio';
+  }
+  if (fileType.startsWith('video/') || ['mp4', 'webm', 'mkv', 'mov', 'avi'].includes(ext)) {
+    return 'video';
+  }
+  return 'generic';
+}
+
+function TelegramDocBadge({ category, extLabel }) {
+  const label = extLabel.length > 4 ? extLabel.slice(0, 3) : extLabel;
+  switch (category) {
+    case 'pdf':
+      return (
+        <div className="telegram-doc-badge pdf" title="PDF Document">
+          <FileText size={20} className="doc-icon" />
+          <span className="doc-badge-pill">PDF</span>
+        </div>
+      );
+    case 'archive':
+      return (
+        <div className="telegram-doc-badge archive" title="Compressed Archive">
+          <FileArchive size={20} className="doc-icon" />
+          <span className="doc-badge-pill">ZIP</span>
+        </div>
+      );
+    case 'code':
+      return (
+        <div className="telegram-doc-badge code" title="Source Code">
+          <FileCode size={20} className="doc-icon" />
+          <span className="doc-badge-pill">{label}</span>
+        </div>
+      );
+    case 'doc':
+      return (
+        <div className="telegram-doc-badge doc" title="Document">
+          <FileText size={20} className="doc-icon" />
+          <span className="doc-badge-pill">{label}</span>
+        </div>
+      );
+    case 'audio':
+      return (
+        <div className="telegram-doc-badge audio" title="Audio Track">
+          <Music size={20} className="doc-icon" />
+          <span className="doc-badge-pill">AUD</span>
+        </div>
+      );
+    case 'video':
+      return (
+        <div className="telegram-doc-badge video" title="Video Clip">
+          <Film size={20} className="doc-icon" />
+          <span className="doc-badge-pill">VID</span>
+        </div>
+      );
+    default:
+      return (
+        <div className="telegram-doc-badge generic" title="File">
+          <FileGeneric size={20} className="doc-icon" />
+          <span className="doc-badge-pill">{label}</span>
+        </div>
+      );
+  }
 }
 
 export default function FilePreviewCard({
@@ -70,64 +133,181 @@ export default function FilePreviewCard({
     authorId = null
   } = fileInfo;
 
-  const isImage = fileType?.startsWith('image/') || /\.(jpg|jpeg|png|webp|gif|svg)$/i.test(fileName);
+  const category = getFileCategory(fileName, fileType);
+  const isImage = category === 'image';
   const formattedSize = formatFileSize(fileSize);
   const extLabel = fileName.split('.').pop()?.toUpperCase() || 'FILE';
 
-  // 1. Ready State for Voice Note
+  // =========================================================================
+  // 1. Voice Note Bubble (WhatsApp-style dynamic waveform & duration)
+  // =========================================================================
   if (isVoiceNote && (downloadUrl || fileInfo.audioUrl)) {
     return (
       <AudioPlayerBubble
         audioUrl={downloadUrl || fileInfo.audioUrl}
         durationSec={durationSec}
         fileName={fileName}
+        waveform={fileInfo.waveform}
       />
     );
   }
 
-  // 2. Ready State for Image
-  if (status === 'ready' && isImage && (downloadUrl || fileInfo.imageUrl)) {
-    const imgSource = downloadUrl || fileInfo.imageUrl;
+  // =========================================================================
+  // 2. WhatsApp-Style Image Card (Idle / Downloading / Ready)
+  // =========================================================================
+  if (isImage) {
+    // 2A. Ready State (Full high-res image with bottom glass action strip)
+    if (status === 'ready' && (downloadUrl || fileInfo.imageUrl)) {
+      const imgSource = downloadUrl || fileInfo.imageUrl;
+      return (
+        <div className="wa-media-card ready">
+          <div className="wa-media-image-wrap" onClick={() => onOpenLightbox && onOpenLightbox(imgSource, fileName)}>
+            <img
+              src={imgSource}
+              alt={fileName}
+              className="wa-media-img"
+              loading="lazy"
+            />
+            <div className="wa-media-zoom-overlay">
+              <Eye size={18} />
+              <span>Preview</span>
+            </div>
+          </div>
+          <div className="wa-media-glass-bar">
+            <div className="wa-media-info">
+              <span className="wa-media-name" title={fileName}>{fileName}</span>
+              <span className="wa-media-meta">{formattedSize}</span>
+            </div>
+            <a
+              href={imgSource}
+              download={fileName}
+              className="wa-media-save-btn"
+              title={`Save ${fileName} to disk`}
+            >
+              <Download size={14} />
+              <span>Save</span>
+            </a>
+          </div>
+        </div>
+      );
+    }
+
+    // 2B. Downloading State (Centered circular progress ring with backdrop)
+    if (status === 'downloading') {
+      const formattedSpeed = speedBps > 1024 * 1024
+        ? (speedBps / (1024 * 1024)).toFixed(1) + ' MB/s'
+        : Math.round(speedBps / 1024) + ' KB/s';
+
+      const circumference = 2 * Math.PI * 22;
+      const strokeDashoffset = circumference - (progress / 100) * circumference;
+
+      return (
+        <div className="wa-media-card downloading">
+          {previewData ? (
+            <div className="wa-media-backdrop blur" style={{ backgroundImage: `url(${previewData})` }} />
+          ) : (
+            <div className="wa-media-backdrop pattern" />
+          )}
+          <div className="wa-media-center-action">
+            <div className="wa-progress-circle-wrap">
+              <svg className="wa-progress-svg" width="56" height="56" viewBox="0 0 56 56">
+                <circle className="wa-progress-track" cx="28" cy="28" r="22" strokeWidth="3.5" fill="transparent" />
+                <circle
+                  className="wa-progress-fill"
+                  cx="28"
+                  cy="28"
+                  r="22"
+                  strokeWidth="3.5"
+                  fill="transparent"
+                  strokeDasharray={circumference}
+                  strokeDashoffset={strokeDashoffset}
+                />
+              </svg>
+              <button
+                type="button"
+                className="wa-progress-cancel-btn"
+                onClick={() => onCancel && onCancel(fileId)}
+                title="Cancel download"
+              >
+                <X size={15} />
+              </button>
+            </div>
+            <span className="wa-download-status-text">{progress}% • {formattedSpeed}</span>
+          </div>
+          <div className="wa-media-glass-bar compact">
+            <span className="wa-media-name" title={fileName}>{fileName}</span>
+            <span className="wa-media-meta">{formattedSize}</span>
+          </div>
+        </div>
+      );
+    }
+
+    // 2C. Expired Image State
+    if (status === 'expired') {
+      return (
+        <div className="wa-media-card expired">
+          <div className="wa-media-backdrop pattern expired" />
+          <div className="wa-media-center-action">
+            <div className="wa-expired-circle">
+              <AlertTriangle size={24} color="#ef4444" />
+            </div>
+            <span className="wa-download-status-text expired">Media Expired</span>
+            <span className="wa-expired-sub">{errorReason || 'Unavailable in RAM'}</span>
+          </div>
+        </div>
+      );
+    }
+
+    // 2D. Idle / Offer State (WhatsApp-style progressive preview with centered download button)
     return (
-      <div className="file-ready-image-wrap">
-        <img
-          src={imgSource}
-          alt={fileName}
-          className="chat-image-preview"
-          onClick={() => onOpenLightbox && onOpenLightbox(imgSource, fileName)}
-        />
-        <div className="file-ready-meta-row">
-          <span className="file-ready-name">{fileName}</span>
-          <a
-            href={imgSource}
-            download={fileName}
-            className="file-download-link-btn"
-            title="Save to disk"
-          >
-            <Download size={13} />
-            <span>Save</span>
-          </a>
+      <div 
+        className="wa-media-card idle"
+        onClick={() => onRequestDownload && onRequestDownload(fileId, authorId)}
+        title={`Click to download ${fileName} (${formattedSize})`}
+      >
+        {previewData ? (
+          <div className="wa-media-backdrop blur" style={{ backgroundImage: `url(${previewData})` }} />
+        ) : (
+          <div className="wa-media-backdrop pattern" />
+        )}
+        <div className="wa-media-center-action">
+          <div className="wa-center-download-btn">
+            <Download size={20} />
+          </div>
+          <span className="wa-download-pill">{formattedSize}</span>
+        </div>
+        <div className="wa-media-glass-bar compact">
+          <span className="wa-media-name" title={fileName}>{fileName}</span>
+          <span className="wa-media-badge-tag">{extLabel}</span>
         </div>
       </div>
     );
   }
 
-  // 3. Ready State for Other Files
+  // =========================================================================
+  // 3. Telegram-Style Document / File Cards (PDF, ZIP, CODE, TXT, etc.)
+  // =========================================================================
+
+  // 3A. Ready State (File loaded into volatile RAM with direct save)
   if (status === 'ready' && downloadUrl) {
     return (
-      <div className="file-preview-card ready">
-        <div className="file-icon-box ready">
-          <CheckCircle size={22} color="var(--accent-emerald)" />
-        </div>
-        <div className="file-card-details">
-          <span className="file-card-name" title={fileName}>{fileName}</span>
-          <span className="file-card-meta">{formattedSize} • {extLabel} • Ready</span>
+      <div className="telegram-doc-card ready">
+        <TelegramDocBadge category={category} extLabel={extLabel} />
+        <div className="doc-card-body">
+          <span className="doc-card-title" title={fileName}>{fileName}</span>
+          <div className="doc-card-sub">
+            <span className="doc-size-pill">{formattedSize}</span>
+            <span className="doc-dot">•</span>
+            <span className="doc-status-pill success">
+              <CheckCircle size={11} /> Ready
+            </span>
+          </div>
         </div>
         <a
           href={downloadUrl}
           download={fileName}
-          className="file-card-action-btn ready"
-          title="Save file"
+          className="telegram-action-btn ready"
+          title={`Save ${fileName} to disk`}
         >
           <Download size={15} />
           <span>Save</span>
@@ -136,27 +316,29 @@ export default function FilePreviewCard({
     );
   }
 
-  // 4. Expired State (Sender Disconnected or RAM Cleared)
+  // 3B. Expired State (Sender Disconnected or RAM Cleared)
   if (status === 'expired') {
     return (
-      <div className="file-preview-card expired">
-        <div className="file-icon-box expired">
+      <div className="telegram-doc-card expired">
+        <div className="telegram-doc-badge expired" title="Media Expired">
           <AlertTriangle size={20} color="#ef4444" />
+          <span className="doc-badge-pill expired">EXPIRED</span>
         </div>
-        <div className="file-card-details">
-          <span className="file-card-name expired" title={fileName}>{fileName}</span>
-          <span className="file-card-meta expired">
-            {errorReason || 'Media Expired from RAM • Sender disconnected'}
-          </span>
-        </div>
-        <div className="file-card-badge expired">
-          <span>Unavailable</span>
+        <div className="doc-card-body">
+          <span className="doc-card-title expired" title={fileName}>{fileName}</span>
+          <div className="doc-card-sub">
+            <span className="doc-size-pill expired">{formattedSize}</span>
+            <span className="doc-dot">•</span>
+            <span className="doc-status-pill error">
+              {errorReason || 'RAM Purged'}
+            </span>
+          </div>
         </div>
       </div>
     );
   }
 
-  // 5. Downloading State (Progress Ring)
+  // 3C. Downloading State (Circular progress ring with live speed)
   if (status === 'downloading') {
     const formattedSpeed = speedBps > 1024 * 1024
       ? (speedBps / (1024 * 1024)).toFixed(1) + ' MB/s'
@@ -166,78 +348,70 @@ export default function FilePreviewCard({
     const strokeDashoffset = circumference - (progress / 100) * circumference;
 
     return (
-      <div className="file-preview-card downloading">
-        <div className="file-progress-ring-box">
-          <svg className="progress-ring-svg" width="44" height="44" viewBox="0 0 44 44">
+      <div className="telegram-doc-card downloading">
+        <div className="doc-progress-ring-box">
+          <svg className="doc-progress-svg" width="44" height="44" viewBox="0 0 44 44">
+            <circle className="doc-progress-track" cx="22" cy="22" r="18" strokeWidth="3" fill="transparent" />
             <circle
-              className="progress-ring-track"
+              className="doc-progress-fill"
               cx="22"
               cy="22"
               r="18"
-              fill="transparent"
               strokeWidth="3"
-            />
-            <circle
-              className="progress-ring-fill"
-              cx="22"
-              cy="22"
-              r="18"
               fill="transparent"
-              strokeWidth="3"
               strokeDasharray={circumference}
               strokeDashoffset={strokeDashoffset}
             />
           </svg>
           <button
             type="button"
-            className="progress-ring-cancel-btn"
+            className="doc-progress-cancel-btn"
             onClick={() => onCancel && onCancel(fileId)}
             title="Cancel download"
           >
             <X size={13} />
           </button>
         </div>
-        <div className="file-card-details">
-          <span className="file-card-name" title={fileName}>{fileName}</span>
-          <span className="file-card-meta">
-            {progress}% • {formattedSpeed}
-          </span>
+        <div className="doc-card-body">
+          <span className="doc-card-title" title={fileName}>{fileName}</span>
+          <div className="doc-card-sub">
+            <span className="doc-size-pill">{progress}%</span>
+            <span className="doc-dot">•</span>
+            <span className="doc-speed-text">{formattedSpeed}</span>
+          </div>
         </div>
       </div>
     );
   }
 
-  // 6. Idle / Offer State (WhatsApp Style Preview)
+  // 3D. Idle / Offer State (Telegram-style interactive document card)
   return (
-    <div className={`file-preview-card idle ${previewData ? 'has-preview' : ''}`}>
-      {previewData && (
-        <div 
-          className="file-card-backdrop"
-          style={{ backgroundImage: `url(${previewData})` }}
-        />
-      )}
-      <div className="file-card-overlay-content">
-        <div className="file-card-left">
-          <div className="file-icon-box">
-            {getFileIcon(fileName, fileType) || <FileGeneric size={20} />}
-          </div>
-          <div className="file-card-details">
-            <span className="file-card-name" title={fileName}>{fileName}</span>
-            <span className="file-card-meta">
-              {formattedSize} • {extLabel}
-            </span>
-          </div>
+    <div 
+      className="telegram-doc-card idle"
+      onClick={() => onRequestDownload && onRequestDownload(fileId, authorId)}
+      title={`Click to fetch ${fileName} (${formattedSize})`}
+    >
+      <TelegramDocBadge category={category} extLabel={extLabel} />
+      <div className="doc-card-body">
+        <span className="doc-card-title" title={fileName}>{fileName}</span>
+        <div className="doc-card-sub">
+          <span className="doc-size-pill">{formattedSize}</span>
+          <span className="doc-dot">•</span>
+          <span className="doc-ext-tag">{extLabel}</span>
         </div>
-        <button
-          type="button"
-          className="file-card-action-btn download"
-          onClick={() => onRequestDownload && onRequestDownload(fileId, authorId)}
-          title={`Download ${fileName} (${formattedSize})`}
-        >
-          <Download size={16} />
-          <span>Get</span>
-        </button>
       </div>
+      <button
+        type="button"
+        className="telegram-action-btn fetch"
+        onClick={(e) => {
+          e.stopPropagation();
+          onRequestDownload && onRequestDownload(fileId, authorId);
+        }}
+        title={`Download ${fileName}`}
+      >
+        <Download size={15} />
+        <span>Get</span>
+      </button>
     </div>
   );
 }

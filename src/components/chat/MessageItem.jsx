@@ -183,29 +183,34 @@ export default function MessageItem({
     return <span>{text}</span>;
   };
 
+  const isGameCard = msg.type === 'game_card';
+  const isMediaCard = msg.type === 'file_card' || !!msg.fileId || !!msg.imageUrl || msg.isVoiceNote || msg.type === 'voice';
+
   return (
     <div 
       id={'msg_' + msg.id}
-      className={`message-row ${isLocal ? 'sent' : 'received'}`}
+      className={`message-row ${isGameCard ? 'game-row' : (isLocal ? 'sent' : 'received')} ${isMediaCard ? 'media-row' : ''}`}
     >
-      <div className="message-sender-meta">
-        <span className="message-sender-name">{authorName}</span>
-        {isAuthorHost && (
-          <span className="role-chip host" title="Squad Host">
-            <Crown size={10} />
-            <span>Host</span>
-          </span>
-        )}
-        {!isAuthorHost && isAuthorCoHost && (
-          <span className="role-chip cohost" title="Squad Co-Host">
-            <Shield size={10} />
-            <span>Co-Host</span>
-          </span>
-        )}
-      </div>
+      {!isGameCard && (
+        <div className="message-sender-meta">
+          <span className="message-sender-name">{authorName}</span>
+          {isAuthorHost && (
+            <span className="role-chip host" title="Squad Host">
+              <Crown size={10} />
+              <span>Host</span>
+            </span>
+          )}
+          {!isAuthorHost && isAuthorCoHost && (
+            <span className="role-chip cohost" title="Squad Co-Host">
+              <Shield size={10} />
+              <span>Co-Host</span>
+            </span>
+          )}
+        </div>
+      )}
 
       <div className="message-bubble-wrapper">
-        <div className={`message-bubble ${msg.type === 'game_card' ? 'game-card-bubble' : ''}`}>
+        <div className={`message-bubble ${isGameCard ? 'game-card-bubble' : isMediaCard ? 'media-card-bubble' : ''}`}>
           {msg.replyTo && (
             <ReplyQuoteBox 
               replyTo={msg.replyTo} 

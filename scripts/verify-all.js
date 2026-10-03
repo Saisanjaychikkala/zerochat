@@ -599,6 +599,94 @@ async function runTests() {
   const gCard = buildGameCardMsg('pong', 'Alice', 'guest-tab-2', 'cli_guest_same');
   assert(gCard.creatorPeerId === 'guest-tab-2' && gCard.creatorClientId === 'cli_guest_same', 'buildGameCardMsg records creatorPeerId and creatorClientId');
 
+  // =========================================================================
+  // Test Suite 16: WebRTC Group File & Media Streaming Relay Protocol
+  // =========================================================================
+  console.log('\n[Test Suite 16] WebRTC Group File & Media Streaming Relay Protocol');
+  const { FileStreamEngine } = await import('../src/services/webrtc/fileStreamEngine.js');
+
+  // 1. Host relays Guest B file request to Guest A
+  const guestAConnPackets = [];
+  const guestBConnPackets = [];
+  const guestAConn = { peer: 'peer_guest_A', open: true, send: (p) => guestAConnPackets.push(p) };
+  const guestBConn = { peer: 'peer_guest_B', open: true, send: (p) => guestBConnPackets.push(p) };
+
+  const mockRelayHost = {
+    isHost: true,
+    myPeerId: 'peer_host_1',
+    connections: new Map([
+      ['peer_guest_A', guestAConn],
+      ['peer_guest_B', guestBConn]
+    ]),
+    fileRequests: new Map(),
+    fileStream: new FileStreamEngine(),
+    myProfile: { nickname: 'HostMaster' },
+    emit: (event, data) => {},
+    broadcast: (pkt, ex) => {},
+    dispatchBroadcast: (pkt, ex) => {}
+  };
+
+  // Guest B sends FILE_REQUEST to Host
+  handleGroupPacket(mockRelayHost, {
+    type: GROUP_PACKET_TYPES.FILE_REQUEST,
+    fileId: 'file_transfer_001',
+    authorId: 'peer_guest_A',
+    requesterId: 'peer_guest_B'
+  }, guestBConn);
+
+  assert(mockRelayHost.fileRequests.get('file_transfer_001') === 'peer_guest_B', 'Host maps fileId to requesterId (Guest B)');
+  assert(guestAConnPackets.some(p => p.type === GROUP_PACKET_TYPES.FILE_REQUEST && p.fileId === 'file_transfer_001'), 'Host forwards FILE_REQUEST packet to author (Guest A)');
+
+  // 2. Author Guest A sends file_meta back through Host to Guest B
+  handleGroupPacket(mockRelayHost, {
+    type: 'file_meta',
+    fileId: 'file_transfer_001',
+    fileName: 'document.pdf',
+    fileSize: 16384,
+    totalChunks: 1,
+    senderNickname: 'Alice'
+  }, guestAConn);
+
+  assert(guestBConnPackets.some(p => p.type === 'file_meta' && p.fileId === 'file_transfer_001'), 'Host forwards file_meta packet directly to requester (Guest B)');
+
+  // 3. Author Guest A sends binary ZCFC chunk back through Host to Guest B
+  const sampleData = new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8]);
+  const packedChunk = packBinaryChunk('file_transfer_001', 0, 1, sampleData.buffer);
+
+  // Host processes binary chunk via handleBinaryData logic
+  const unpackedRelay = unpackBinaryChunk(packedChunk);
+  assert(unpackedRelay && unpackedRelay.fileId === 'file_transfer_001', 'Chunk unpacks correctly with fileId');
+  const targetRequester = mockRelayHost.fileRequests.get(unpackedRelay.fileId);
+  assert(targetRequester === 'peer_guest_B', 'Target requester resolved correctly as Guest B');
+  const targetConn = mockRelayHost.connections.get(targetRequester);
+  assert(targetConn === guestBConn, 'Target connection is Guest B DataChannel');
+
+  // 4. Host itself requests file from Guest A
+  mockRelayHost.fileRequests.set('file_transfer_002', mockRelayHost.myPeerId);
+  let hostReceivedFileMeta = false;
+  mockRelayHost.fileStream.handleFileMeta = (meta) => {
+    if (meta.fileId === 'file_transfer_002') hostReceivedFileMeta = true;
+  };
+  handleGroupPacket(mockRelayHost, {
+    type: 'file_meta',
+    fileId: 'file_transfer_002',
+    fileName: 'photo.jpg',
+    fileSize: 1024,
+    totalChunks: 1,
+    senderNickname: 'Alice'
+  }, guestAConn);
+  assert(hostReceivedFileMeta === true, 'Host itself ingests file_meta when Host is the requester');
+
+  // 5. Host error routing when file author is unavailable
+  handleGroupPacket(mockRelayHost, {
+    type: GROUP_PACKET_TYPES.FILE_REQUEST,
+    fileId: 'file_missing_999',
+    authorId: 'peer_disconnected',
+    requesterId: 'peer_guest_B'
+  }, guestBConn);
+
+  assert(guestBConnPackets.some(p => (p.type === GROUP_PACKET_TYPES.FILE_ERROR || p.type === 'file_error') && p.fileId === 'file_missing_999'), 'Host immediately sends FILE_ERROR to requester if author is disconnected');
+
   // ─── Summary ───────────────────────────────────────────────────────
   console.log('\n====================================================');
   console.log(` Verification Complete: ${passedTests}/${totalTests} tests passed`);

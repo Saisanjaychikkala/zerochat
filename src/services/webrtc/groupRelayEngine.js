@@ -208,6 +208,11 @@ export class GroupRelayEngine {
       const unpacked = unpackBinaryChunk(data);
       if (unpacked && unpacked.fileId) {
         const targetPeerId = this.fileRequests.get(unpacked.fileId);
+        if (targetPeerId === this.myPeerId) {
+          // The Host itself requested this file from an author guest! Ingest directly.
+          this.fileStream.handleBinaryFileChunk(data, (e, d) => this.emit(e, d));
+          return;
+        }
         if (targetPeerId && targetPeerId !== conn.peer) {
           const targetConn = this.connections.get(targetPeerId);
           if (targetConn && targetConn.open) {
@@ -457,8 +462,8 @@ export class GroupRelayEngine {
   offerFile(file, previewData = null) {
     const offer = this.fileStream.stageFileOffer(file, previewData);
     const packet = {
-      type: GROUP_PACKET_TYPES.FILE_OFFER,
       ...offer,
+      type: GROUP_PACKET_TYPES.FILE_OFFER,
       author: this.myProfile.nickname,
       authorId: this.myPeerId,
       timestamp: Date.now()
@@ -468,7 +473,6 @@ export class GroupRelayEngine {
       this.emit('file_offer', packet);
     } else if (this.isAdmitted && this.hostConn?.open) {
       this.hostConn.send(packet);
-      this.emit('file_offer', packet);
     }
     return offer;
   }

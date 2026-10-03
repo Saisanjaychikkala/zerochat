@@ -181,6 +181,7 @@ export function useGroupSession({ soundEnabled, showToast }) {
       setMessages((prev) => {
         if (prev.some((m) => m.fileId === offer.fileId)) return prev;
         const isMe = offer.authorId === groupRelayEngine.myPeerId;
+        if (isMe) return prev;
         return [
           ...prev,
           {
@@ -194,12 +195,12 @@ export function useGroupSession({ soundEnabled, showToast }) {
             isVoiceNote: !!offer.isVoiceNote,
             durationSec: offer.durationSec || 0,
             waveform: offer.waveform || (offer.previewData && offer.previewData.waveform) || null,
-            sender: isMe ? 'local' : 'remote',
+            sender: 'remote',
             senderNickname: offer.senderNickname || offer.author || 'Peer',
             authorId: offer.authorId || offer.senderPeerId,
             timestamp: offer.timestamp || Date.now(),
-            status: isMe ? 'ready' : 'idle',
-            progress: isMe ? 100 : 0,
+            status: 'idle',
+            progress: 0,
             speedBps: 0,
             downloadUrl: null,
           },
