@@ -43,6 +43,7 @@ export class GroupRelayEngine {
     this.wireBatchingEnabled = true; // Host preference: dual-priority wire batching
     this.batchQueue = [];
     this.batchTimer = null;
+    this.retryTimer = null;
     this.gameSubscriptions = new Map(); // cardId -> Set<peerId> (On-Demand Spectator Streaming)
     this.fileRequests = new Map(); // fileId -> requesterPeerId
   }
@@ -116,16 +117,12 @@ export class GroupRelayEngine {
         if (err.type === 'unavailable-id' && this.isHost) {
           this.isHost = false;
           try { this.peer.destroy(); } catch (e) {}
-          this.init(roomId, false, profile).then(resolve).catch(reject);
+          this.init(roomId, false, profile, passcode).then(resolve).catch(reject);
           return;
         }
         if (err.type === 'peer-unavailable' && !this.isHost) {
-          if ((this.connectAttempts || 0) < 3) {
-            this.connectAttempts = (this.connectAttempts || 0) + 1;
-            setTimeout(() => { if (!this.isDestroyed) this.connectToHost(roomId); }, 1200);
-            return;
-          }
-          this.emit('status', 'host-unavailable');
+          this.scheduleHostRetry(roomId);
+          return;
         }
         this.emit('error', err);
       });
@@ -136,10 +133,21 @@ export class GroupRelayEngine {
     this.currentHostId = hostPeerId;
     this.emit('status', opts.isReconnecting ? 'connected' : 'connecting');
     if (!this.peer || this.peer.destroyed) return;
+
+    if (this.hostConn && this.hostConn !== null) {
+      try { this.hostConn.close(); } catch (e) {}
+      this.hostConn = null;
+    }
+
     const conn = this.peer.connect(hostPeerId, { reliable: true });
     this.hostConn = conn;
 
     conn.on('open', () => {
+      if (this.retryTimer) {
+        clearTimeout(this.retryTimer);
+        this.retryTimer = null;
+      }
+      this.connectAttempts = 0;
       conn.send({
         type: GROUP_PACKET_TYPES.KNOCK,
         nickname: this.myProfile.nickname,
@@ -160,15 +168,24 @@ export class GroupRelayEngine {
     conn.on('close', () => { if (this.currentHostId === hostPeerId) this.handleHostDisconnect(); });
     conn.on('error', (err) => {
       console.warn('[GroupRelay] Host conn error:', err);
-      if ((this.connectAttempts || 0) < 4) {
-        this.connectAttempts = (this.connectAttempts || 0) + 1;
-        setTimeout(() => {
-          if (!this.isDestroyed && (!this.hostConn || !this.hostConn.open)) {
-            this.connectToHost(hostPeerId, opts);
-          }
-        }, 1400);
-      }
+      this.scheduleHostRetry(hostPeerId, opts);
     });
+  }
+
+  scheduleHostRetry(hostPeerId, opts = {}) {
+    if (this.isDestroyed || this.isHost) return;
+    if (this.retryTimer) return;
+    if ((this.connectAttempts || 0) < 4) {
+      this.connectAttempts = (this.connectAttempts || 0) + 1;
+      this.retryTimer = setTimeout(() => {
+        this.retryTimer = null;
+        if (!this.isDestroyed && (!this.hostConn || !this.hostConn.open)) {
+          this.connectToHost(hostPeerId, opts);
+        }
+      }, 1400);
+      return;
+    }
+    this.emit('status', 'host-unavailable');
   }
 
   handleBinaryData(data, conn) {
@@ -222,6 +239,7 @@ export class GroupRelayEngine {
       handleGroupPacket(this, data, conn);
     });
     conn.on('close', () => this.handlePeerDisconnect(conn.peer));
+    conn.on('error', (err) => console.warn('[GroupRelay] Inbound conn error:', err));
   }
 
   admitKnocker(peerId) {
@@ -535,6 +553,7 @@ export class GroupRelayEngine {
   }
 
   handlePeerDisconnect(peerId) {
+    const wasPending = this.pendingKnocks.has(peerId);
     this.pendingKnocks.delete(peerId);
     this.connections.delete(peerId);
     this.roster = this.roster.filter(m => m.peerId !== peerId);
@@ -542,6 +561,10 @@ export class GroupRelayEngine {
 
     // Clean up spectator game subscriptions
     this.gameSubscriptions.forEach(subs => subs.delete(peerId));
+
+    if (wasPending) {
+      this.emit('knocks_update', Array.from(this.pendingKnocks.values()));
+    }
 
     // Broadcast lightweight ROSTER_LEAVE delta!
     this.broadcast({
@@ -554,6 +577,10 @@ export class GroupRelayEngine {
   }
 
   startHeartbeatLoop() {
+    if (this.heartbeatInterval) {
+      clearInterval(this.heartbeatInterval);
+      this.heartbeatInterval = null;
+    }
     this.heartbeatInterval = setInterval(() => {
       if (this.isDestroyed) return;
       const pkt = { type: GROUP_PACKET_TYPES.HEARTBEAT, time: Date.now() };
@@ -565,8 +592,27 @@ export class GroupRelayEngine {
   cleanup() {
     this.isDestroyed = true;
     this.isAdmitted = false;
-    if (this.heartbeatInterval) clearInterval(this.heartbeatInterval);
-    if (this.batchTimer) clearTimeout(this.batchTimer);
+    this.roomId = null;
+    this.myPeerId = null;
+    this.currentHostId = null;
+    this.isHost = false;
+    this.roomPasscode = null;
+    this.enteredPasscode = null;
+    this.designatedSuccessorId = null;
+    this.isLocked = false;
+    this.connectAttempts = 0;
+    if (this.retryTimer) {
+      clearTimeout(this.retryTimer);
+      this.retryTimer = null;
+    }
+    if (this.heartbeatInterval) {
+      clearInterval(this.heartbeatInterval);
+      this.heartbeatInterval = null;
+    }
+    if (this.batchTimer) {
+      clearTimeout(this.batchTimer);
+      this.batchTimer = null;
+    }
     this.batchQueue = [];
     this.connections.forEach(conn => { try { conn.close(); } catch (e) {} });
     this.connections.clear();

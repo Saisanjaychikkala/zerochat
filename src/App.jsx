@@ -8,6 +8,7 @@ import AppModals from './components/AppModals';
 const P2PGameArena = lazy(() => import('./components/P2PGameArena'));
 
 import { peerService } from './services/peerService';
+import { groupRelayEngine } from './services/webrtc/groupRelayEngine';
 import { generateGameRoomId, parseRoomHash } from './services/webrtc/constants';
 import { usePreferences } from './hooks/usePreferences';
 import { usePeerSession } from './hooks/usePeerSession';
@@ -90,7 +91,11 @@ export default function App() {
       const parsed = parseRoomHash(window.location.hash);
       if (parsed.isSquad) {
         setViewMode('squad');
-        if (parsed.roomId && parsed.roomId !== groupSession.squadRoomId) {
+        const isCurrentSquadActive = (
+          (groupSession.squadRoomId === parsed.roomId || groupRelayEngine.roomId === parsed.roomId) &&
+          groupRelayEngine.peer && !groupRelayEngine.peer.destroyed
+        );
+        if (parsed.roomId && !isCurrentSquadActive) {
           groupSession.initSquad(parsed.roomId, false, { nickname: preferences.myNickname, avatarId: 1 });
         }
       } else if (parsed.isGame) {

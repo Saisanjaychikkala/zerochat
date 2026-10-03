@@ -56,7 +56,7 @@ export function SquadStatusOverlays({
         </div>
       )}
 
-      {/* Status: Connecting Loader */}
+      {/* Status: Connecting Loader (Guest) */}
       {status === 'connecting' && !isHost && (
         <div className="squad-status-center">
           <div className="connecting-radar-wrap">
@@ -69,6 +69,37 @@ export function SquadStatusOverlays({
           <h3 className="squad-status-title">Connecting to Squad...</h3>
           <p className="squad-status-body">Reaching out to host at <span className="font-mono text-cyan-400">#{squadRoomId}</span> via WebRTC.</p>
           <button type="button" onClick={onLeaveSquad} className="btn btn-secondary text-xs">Cancel Connection</button>
+        </div>
+      )}
+
+      {/* Status: Initializing Loader (Host) */}
+      {status === 'connecting' && isHost && (
+        <div className="squad-status-center">
+          <div className="connecting-radar-wrap">
+            <div className="connecting-radar-ring" />
+            <div className="connecting-radar-ring ring-2" />
+            <div className="connecting-radar-core">
+              <Radio size={20} color="var(--accent-cyan)" />
+            </div>
+          </div>
+          <h3 className="squad-status-title">Initializing Squad Room...</h3>
+          <p className="squad-status-body">Starting Baton Pass Star Relay at <span className="font-mono text-cyan-400">#{squadRoomId}</span>.</p>
+          <button type="button" onClick={onLeaveSquad} className="btn btn-secondary text-xs">Cancel</button>
+        </div>
+      )}
+
+      {/* Status: Idle */}
+      {status === 'idle' && (
+        <div className="squad-status-center">
+          <div className="connecting-radar-wrap">
+            <div className="connecting-radar-ring" />
+            <div className="connecting-radar-ring ring-2" />
+            <div className="connecting-radar-core">
+              <Radio size={20} color="var(--accent-cyan)" />
+            </div>
+          </div>
+          <h3 className="squad-status-title">Preparing Squad Room...</h3>
+          <button type="button" onClick={onLeaveSquad} className="btn btn-secondary text-xs">Return Home</button>
         </div>
       )}
 

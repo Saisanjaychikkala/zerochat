@@ -93,6 +93,12 @@ export function handleGroupPacket(engine, data, conn) {
       }
       break;
 
+    case GROUP_PACKET_TYPES.KNOCK_ACK:
+      if (!engine.isAdmitted && !engine.isHost) {
+        engine.emit('status', 'knocking');
+      }
+      break;
+
     case GROUP_PACKET_TYPES.ADMIT:
       engine.isAdmitted = true;
       engine.roster = data.roster || [];

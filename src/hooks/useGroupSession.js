@@ -266,6 +266,8 @@ export function useGroupSession({ soundEnabled, showToast }) {
     setMessages([]);
     setDeclineReason(null);
     setStatus('connecting');
+    setSquadRoomId(roomId);
+    setIsHost(asHost);
     return groupRelayEngine.init(roomId, asHost, profile, passcode);
   }, []);
 
@@ -317,6 +319,9 @@ export function useGroupSession({ soundEnabled, showToast }) {
     groupRelayEngine.cleanup();
     setStatus('disconnected');
     setSquadRoomId('');
+    setIsHost(false);
+    setCurrentHostId(null);
+    setDesignatedSuccessorId(null);
     setMyPeerId(null);
     setMembers([]);
     setPendingKnocks([]);
