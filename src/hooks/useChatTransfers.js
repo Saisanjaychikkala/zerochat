@@ -67,7 +67,12 @@ export function useChatTransfers({ soundEnabled, mobileTab, showToast }) {
 
   useEffect(() => {
     const unsubMessage = peerService.on('message', (msg) => {
-      setMessages((prev) => [...prev, msg]);
+      if (!msg) return;
+      if (msg.type === 'text' && (!msg.text || !msg.text.trim())) return;
+      setMessages((prev) => {
+        if (prev.some((m) => m.id === msg.id)) return prev;
+        return [...prev, msg];
+      });
       if (mobileTabRef.current !== 'chat') {
         setUnreadChatCount((c) => c + 1);
       }
@@ -89,6 +94,8 @@ export function useChatTransfers({ soundEnabled, mobileTab, showToast }) {
 
     // On-Demand File Offer Listener (1-on-1 & Squad)
     const handleFileOffer = (offer) => {
+      if (!offer || !offer.fileId) return;
+      if (offer.isSender || offer.authorId === peerService.myPeerId) return;
       setMessages((prev) => {
         if (prev.some((m) => m.fileId === offer.fileId)) return prev;
         return [

@@ -59,6 +59,7 @@ export function GroupChatWorkspace({
   const [passcodeInput, setPasscodeInput] = useState('');
 
   const messagesEndRef = useRef(null);
+  const isSendingRef = useRef(false);
   const isConnected = status === 'connected';
 
   useEffect(() => {
@@ -92,16 +93,27 @@ export function GroupChatWorkspace({
 
   const handleSend = (e) => {
     if (e) e.preventDefault();
-    if (!inputText.trim()) return;
+    const text = (inputText || '').trim();
+    if (!text || isSendingRef.current) return;
+    isSendingRef.current = true;
+
     const replyPayload = replyingTo ? {
       id: replyingTo.id,
       senderNickname: replyingTo.sender === 'local' ? (myNickname || 'You') : (replyingTo.senderNickname || 'Peer'),
       snippet: extractSnippet(replyingTo),
       type: replyingTo.isVoiceNote ? 'voice' : replyingTo.imageUrl ? 'image' : replyingTo.type === 'game_card' ? 'game' : 'text'
     } : null;
-    onSendMessage(inputText.trim(), replyPayload);
+
     setInputText('');
     setReplyingTo(null);
+
+    try {
+      onSendMessage(text, replyPayload);
+    } finally {
+      setTimeout(() => {
+        isSendingRef.current = false;
+      }, 150);
+    }
   };
 
   const handleSendFile = (file) => {

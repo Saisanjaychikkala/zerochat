@@ -128,6 +128,17 @@ async function runThreePeersAndTransferTest() {
     await guest1.waitForFunction(() => document.body.innerText.includes('Reply from Mobile Guest 2!'), { timeout: 10000 });
     console.log('✓ Host and Guest 1 received reply from Guest 2!');
 
+    // Verify NO empty phantom message rows exist
+    const hostMessageBubbles = await host.evaluate(() => {
+      const rows = Array.from(document.querySelectorAll('.message-row'));
+      return rows.map(r => r.querySelector('.message-bubble')?.innerText.trim() || '');
+    });
+    const emptyBubbles = hostMessageBubbles.filter(t => !t);
+    if (emptyBubbles.length > 0) {
+      throw new Error(`Found ${emptyBubbles.length} empty phantom message bubble(s) on host!`);
+    }
+    console.log(`✓ Zero empty message bubbles verified (Total messages: ${hostMessageBubbles.length})`);
+
     // 6. Media / Document transfer from Guest 1 to Guest 2 via Host relay
     console.log('\n[Step 6] Testing Telegram/WhatsApp Media Transfer (Guest 1 -> Host Relay -> Guest 2)...');
     const fileInput = await guest1.$('input[type="file"]');

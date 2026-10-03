@@ -117,8 +117,19 @@ export function useGroupSession({ soundEnabled, showToast }) {
           setMessages(prev => prev.map(m => m.cardId === msg.cardId ? { ...m, ...msg.cardUpdates } : m));
           return;
         }
+        // Non-chat actions must never fall through to messages
+        return;
       }
-      setMessages(prev => [...prev, msg]);
+
+      if (!msg) return;
+      if (msg.type === 'chat' && (!msg.text || !msg.text.trim()) && !msg.imageUrl && !msg.fileId) {
+        return;
+      }
+
+      setMessages(prev => {
+        if (msg.id && prev.some(m => m.id === msg.id)) return prev;
+        return [...prev, msg];
+      });
       playSound('message', soundRef.current);
     });
 
@@ -285,7 +296,11 @@ export function useGroupSession({ soundEnabled, showToast }) {
   }, []);
 
   const sendGroupChat = useCallback((text, replyTo = null, customProps = {}) => {
-    groupRelayEngine.sendChat(text, replyTo, customProps);
+    const trimmed = (text || '').trim();
+    if (!trimmed && !customProps.imageUrl && !customProps.fileId && customProps.type !== 'game_card') {
+      return;
+    }
+    groupRelayEngine.sendChat(trimmed, replyTo, customProps);
   }, []);
 
   const sendGroupVoice = useCallback((audioData, duration) => {

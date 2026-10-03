@@ -449,10 +449,14 @@ export class GroupRelayEngine {
   }
 
   sendChat(text, replyTo = null, extra = {}) {
+    const trimmed = (text || '').trim();
+    if (!trimmed && !extra.imageUrl && !extra.fileId && extra.type !== 'game_card') {
+      return;
+    }
     const msg = {
       id: extra.id || `gmsg-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
       type: extra.type || GROUP_PACKET_TYPES.CHAT,
-      text, author: this.myProfile.nickname, authorId: this.myPeerId,
+      text: trimmed, author: this.myProfile.nickname, authorId: this.myPeerId,
       avatarId: this.myProfile.avatarId, timestamp: Date.now(), replyTo, ...extra
     };
     if (this.isHost) { this.broadcast(msg); this.emit('message', msg); }

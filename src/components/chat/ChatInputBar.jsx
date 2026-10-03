@@ -40,6 +40,7 @@ export default function ChatInputBar({
   const handleKeyDown = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
+      if (!inputText || !inputText.trim()) return;
       onSend(e);
     }
   };

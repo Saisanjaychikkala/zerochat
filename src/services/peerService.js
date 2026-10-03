@@ -605,10 +605,12 @@ class PeerService {
       try {
         packet = JSON.parse(packet);
       } catch (e) {
+        const trimmed = (packet || '').trim();
+        if (!trimmed) return;
         packet = {
           type: 'text',
           id: 'msg_' + Math.random().toString(36).substring(2, 9) + '_' + Date.now(),
-          text: packet,
+          text: trimmed,
           senderNickname: this.remoteNickname || 'Peer',
           timestamp: Date.now(),
         };
@@ -643,9 +645,13 @@ class PeerService {
         break;
 
       case 'text':
+        if (!packet.text || !packet.text.trim()) {
+          if (packet.id) this.sendJson({ type: 'ack', id: packet.id });
+          break;
+        }
         this.emit('message', {
           id: packet.id,
-          text: packet.text,
+          text: packet.text.trim(),
           senderNickname: packet.senderNickname || this.remoteNickname || 'Peer',
           sender: 'remote',
           timestamp: packet.timestamp || Date.now(),

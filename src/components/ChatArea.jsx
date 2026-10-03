@@ -42,6 +42,7 @@ export default function ChatArea({
 
   const messagesEndRef = useRef(null);
   const typingTimeoutRef = useRef(null);
+  const isSendingRef = useRef(false);
 
   const isConnected = status === 'connected';
   const inviteUrl = typeof window !== 'undefined' ? `${window.location.origin}${window.location.pathname}#${roomId}` : '';
@@ -93,7 +94,9 @@ export default function ChatArea({
 
   const handleSend = (e) => {
     if (e) e.preventDefault();
-    if (!inputText.trim()) return;
+    const text = (inputText || '').trim();
+    if (!text || isSendingRef.current) return;
+    isSendingRef.current = true;
 
     let replyPayload = null;
     if (replyingTo) {
@@ -107,11 +110,18 @@ export default function ChatArea({
       };
     }
 
-    onSendMessage(inputText.trim(), replyPayload);
     setInputText('');
     setReplyingTo(null);
     onTyping(false);
     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+
+    try {
+      onSendMessage(text, replyPayload);
+    } finally {
+      setTimeout(() => {
+        isSendingRef.current = false;
+      }, 150);
+    }
   };
 
   const handleCopyLink = async () => {

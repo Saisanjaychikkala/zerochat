@@ -57,6 +57,15 @@ export default function MessageItem({
     );
   }
 
+  // Discard empty or unrenderable phantom messages
+  const hasText = !!(msg.text && typeof msg.text === 'string' && msg.text.trim());
+  const isGameCard = msg.type === 'game_card' || !!msg.cardId;
+  const isMediaCard = msg.type === 'file_card' || !!msg.fileId || !!msg.imageUrl || !!msg.downloadUrl || !!msg.isVoiceNote || msg.type === 'voice' || !!msg.audioUrl;
+
+  if (!hasText && !isGameCard && !isMediaCard) {
+    return null;
+  }
+
   const formatTime = (timestamp) => {
     if (!timestamp) return '';
     return new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -234,9 +243,6 @@ export default function MessageItem({
     // 4. Default Text
     return <span>{text}</span>;
   };
-
-  const isGameCard = msg.type === 'game_card';
-  const isMediaCard = msg.type === 'file_card' || !!msg.fileId || !!msg.imageUrl || msg.isVoiceNote || msg.type === 'voice';
 
   return (
     <div 
