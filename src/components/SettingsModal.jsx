@@ -147,7 +147,8 @@ export function SettingsModal({
           </section>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 

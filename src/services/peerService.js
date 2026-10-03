@@ -1154,6 +1154,7 @@ if (typeof document !== 'undefined') {
 
 // Hardware & Media Security: Instantly release camera, mic, and WebRTC tracks on page unload or tab close
 if (typeof window !== 'undefined') {
+  window.__peerService = peerService;
   const onPageExit = () => {
     try {
       peerService.cleanup();
@@ -1162,3 +1163,4 @@ if (typeof window !== 'undefined') {
   window.addEventListener('beforeunload', onPageExit);
   window.addEventListener('pagehide', onPageExit);
 }
+

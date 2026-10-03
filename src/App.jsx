@@ -86,6 +86,7 @@ export default function App() {
     });
 
     const onHashNav = () => {
+      setIsSettingsOpen(false);
       const parsed = parseRoomHash(window.location.hash);
       if (parsed.isSquad) {
         setViewMode('squad');
