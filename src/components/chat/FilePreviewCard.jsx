@@ -258,10 +258,10 @@ export default function FilePreviewCard({
           <div className="wa-media-backdrop pattern expired" />
           <div className="wa-media-center-action">
             <div className="wa-expired-circle">
-              <AlertTriangle size={24} color="#ef4444" />
+              <AlertTriangle size={24} color="#f59e0b" />
             </div>
-            <span className="wa-download-status-text expired">Media Expired</span>
-            <span className="wa-expired-sub">{errorReason || 'Unavailable in RAM'}</span>
+            <span className="wa-download-status-text expired">File Unavailable</span>
+            <span className="wa-expired-sub">{errorReason || 'Peer closed tab • Files stay in volatile RAM only'}</span>
           </div>
         </div>
       );
@@ -351,8 +351,8 @@ export default function FilePreviewCard({
   if (status === 'expired') {
     return (
       <div className="telegram-doc-card expired">
-        <div className="telegram-doc-badge expired" title="Media Expired">
-          <AlertTriangle size={20} color="#ef4444" />
+        <div className="telegram-doc-badge expired" title="Media Expired in Volatile RAM">
+          <AlertTriangle size={20} color="#f59e0b" />
           <span className="doc-badge-pill expired">EXPIRED</span>
         </div>
         <div className="doc-card-body">
@@ -361,7 +361,7 @@ export default function FilePreviewCard({
             <span className="doc-size-pill expired">{formattedSize}</span>
             <span className="doc-dot">•</span>
             <span className="doc-status-pill error">
-              {errorReason || 'RAM Purged'}
+              {errorReason || 'Peer closed tab • RAM Cleared'}
             </span>
           </div>
         </div>

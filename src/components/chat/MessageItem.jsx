@@ -44,7 +44,9 @@ export default function MessageItem({
   const [copiedCode, setCopiedCode] = useState(false);
   const [copiedText, setCopiedText] = useState(false);
   const [showReactMenu, setShowReactMenu] = useState(false);
+  const [reactFlyoutDropUp, setReactFlyoutDropUp] = useState(true);
   const [showMobileActions, setShowMobileActions] = useState(false);
+  const bubbleWrapperRef = useRef(null);
   const touchTimerRef = useRef(null);
   const touchStartPosRef = useRef({ x: 0, y: 0 });
 
@@ -118,6 +120,10 @@ export default function MessageItem({
     const touch = e.touches[0];
     touchStartPosRef.current = { x: touch.clientX, y: touch.clientY };
     touchTimerRef.current = setTimeout(() => {
+      if (bubbleWrapperRef.current) {
+        const rect = bubbleWrapperRef.current.getBoundingClientRect();
+        setReactFlyoutDropUp(rect.top > 95);
+      }
       setShowMobileActions(true);
       setShowReactMenu(true);
       if (typeof navigator !== 'undefined' && navigator.vibrate) {
@@ -267,7 +273,10 @@ export default function MessageItem({
         </div>
       )}
 
-      <div className={`message-bubble-wrapper ${showMobileActions ? 'mobile-active' : ''}`}>
+      <div 
+        ref={bubbleWrapperRef}
+        className={`message-bubble-wrapper ${showMobileActions ? 'mobile-active' : ''}`}
+      >
         <div 
           className={`message-bubble ${isGameCard ? 'game-card-bubble' : isMediaCard ? 'media-card-bubble' : ''}`}
           onClick={handleBubbleClick}
@@ -322,6 +331,10 @@ export default function MessageItem({
               type="button"
               onClick={(e) => {
                 e.stopPropagation();
+                if (bubbleWrapperRef.current) {
+                  const rect = bubbleWrapperRef.current.getBoundingClientRect();
+                  setReactFlyoutDropUp(rect.top > 95);
+                }
                 setShowReactMenu(prev => !prev);
               }}
               className="message-action-btn"
@@ -332,7 +345,7 @@ export default function MessageItem({
 
             {showReactMenu && (
               <div 
-                className="reaction-picker-flyout"
+                className={`reaction-picker-flyout ${reactFlyoutDropUp ? 'drop-up' : 'drop-down'}`}
                 onClick={(e) => e.stopPropagation()}
               >
                 {QUICK_EMOJIS.map(e => (

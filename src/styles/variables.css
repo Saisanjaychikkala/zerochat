@@ -300,9 +300,11 @@ html[data-surface="oled-black"] {
   --bg-card-hover: #111111 !important;
   --bg-input: #000000 !important;
   --bg-panel: #070707 !important;
-  --border-subtle: #222225 !important;
-  --border-hover: #3a3a3e !important;
+  --border-subtle: #27272a !important;
+  --border-hover: #3f3f46 !important;
   --shadow-card: 0 0 0 1px #222225 !important;
+  --text-dim: #94a3b8 !important;
+  --text-muted: #cbd5e1 !important;
 }
 
 html[data-surface="oled-black"] body,

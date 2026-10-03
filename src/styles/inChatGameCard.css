@@ -109,13 +109,27 @@
   background: rgba(0, 0, 0, 0.28);
   border-radius: var(--radius-sm);
   border: 1px solid rgba(255, 255, 255, 0.05);
+  min-width: 0;
 }
 
 .in-chat-player-slot {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   min-width: 0;
+  overflow: hidden;
+}
+
+.in-chat-vs-label {
+  font-size: 0.68rem;
+  font-weight: 800;
+  font-family: var(--font-mono);
+  color: var(--text-dim);
+  padding: 2px 6px;
+  border-radius: var(--radius-full);
+  background: rgba(255, 255, 255, 0.04);
+  flex-shrink: 0;
+  text-align: center;
 }
 
 .in-chat-player-avatar {
@@ -141,6 +155,7 @@
   flex-direction: column;
   min-width: 0;
   flex: 1;
+  overflow: hidden;
 }
 
 .in-chat-player-name {
@@ -150,7 +165,7 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 120px;
+  max-width: 100%;
 }
 
 .in-chat-player-name.empty {

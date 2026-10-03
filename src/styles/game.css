@@ -152,6 +152,9 @@
   justify-content: center;
   min-height: 0;
   touch-action: none;
+  overscroll-behavior: none;
+  user-select: none;
+  -webkit-user-select: none;
   cursor: ns-resize;
   background: #04060a;
 }

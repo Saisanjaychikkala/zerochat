@@ -166,9 +166,12 @@ export default function AudioPlayerBubble({
         })}
       </div>
 
-      <span className={`audio-time-label ${isExpired ? 'expired' : ''}`}>
+      <span 
+        className={`audio-time-label ${isExpired ? 'expired' : ''}`}
+        title={isExpired ? 'Peer closed tab • Voice notes stay in volatile RAM only' : undefined}
+      >
         {isExpired
-          ? 'Expired'
+          ? 'RAM Cleared'
           : isDownloading
           ? `${progress}%`
           : isPlaying

@@ -208,11 +208,11 @@ export default function ChatInputBar({
             type="text" 
             placeholder={
               roomFullError && !isConnected
-                ? 'Room is full (2/2 peers connected).'
+                ? 'Room is full (2/2 peers).'
                 : status === 'knocking'
-                ? 'Awaiting host admission to chat...'
+                ? 'Awaiting host admission...'
                 : isConnected 
-                ? 'Type message, paste image, or audio...' 
+                ? 'Type message...' 
                 : status === 'connecting'
                 ? 'Connecting to peer...'
                 : status === 'reconnecting'
@@ -227,25 +227,28 @@ export default function ChatInputBar({
             className="chat-input"
           />
 
-          {/* Voice Record Mic Button */}
-          <button
-            type="button"
-            onClick={startRecording}
-            disabled={!isConnected}
-            className="btn btn-icon mic-btn"
-            title="Record Voice Note"
-          >
-            <Mic size={18} />
-          </button>
-
-          <button 
-            type="submit" 
-            disabled={!inputText.trim() || !isConnected || status === 'knocking' || status === 'declined' || status === 'disconnected' || (roomFullError && !isConnected)} 
-            className="btn btn-primary send-btn"
-            title={!isConnected && (status === 'connecting' || status === 'reconnecting') ? 'Queue message to send once connected' : 'Send message'}
-          >
-            <Send size={16} />
-          </button>
+          {/* Dynamic Action: Mic for voice notes when empty; Send button when text typed */}
+          {inputText.trim() ? (
+            <button 
+              type="submit" 
+              disabled={!isConnected || status === 'knocking' || status === 'declined' || status === 'disconnected' || (roomFullError && !isConnected)} 
+              className="btn btn-primary send-btn"
+              title="Send message"
+            >
+              <Send size={16} />
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={startRecording}
+              disabled={!isConnected}
+              className="btn btn-icon mic-btn"
+              title="Record Voice Note"
+              aria-label="Record Voice Note"
+            >
+              <Mic size={18} />
+            </button>
+          )}
         </form>
       )}
     </>

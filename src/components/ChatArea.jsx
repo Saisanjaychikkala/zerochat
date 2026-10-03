@@ -147,9 +147,7 @@ export default function ChatArea({
 
   const handleDragOver = (e) => {
     e.preventDefault();
-    if (status === 'connected') {
-      setIsDragOverChat(true);
-    }
+    setIsDragOverChat(true);
   };
 
   const handleDragLeave = () => {
@@ -163,6 +161,8 @@ export default function ChatArea({
       Array.from(e.dataTransfer.files).forEach((file) => {
         onSendFile(file);
       });
+    } else if (status !== 'connected' && showToast) {
+      showToast('Connect with a peer first to send files via direct P2P AirDrop.', 'info');
     }
   };
 
@@ -177,8 +177,17 @@ export default function ChatArea({
       {/* Drag overlay feedback */}
       {isDragOverChat && (
         <div className="chat-drop-overlay">
-          <HardDriveUpload size={48} color="var(--accent-cyan)" className="animate-bounce" />
-          <p>Drop file here to send to {remotePeerNickname || 'Peer'}</p>
+          <HardDriveUpload size={48} color={isConnected ? "var(--accent-cyan)" : "var(--accent-amber)"} className="animate-bounce" />
+          <p>
+            {isConnected 
+              ? `Drop file here to send to ${remotePeerNickname || 'Peer'}`
+              : 'Waiting for peer to connect before sending files'}
+          </p>
+          {!isConnected && (
+            <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)', marginTop: '4px' }}>
+              Zero servers, zero database. Files stream peer-to-peer once connected.
+            </span>
+          )}
         </div>
       )}
 

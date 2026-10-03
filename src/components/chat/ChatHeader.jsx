@@ -18,7 +18,8 @@ export default function ChatHeader({
       return (
         <span className="status-badge-inline online" title={`Peer is online • Ping: ${latency !== null ? `${latency}ms` : '<10ms'}`}>
           <span className="status-dot-pulse" />
-          <span>Online {latency !== null ? `(${latency}ms)` : '(<10ms)'}</span>
+          <span className="status-badge-text-full">Online {latency !== null ? `(${latency}ms)` : '(<10ms)'}</span>
+          <span className="status-badge-text-compact">Online</span>
         </span>
       );
     }

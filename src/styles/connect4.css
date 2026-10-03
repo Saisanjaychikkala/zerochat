@@ -145,18 +145,26 @@
 /* Mobile Responsive */
 @media (max-width: 480px) {
   .c4-slot, .c4-guide-btn {
-    width: 36px;
-    height: 36px;
+    width: clamp(26px, 8.4vw, 36px);
+    height: clamp(26px, 8.4vw, 36px);
   }
   .c4-slot .c4-disc {
-    width: 30px;
-    height: 30px;
+    width: clamp(22px, 7.2vw, 30px);
+    height: clamp(22px, 7.2vw, 30px);
   }
   .c4-board-grid {
     padding: 6px;
-    gap: 4px;
+    gap: 3px;
   }
   .c4-row {
-    gap: 4px;
+    gap: 3px;
+  }
+  .cyber-c4-container {
+    padding: 8px 4px;
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+  .c4-guide-row {
+    padding: 0 6px;
   }
 }

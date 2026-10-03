@@ -27,7 +27,7 @@ export default function IncomingCallDialog({
   const handleAnswer = onAccept || onAnswer;
 
   return (
-    <div className="modal-overlay" style={{ zIndex: 10000 }}>
+    <div className="modal-overlay" style={{ zIndex: 11000 }}>
       <div className="modal-content call-incoming-dialog" style={{ maxWidth: '380px', textAlign: 'center' }}>
         {/* Pulsing Avatar Ring */}
         <div className="incoming-avatar-ring">

@@ -1,8 +1,9 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { X, Download } from 'lucide-react';
 
 export default function ImageLightboxModal({ isOpen = true, onClose, imageUrl, imageName, fileName }) {
   const activeName = imageName || fileName || 'Image Preview';
+  const touchStartYRef = useRef(null);
 
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -16,11 +17,26 @@ export default function ImageLightboxModal({ isOpen = true, onClose, imageUrl, i
 
   if (!isOpen || !imageUrl) return null;
 
+  const handleTouchStart = (e) => {
+    touchStartYRef.current = e.touches[0].clientY;
+  };
+
+  const handleTouchEnd = (e) => {
+    if (touchStartYRef.current === null) return;
+    const diff = e.changedTouches[0].clientY - touchStartYRef.current;
+    if (Math.abs(diff) > 75) {
+      onClose();
+    }
+    touchStartYRef.current = null;
+  };
+
   return (
     <div 
       className="modal-overlay" 
       onClick={onClose}
-      style={{ zIndex: 10000, background: 'rgba(3, 5, 9, 0.94)', backdropFilter: 'blur(12px)' }}
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+      style={{ zIndex: 10000, background: 'rgba(3, 5, 9, 0.94)', backdropFilter: 'blur(12px)', touchAction: 'pan-y' }}
     >
       <div 
         style={{ 
@@ -49,18 +65,24 @@ export default function ImageLightboxModal({ isOpen = true, onClose, imageUrl, i
             {activeName}
           </span>
 
-          <div style={{ display: 'flex', gap: '8px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <a 
               href={imageUrl} 
               download={activeName}
               className="btn btn-primary text-xs"
-              style={{ padding: '6px 12px' }}
+              style={{ padding: '6px 12px', height: '36px', display: 'inline-flex', alignItems: 'center', gap: '5px' }}
             >
               <Download size={14} />
               <span>Save</span>
             </a>
 
-            <button onClick={onClose} className="btn btn-icon">
+            <button 
+              onClick={onClose} 
+              className="btn btn-icon"
+              style={{ width: '36px', height: '36px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
+              title="Close Preview (or swipe down)"
+              aria-label="Close Preview"
+            >
               <X size={18} />
             </button>
           </div>

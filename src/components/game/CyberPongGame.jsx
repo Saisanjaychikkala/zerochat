@@ -268,7 +268,7 @@ export default function CyberPongGame({
         className="game-canvas-wrapper"
         onMouseMove={isSpectator ? undefined : handlePointer}
         onTouchMove={isSpectator ? undefined : (e) => { e.preventDefault(); handlePointer(e); }}
-        style={{ touchAction: 'none' }}
+        style={{ touchAction: 'none', overscrollBehavior: 'none', userSelect: 'none', WebkitUserSelect: 'none' }}
       >
         <canvas ref={canvasRef} width={600} height={400} className="game-canvas" />
 

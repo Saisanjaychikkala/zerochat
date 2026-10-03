@@ -288,6 +288,10 @@
   flex-shrink: 0;
 }
 
+.status-badge-text-compact {
+  display: none;
+}
+
 @media (max-width: 768px) {
   .peer-info {
     min-width: 0;
@@ -295,9 +299,24 @@
     overflow: hidden;
   }
 
+  .peer-text-headline {
+    gap: 5px;
+    flex-wrap: nowrap;
+    overflow: hidden;
+  }
+
   .peer-nickname-text {
-    max-width: 100px;
+    max-width: 110px;
     font-size: 0.85rem;
+    flex-shrink: 1;
+  }
+
+  .status-badge-text-full {
+    display: none !important;
+  }
+
+  .status-badge-text-compact {
+    display: inline !important;
   }
 
   .peer-subtitle-text {
@@ -310,11 +329,23 @@
     min-width: 34px !important;
     padding: 0 !important;
     border-radius: 50%;
+    position: relative;
+    touch-action: manipulation;
+  }
+
+  .chat-header-actions .btn-icon::after {
+    content: '';
+    position: absolute;
+    top: -5px;
+    bottom: -5px;
+    left: -5px;
+    right: -5px;
   }
 
   .status-badge-inline {
     font-size: 0.65rem;
-    padding: 1px 5px;
+    padding: 1px 6px;
+    flex-shrink: 0;
   }
 
   .e2ee-tag {

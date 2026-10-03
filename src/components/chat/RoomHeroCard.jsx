@@ -51,12 +51,12 @@ export default function RoomHeroCard({
           </p>
         </div>
 
-        <div style={{ display: 'flex', gap: '8px', width: '100%', justifyContent: 'center' }}>
-          <button onClick={onCreateNewRoom} className="btn btn-primary" style={{ flex: 1, padding: '10px 14px', fontSize: '0.84rem' }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', width: '100%', justifyContent: 'center' }}>
+          <button onClick={onCreateNewRoom} className="btn btn-primary" style={{ flex: '1 1 140px', padding: '10px 14px', fontSize: '0.84rem' }}>
             <PlusCircle size={15} />
             <span>Create My Own Room</span>
           </button>
-          <button onClick={onOpenRoomModal} className="btn btn-secondary" style={{ padding: '10px 14px', fontSize: '0.84rem' }}>
+          <button onClick={onOpenRoomModal} className="btn btn-secondary" style={{ flex: '1 1 120px', padding: '10px 14px', fontSize: '0.84rem' }}>
             <span>Join Another Room</span>
             <ArrowRight size={14} />
           </button>
@@ -151,11 +151,11 @@ export default function RoomHeroCard({
       </div>
 
       {/* Quick Action Buttons */}
-      <div style={{ display: 'flex', gap: '8px', width: '100%', justifyContent: 'center' }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', width: '100%', justifyContent: 'center' }}>
         <button 
           onClick={onShare}
           className="btn btn-primary"
-          style={{ flex: 1, padding: '10px 14px', fontSize: '0.84rem' }}
+          style={{ flex: '1 1 140px', padding: '10px 14px', fontSize: '0.84rem' }}
         >
           <Share2 size={15} />
           <span>{copied ? 'Link Copied!' : 'Share Room Link'}</span>
@@ -164,7 +164,7 @@ export default function RoomHeroCard({
         <button 
           onClick={onOpenRoomModal}
           className="btn btn-secondary"
-          style={{ padding: '10px 14px', fontSize: '0.84rem' }}
+          style={{ flex: '1 1 120px', padding: '10px 14px', fontSize: '0.84rem' }}
         >
           <span>Join a Friend</span>
           <ArrowRight size={14} />
