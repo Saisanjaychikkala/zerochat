@@ -68,9 +68,8 @@ export default function GameArenaHeader({
           <button 
             type="button"
             onClick={onOpenSettings} 
-            className="btn btn-icon btn-xs" 
+            className="btn btn-icon btn-xs game-settings-btn" 
             title="Settings (Theme, Surface, Sounds)"
-            style={{ width: '28px', height: '28px' }}
           >
             <Settings size={14} />
           </button>

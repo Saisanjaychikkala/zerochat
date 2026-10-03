@@ -56,11 +56,13 @@
 /* Matrix Emerald Theme */
 [data-theme="matrix-emerald"] {
   --bg-primary: #030805;
+  --bg-main: #030805;
   --bg-secondary: #06140b;
   --bg-tertiary: #0b1f13;
   --bg-card: rgba(6, 22, 13, 0.88);
   --bg-card-hover: rgba(10, 34, 20, 0.94);
   --bg-input: rgba(4, 16, 9, 0.92);
+  --bg-panel: rgba(6, 22, 13, 0.75);
 
   --accent-cyan: #00ff88;
   --accent-cyan-glow: rgba(0, 255, 136, 0.35);
@@ -76,11 +78,13 @@
 /* Synthwave Purple / Neon Magenta Theme */
 [data-theme="synthwave-purple"] {
   --bg-primary: #090511;
+  --bg-main: #090511;
   --bg-secondary: #130a24;
   --bg-tertiary: #1c0e35;
   --bg-card: rgba(22, 12, 40, 0.88);
   --bg-card-hover: rgba(32, 18, 58, 0.94);
   --bg-input: rgba(16, 8, 30, 0.92);
+  --bg-panel: rgba(22, 12, 40, 0.75);
 
   --accent-cyan: #f43f5e;
   --accent-cyan-glow: rgba(244, 63, 94, 0.35);
@@ -96,11 +100,13 @@
 /* Solar Amber / Cyber Gold Theme */
 [data-theme="solar-amber"] {
   --bg-primary: #0a0702;
+  --bg-main: #0a0702;
   --bg-secondary: #150f05;
   --bg-tertiary: #201708;
   --bg-card: rgba(25, 18, 7, 0.88);
   --bg-card-hover: rgba(38, 27, 10, 0.94);
   --bg-input: rgba(18, 12, 4, 0.92);
+  --bg-panel: rgba(25, 18, 7, 0.75);
 
   --accent-cyan: #f59e0b;
   --accent-cyan-glow: rgba(245, 158, 11, 0.35);
@@ -116,11 +122,13 @@
 /* Crimson Red / Blood Ruby Theme */
 [data-theme="crimson-red"] {
   --bg-primary: #0a0304;
+  --bg-main: #0a0304;
   --bg-secondary: #160608;
   --bg-tertiary: #22090c;
   --bg-card: rgba(28, 8, 11, 0.88);
   --bg-card-hover: rgba(42, 12, 16, 0.94);
   --bg-input: rgba(20, 5, 7, 0.92);
+  --bg-panel: rgba(28, 8, 11, 0.75);
 
   --accent-cyan: #ef4444;
   --accent-cyan-glow: rgba(239, 68, 68, 0.35);
@@ -136,11 +144,13 @@
 /* Midnight Blue / Deep Cobalt Theme */
 [data-theme="midnight-blue"] {
   --bg-primary: #030712;
+  --bg-main: #030712;
   --bg-secondary: #070e24;
   --bg-tertiary: #0c183a;
   --bg-card: rgba(9, 20, 48, 0.88);
   --bg-card-hover: rgba(14, 30, 70, 0.94);
   --bg-input: rgba(6, 14, 34, 0.92);
+  --bg-panel: rgba(9, 20, 48, 0.75);
 
   --accent-cyan: #38bdf8;
   --accent-cyan-glow: rgba(56, 189, 248, 0.35);
@@ -156,11 +166,13 @@
 /* Monolith Slate / Industrial Platinum Theme */
 [data-theme="monolith-slate"] {
   --bg-primary: #07090e;
+  --bg-main: #07090e;
   --bg-secondary: #0e1219;
   --bg-tertiary: #161c26;
   --bg-card: rgba(18, 24, 34, 0.88);
   --bg-card-hover: rgba(26, 34, 48, 0.94);
   --bg-input: rgba(12, 16, 24, 0.92);
+  --bg-panel: rgba(18, 24, 34, 0.75);
 
   --accent-cyan: #e2e8f0;
   --accent-cyan-glow: rgba(226, 232, 240, 0.35);
@@ -176,11 +188,13 @@
 /* Tokyo Neon / Cyberpunk Sakura Theme */
 [data-theme="tokyo-neon"] {
   --bg-primary: #0a0414;
+  --bg-main: #0a0414;
   --bg-secondary: #140827;
   --bg-tertiary: #1f0d3a;
   --bg-card: rgba(26, 11, 48, 0.88);
   --bg-card-hover: rgba(38, 16, 70, 0.94);
   --bg-input: rgba(18, 7, 34, 0.92);
+  --bg-panel: rgba(26, 11, 48, 0.75);
 
   --accent-cyan: #ff007f;
   --accent-cyan-glow: rgba(255, 0, 127, 0.4);
@@ -194,23 +208,14 @@
 }
 
 /* ─── Surface Modes (Ultra Glass, Solid Dark, OLED Pure Black) ────── */
-html,
-html[data-surface="ultra-glass"] {
+html[data-surface="ultra-glass"],
+:root {
   --glass-blur: blur(28px) saturate(180%);
-  --bg-primary: #06080d;
-  --bg-main: #06080d;
-  --bg-secondary: #0c101a;
-  --bg-tertiary: #121826;
-  --bg-card: rgba(14, 19, 32, 0.75);
-  --bg-card-hover: rgba(20, 27, 46, 0.88);
-  --bg-input: rgba(9, 13, 22, 0.85);
-  --bg-panel: rgba(14, 20, 36, 0.65);
   --border-subtle: rgba(255, 255, 255, 0.12);
   --shadow-card: 0 12px 36px -8px rgba(0, 0, 0, 0.7), 0 0 0 1px var(--border-subtle);
 }
 
 html[data-surface="ultra-glass"] .glass-panel,
-html[data-surface="ultra-glass"] .modal-panel,
 html[data-surface="ultra-glass"] .home-header,
 html[data-surface="ultra-glass"] .feature-hub-card,
 html[data-surface="ultra-glass"] .squad-header,
@@ -221,7 +226,13 @@ html[data-surface="ultra-glass"] .game-drawer,
 html[data-surface="ultra-glass"] .active-match-stage {
   backdrop-filter: blur(28px) saturate(180%) !important;
   -webkit-backdrop-filter: blur(28px) saturate(180%) !important;
-  background: rgba(14, 20, 36, 0.58) !important;
+  background: var(--bg-panel) !important;
+}
+
+html[data-surface="ultra-glass"] .modal-panel {
+  backdrop-filter: blur(28px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(28px) saturate(180%) !important;
+  background: var(--bg-card) !important;
 }
 
 html[data-surface="ultra-glass"] body::before {

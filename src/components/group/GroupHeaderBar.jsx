@@ -31,9 +31,8 @@ export function GroupHeaderBar({
         <button
           type="button"
           onClick={onLeaveSquad}
-          className="btn btn-icon"
+          className="btn btn-icon squad-back-btn"
           title="Back to Home Hub"
-          style={{ width: '32px', height: '32px' }}
         >
           <ArrowLeft size={16} />
         </button>
@@ -91,9 +90,8 @@ export function GroupHeaderBar({
         <button
           type="button"
           onClick={onOpenQrModal}
-          className="btn btn-icon"
+          className="btn btn-icon squad-qr-btn"
           title="Share Squad QR Code"
-          style={{ width: '32px', height: '32px' }}
         >
           <QrCode size={16} />
         </button>
@@ -117,7 +115,6 @@ export function GroupHeaderBar({
             onClick={onOpenSettings}
             className="btn btn-icon squad-settings-btn"
             title="Settings"
-            style={{ width: '32px', height: '32px' }}
           >
             <Settings size={16} />
           </button>

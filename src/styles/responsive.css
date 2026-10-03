@@ -2,11 +2,30 @@
    ZeroChat - Responsive Layouts: Tablets, Laptops & Mobile Optimization
    ========================================================================== */
 
-/* Tablet & Medium Screen Breakpoint (769px to 1024px) */
-@media (max-width: 1024px) and (min-width: 769px) {
+/* Tablet & Laptop Screen Breakpoint (769px to 1150px) */
+@media (max-width: 1150px) and (min-width: 769px) {
   .main-workspace {
     grid-template-columns: minmax(0, 1fr) 300px;
     gap: 10px;
+  }
+
+  .header-bar {
+    padding: 8px 14px;
+    gap: 8px;
+  }
+
+  .header-actions {
+    gap: 6px;
+  }
+
+  .end-chat-text,
+  .burn-text {
+    display: none;
+  }
+
+  .header-actions .btn-secondary,
+  .header-actions .btn-danger {
+    padding: 7px 10px;
   }
 }
 
@@ -20,8 +39,8 @@
 
   /* Header on Mobile: compact, balanced & zero overflow */
   .header-bar {
-    padding: 6px 8px;
-    gap: 4px;
+    padding: 6px 10px;
+    gap: 6px;
     overflow: visible;
     display: flex;
     align-items: center;
@@ -34,8 +53,8 @@
   }
 
   .logo-badge {
-    width: 28px;
-    height: 28px;
+    width: 30px;
+    height: 30px;
   }
 
   .logo-text h1 {
@@ -50,8 +69,14 @@
   }
 
   .user-nickname-btn {
-    padding: 2px;
-    border-radius: 50%;
+    padding: 2px !important;
+    border-radius: 50% !important;
+    width: 34px !important;
+    height: 34px !important;
+    min-width: 34px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
   }
 
   .room-link-group .btn-secondary {
@@ -70,27 +95,28 @@
   }
 
   .header-actions {
-    gap: 4px;
+    gap: 6px;
     display: flex;
     align-items: center;
     flex-shrink: 0;
   }
 
   .header-actions .btn-icon {
-    width: 32px !important;
-    height: 32px !important;
-    min-width: 32px !important;
+    width: 34px !important;
+    height: 34px !important;
+    min-width: 34px !important;
     padding: 0 !important;
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    border-radius: var(--radius-sm);
   }
 
   .header-actions .btn-danger {
     padding: 0 !important;
-    width: 32px !important;
-    height: 32px !important;
-    min-width: 32px !important;
+    width: 34px !important;
+    height: 34px !important;
+    min-width: 34px !important;
     border-radius: 50% !important;
     display: inline-flex;
     align-items: center;

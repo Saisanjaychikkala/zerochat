@@ -69,6 +69,23 @@ export function usePreferences(showToast) {
     }
   };
 
+  const handleSetTheme = (nextTheme) => {
+    setTheme(nextTheme);
+    if (showToast) {
+      const names = {
+        'cyber-cyan': 'Cyber Cyan (Default)',
+        'matrix-emerald': 'Matrix Emerald',
+        'synthwave-purple': 'Synthwave Purple',
+        'solar-amber': 'Solar Amber',
+        'crimson-red': 'Crimson Red',
+        'midnight-blue': 'Midnight Blue',
+        'monolith-slate': 'Monolith Slate',
+        'tokyo-neon': 'Tokyo Neon',
+      };
+      showToast(`Switched theme: ${names[nextTheme] || nextTheme}`, 'info');
+    }
+  };
+
   const handleSetSurface = (nextSurface) => {
     setSurface(nextSurface);
     if (showToast) {
@@ -97,7 +114,7 @@ export function usePreferences(showToast) {
     soundEnabled,
     setSoundEnabled,
     theme,
-    setTheme,
+    setTheme: handleSetTheme,
     toggleTheme,
     surface,
     setSurface: handleSetSurface,

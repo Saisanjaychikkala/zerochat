@@ -69,77 +69,83 @@ export default function HomeScreen({
     <div className="home-hub-container">
       {/* Top Hub Nav */}
       <header className="home-header glass-panel">
-        <div className="home-logo-group">
-          <div className="logo-badge">
-            <Sparkles size={20} />
+        <div className="home-header-main">
+          <div className="home-logo-group">
+            <div className="logo-badge">
+              <Sparkles size={20} />
+            </div>
+            <div>
+              <h1 className="home-brand-title">ZeroChat Hub</h1>
+              <p className="home-brand-sub">Serverless P2P Ephemeral Communications</p>
+            </div>
           </div>
-          <div>
-            <h1 className="home-brand-title">ZeroChat Hub</h1>
-            <p className="home-brand-sub">Serverless P2P Ephemeral Communications</p>
-          </div>
-        </div>
 
-        <div className="home-header-actions">
-          {/* User Profile Button / Pill */}
-          {onOpenNicknameModal && (
-            <button 
-              type="button"
-              onClick={onOpenNicknameModal}
-              className="user-profile-pill"
-              title="Profile & Nickname Settings"
-            >
-              <span 
-                className="user-avatar-circle"
-                style={{ background: myAvatarBg || 'linear-gradient(135deg, #00f2fe, #4facfe)' }}
+          <div className="home-header-actions">
+            {/* User Profile Button / Pill */}
+            {onOpenNicknameModal && (
+              <button 
+                type="button"
+                onClick={onOpenNicknameModal}
+                className="user-profile-pill"
+                title="Profile & Nickname Settings"
               >
-                {myNickname ? myNickname.charAt(0).toUpperCase() : 'U'}
-              </span>
-              <span className="user-profile-name">{myNickname || 'Set Name'}</span>
-            </button>
-          )}
+                <span 
+                  className="user-avatar-circle"
+                  style={{ background: myAvatarBg || 'linear-gradient(135deg, #00f2fe, #4facfe)' }}
+                >
+                  {myNickname ? myNickname.charAt(0).toUpperCase() : 'U'}
+                </span>
+                <span className="user-profile-name">{myNickname || 'Set Name'}</span>
+              </button>
+            )}
 
-          {/* Settings Modal Button */}
-          {onOpenSettings && (
+            {/* Settings Modal Button */}
+            {onOpenSettings && (
+              <button 
+                type="button"
+                onClick={onOpenSettings} 
+                className="btn btn-icon settings-btn" 
+                title="Settings (Themes, Surface, Sounds)"
+              >
+                <Settings size={16} />
+              </button>
+            )}
+
+            {/* Guide / Info */}
             <button 
               type="button"
-              onClick={onOpenSettings} 
-              className="btn btn-icon settings-btn" 
-              title="Settings (Themes, Surface, Sounds)"
+              onClick={onOpenInfoModal} 
+              className="btn btn-icon" 
+              title="Zero-Knowledge Privacy Guide"
             >
-              <Settings size={16} />
+              <Info size={16} />
             </button>
-          )}
 
-          {/* Guide / Info */}
-          <button 
-            type="button"
-            onClick={onOpenInfoModal} 
-            className="btn btn-icon" 
-            title="Zero-Knowledge Privacy Guide"
-          >
-            <Info size={16} />
-          </button>
+            {/* QR Code (when room exists) */}
+            {myRoomId && onOpenRoomModal && (
+              <button 
+                type="button"
+                onClick={onOpenRoomModal} 
+                className="btn btn-icon" 
+                title="Scan QR Code to Connect"
+              >
+                <QrCode size={16} />
+              </button>
+            )}
 
-          {/* QR Code */}
-          <button 
-            type="button"
-            onClick={onOpenRoomModal} 
-            className="btn btn-icon" 
-            title="Scan QR Code to Connect"
-          >
-            <QrCode size={16} />
-          </button>
-
-          {/* Clear Chat */}
-          <button 
-            type="button"
-            onClick={onBurnSession} 
-            className="btn btn-danger text-xs font-semibold"
-            title="Wipe & Leave: clear conversation and leave room"
-          >
-            <Flame size={14} />
-            <span className="burn-text">Clear</span>
-          </button>
+            {/* Clear Chat (when room active/connecting) */}
+            {(isConnected || isConnecting) && onBurnSession && (
+              <button 
+                type="button"
+                onClick={onBurnSession} 
+                className="btn btn-danger text-xs font-semibold"
+                title="Wipe & Leave: clear conversation and leave room"
+              >
+                <Flame size={14} />
+                <span className="burn-text">Clear</span>
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Active Room Indicator (Desktop inline / Mobile full-width row) */}
