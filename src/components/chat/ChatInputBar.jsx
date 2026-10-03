@@ -77,10 +77,11 @@ export default function ChatInputBar({
     clearInterval(recordIntervalRef.current);
     setIsRecording(false);
     try {
-      const { file, durationSec } = await voiceRecorder.stop();
+      const { file, durationSec, waveform } = await voiceRecorder.stop();
       if (onSendFile) {
         file.isVoiceNote = true;
         file.durationSec = durationSec;
+        file.waveform = waveform;
         onSendFile(file);
       }
     } catch (err) {

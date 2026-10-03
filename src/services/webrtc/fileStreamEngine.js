@@ -1,23 +1,96 @@
-/**
- * ZeroChat - Memory-to-Memory P2P File Streaming Engine
- * Streams files in 16KB ArrayBuffer chunks across WebRTC DataChannel with backpressure flow control.
- */
+import { CHUNK_SIZE } from './constants.js';
 
-import { CHUNK_SIZE } from './constants';
+const MAGIC = [0x5A, 0x43, 0x46, 0x43]; // "ZCFC"
+
+export function packBinaryChunk(fileId, chunkIndex, totalChunks, rawBuffer) {
+  const enc = new TextEncoder();
+  const idBytes = enc.encode(fileId);
+  const idLen = idBytes.length;
+  const headerLen = 4 + 1 + idLen + 4 + 4;
+  const combined = new Uint8Array(headerLen + rawBuffer.byteLength);
+  combined.set(MAGIC, 0);
+  combined[4] = idLen;
+  combined.set(idBytes, 5);
+  const view = new DataView(combined.buffer, combined.byteOffset, combined.byteLength);
+  const indexOffset = 5 + idLen;
+  view.setUint32(indexOffset, chunkIndex, false);
+  view.setUint32(indexOffset + 4, totalChunks, false);
+  combined.set(new Uint8Array(rawBuffer), headerLen);
+  return combined.buffer;
+}
+
+export function unpackBinaryChunk(buffer) {
+  if (!buffer || buffer.byteLength < 14) return null;
+  const u8 = new Uint8Array(buffer);
+  if (u8[0] !== 0x5A || u8[1] !== 0x43 || u8[2] !== 0x46 || u8[3] !== 0x43) {
+    return null;
+  }
+  const idLen = u8[4];
+  if (buffer.byteLength < 13 + idLen) return null;
+  const dec = new TextDecoder();
+  const fileId = dec.decode(u8.subarray(5, 5 + idLen));
+  const view = new DataView(buffer, 5 + idLen, 8);
+  const chunkIndex = view.getUint32(0, false);
+  const totalChunks = view.getUint32(4, false);
+  const payload = new Uint8Array(buffer.slice(13 + idLen));
+  return { fileId, chunkIndex, totalChunks, payload };
+}
 
 export class FileStreamEngine {
   constructor() {
     this.incomingFiles = new Map(); // fileId -> { meta, chunks: [], receivedCount, receivedBytes, startTime }
     this.activeSenders = new Map(); // fileId -> { cancel: boolean }
+    this.inMemoryFiles = new Map(); // fileId -> { file, previewData, createdAt, isVoiceNote, durationSec }
     this.currentReceivingChunk = null; // { fileId, chunkIndex }
   }
 
-  async sendFile(conn, file, myNickname, sendJson, emit, onProgress = null) {
+  stageFileOffer(file, previewData = null) {
+    const fileId = 'file_' + Math.random().toString(36).substring(2, 9) + '_' + Date.now();
+    const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
+    const waveform = file.waveform || (previewData && previewData.waveform) || null;
+    this.inMemoryFiles.set(fileId, {
+      file,
+      previewData,
+      createdAt: Date.now(),
+      isVoiceNote: !!file.isVoiceNote,
+      durationSec: file.durationSec || 0,
+      waveform,
+    });
+
+    return {
+      type: 'file_offer',
+      fileId,
+      fileName: file.name,
+      fileSize: file.size,
+      fileType: file.type || 'application/octet-stream',
+      totalChunks,
+      previewData,
+      isVoiceNote: !!file.isVoiceNote,
+      durationSec: file.durationSec || 0,
+      waveform,
+      timestamp: Date.now()
+    };
+  }
+
+  async serveFileRequest(conn, fileId, myNickname, sendJson, emit, onProgress = null) {
+    const record = this.inMemoryFiles.get(fileId);
+    if (!record || !record.file) {
+      sendJson({
+        type: 'file_error',
+        fileId,
+        reason: 'Media expired from RAM. Sender session reset or file purged.'
+      });
+      return;
+    }
+    return this.sendFile(conn, record.file, myNickname, sendJson, emit, onProgress, fileId);
+  }
+
+  async sendFile(conn, file, myNickname, sendJson, emit, onProgress = null, existingFileId = null) {
     if (!conn || !conn.open) {
       throw new Error('Peer not connected');
     }
 
-    const fileId = 'file_' + Math.random().toString(36).substring(2, 9) + '_' + Date.now();
+    const fileId = existingFileId || ('file_' + Math.random().toString(36).substring(2, 9) + '_' + Date.now());
     const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
 
     this.activeSenders.set(fileId, { cancel: false });
@@ -79,8 +152,9 @@ export class FileStreamEngine {
         chunkIndex,
       });
 
-      // Send raw binary buffer across native WebRTC DataChannel
-      conn.send(arrayBuffer);
+      // Pack chunk with zero-copy binary header and send
+      const packedBuffer = packBinaryChunk(fileId, chunkIndex, totalChunks, arrayBuffer);
+      conn.send(packedBuffer);
 
       offset += CHUNK_SIZE;
       chunkIndex += 1;
@@ -162,15 +236,27 @@ export class FileStreamEngine {
   }
 
   handleBinaryFileChunk(arrayBuffer, emit) {
-    if (!this.currentReceivingChunk) return;
+    const unpacked = unpackBinaryChunk(arrayBuffer);
+    let fileId, chunkIndex, chunkData;
 
-    const { fileId, chunkIndex } = this.currentReceivingChunk;
+    if (unpacked) {
+      fileId = unpacked.fileId;
+      chunkIndex = unpacked.chunkIndex;
+      chunkData = unpacked.payload;
+    } else if (this.currentReceivingChunk) {
+      fileId = this.currentReceivingChunk.fileId;
+      chunkIndex = this.currentReceivingChunk.chunkIndex;
+      chunkData = arrayBuffer;
+    } else {
+      return;
+    }
+
     const record = this.incomingFiles.get(fileId);
     if (!record) return;
 
-    record.chunks[chunkIndex] = arrayBuffer;
+    record.chunks[chunkIndex] = chunkData;
     record.receivedCount += 1;
-    record.receivedBytes += arrayBuffer.byteLength;
+    record.receivedBytes += chunkData.byteLength;
 
     const progress = Math.min(
       100,
@@ -208,6 +294,13 @@ export class FileStreamEngine {
     }
   }
 
+  handleFileError(packet, emit) {
+    emit('file_error', {
+      fileId: packet.fileId,
+      reason: packet.reason || 'Media expired from RAM. Sender session reset.'
+    });
+  }
+
   handleFileCancel(fileId, emit) {
     if (this.activeSenders.has(fileId)) {
       this.activeSenders.get(fileId).cancel = true;
@@ -220,6 +313,7 @@ export class FileStreamEngine {
   clear() {
     this.incomingFiles.clear();
     this.activeSenders.clear();
+    this.inMemoryFiles.clear();
     this.currentReceivingChunk = null;
   }
 }

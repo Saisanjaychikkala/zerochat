@@ -12,6 +12,12 @@
   border: 1px solid rgba(0, 242, 254, 0.25);
   border-radius: var(--radius-full);
   max-width: 270px;
+  transition: all 0.2s ease;
+}
+
+.audio-bubble-container.expired {
+  border-color: rgba(239, 68, 68, 0.4);
+  background: rgba(239, 68, 68, 0.08);
 }
 
 .audio-play-btn {
@@ -30,9 +36,43 @@
   box-shadow: 0 0 10px rgba(0, 242, 254, 0.35);
 }
 
-.audio-play-btn:hover {
+.audio-play-btn:hover:not(:disabled) {
   transform: scale(1.08);
   box-shadow: 0 0 16px rgba(0, 242, 254, 0.6);
+}
+
+.audio-play-btn.downloading {
+  background: rgba(0, 242, 254, 0.15);
+  border: 1px solid var(--accent-cyan);
+  color: var(--accent-cyan);
+  box-shadow: 0 0 10px rgba(0, 242, 254, 0.25);
+}
+
+.audio-play-btn.expired {
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  color: #ef4444;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.wave-bar.expired {
+  background: rgba(239, 68, 68, 0.35);
+}
+
+.audio-time-label.expired {
+  color: #ef4444;
+  font-size: 0.68rem;
+  font-weight: 600;
+}
+
+.spin-loader {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 
 .audio-waveform {

@@ -7,6 +7,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { groupRelayEngine } from '../services/webrtc/groupRelayEngine';
 import { peerService } from '../services/peerService';
 import { playSound } from '../utils/soundEffects';
+import { generateThumbnailPreview } from './useChatTransfers';
 
 export function useGroupSession({ soundEnabled, showToast }) {
   const [squadRoomId, setSquadRoomId] = useState('');
@@ -165,6 +166,82 @@ export function useGroupSession({ soundEnabled, showToast }) {
       }
     });
 
+    const handleFileOffer = (offer) => {
+      setMessages((prev) => {
+        if (prev.some((m) => m.fileId === offer.fileId)) return prev;
+        const isMe = offer.authorId === groupRelayEngine.myPeerId;
+        return [
+          ...prev,
+          {
+            id: 'file_msg_' + offer.fileId,
+            type: 'file_card',
+            fileId: offer.fileId,
+            fileName: offer.fileName,
+            fileSize: offer.fileSize,
+            fileType: offer.fileType,
+            previewData: offer.previewData,
+            isVoiceNote: !!offer.isVoiceNote,
+            durationSec: offer.durationSec || 0,
+            waveform: offer.waveform || (offer.previewData && offer.previewData.waveform) || null,
+            sender: isMe ? 'local' : 'remote',
+            senderNickname: offer.senderNickname || offer.author || 'Peer',
+            authorId: offer.authorId || offer.senderPeerId,
+            timestamp: offer.timestamp || Date.now(),
+            status: isMe ? 'ready' : 'idle',
+            progress: isMe ? 100 : 0,
+            speedBps: 0,
+            downloadUrl: null,
+          },
+        ];
+      });
+      playSound('message', soundRef.current);
+    };
+
+    const unsubOffer = groupRelayEngine.on('file_offer', handleFileOffer);
+
+    const handleFileProgress = ({ fileId, progress, speedBps }) => {
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.fileId === fileId ? { ...m, status: 'downloading', progress, speedBps } : m
+        )
+      );
+    };
+    const unsubProgress = groupRelayEngine.on('file_progress', handleFileProgress);
+
+    const handleFileComplete = (completedInfo) => {
+      playSound('file', soundRef.current);
+      if (showToast) showToast(`Transfer complete: ${completedInfo.fileName}!`, 'success');
+      const downloadUrl = completedInfo.downloadUrl;
+      setMessages((prev) =>
+        prev.map((m) => {
+          if (m.fileId === completedInfo.fileId) {
+            return {
+              ...m,
+              status: 'ready',
+              progress: 100,
+              downloadUrl,
+              audioUrl: m.isVoiceNote ? downloadUrl : null,
+              imageUrl: m.fileType?.startsWith('image/') ? downloadUrl : null,
+            };
+          }
+          return m;
+        })
+      );
+    };
+    const unsubComplete = groupRelayEngine.on('file_complete', handleFileComplete);
+
+    const handleFileError = ({ fileId, reason }) => {
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.fileId === fileId
+            ? { ...m, status: 'expired', errorReason: reason || 'Media expired from RAM.' }
+            : m
+        )
+      );
+      if (showToast) showToast(reason || 'File download unavailable', 'error');
+    };
+    const unsubFileError = groupRelayEngine.on('file_error', handleFileError);
+
     return () => {
       unsubReady();
       unsubStatus();
@@ -178,6 +255,10 @@ export function useGroupSession({ soundEnabled, showToast }) {
       unsubLock();
       unsubLatency();
       unsubError();
+      unsubOffer();
+      unsubProgress();
+      unsubComplete();
+      unsubFileError();
     };
   }, [showToast]);
 
@@ -245,6 +326,66 @@ export function useGroupSession({ soundEnabled, showToast }) {
     }
   }, []);
 
+  const offerGroupFile = useCallback(async (file, previewData = null) => {
+    let preview = previewData;
+    if (file.isVoiceNote) {
+      preview = {
+        isVoiceNote: true,
+        durationSec: file.durationSec || 0,
+        waveform: file.waveform || null,
+      };
+    } else if (!preview && file.type?.startsWith('image/')) {
+      try {
+        preview = await generateThumbnailPreview(file);
+      } catch (e) {}
+    }
+    const localUrl = URL.createObjectURL(file);
+    const offer = groupRelayEngine.offerFile(file, preview);
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: 'file_msg_' + offer.fileId,
+        type: 'file_card',
+        fileId: offer.fileId,
+        fileName: file.name,
+        fileSize: file.size,
+        fileType: file.type,
+        previewData: preview,
+        isVoiceNote: !!file.isVoiceNote,
+        durationSec: file.durationSec || 0,
+        waveform: file.waveform || (preview && preview.waveform) || null,
+        sender: 'local',
+        senderNickname: localStorage.getItem('zerochat_nickname') || 'You',
+        authorId: groupRelayEngine.myPeerId,
+        timestamp: Date.now(),
+        status: 'ready',
+        progress: 100,
+        downloadUrl: localUrl,
+        audioUrl: file.isVoiceNote ? localUrl : null,
+        imageUrl: file.type?.startsWith('image/') ? localUrl : null,
+      },
+    ]);
+    return offer;
+  }, []);
+
+  const requestGroupDownload = useCallback((fileId, authorId) => {
+    setMessages((prev) =>
+      prev.map((m) => (m.fileId === fileId ? { ...m, status: 'downloading', progress: 0 } : m))
+    );
+    groupRelayEngine.requestFileDownload(fileId, authorId);
+  }, []);
+
+  const cancelGroupTransfer = useCallback((fileId) => {
+    groupRelayEngine.fileStream.cancelFileTransfer(
+      fileId,
+      (pkt) => {
+        if (groupRelayEngine.isHost) groupRelayEngine.dispatchBroadcast(pkt);
+        else if (groupRelayEngine.hostConn?.open) groupRelayEngine.hostConn.send(pkt);
+      },
+      (e, d) => groupRelayEngine.emit(e, d)
+    );
+  }, []);
+
   return {
     squadRoomId,
     myPeerId,
@@ -265,6 +406,9 @@ export function useGroupSession({ soundEnabled, showToast }) {
     sendGroupVoice,
     sendGroupReaction,
     sendGameAction,
+    offerGroupFile,
+    requestGroupDownload,
+    cancelGroupTransfer,
     admitKnocker,
     declineKnocker,
     passBaton,

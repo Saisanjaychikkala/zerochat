@@ -13,6 +13,7 @@ import {
 import AudioPlayerBubble from '../AudioPlayerBubble';
 import ReplyQuoteBox from './ReplyQuoteBox';
 import InChatGameCard from '../game/InChatGameCard';
+import FilePreviewCard from './FilePreviewCard';
 import { copyToClipboard } from '../../utils/clipboard';
 
 const QUICK_EMOJIS = ['❤️', '🔥', '👍', '😂', '🎉', '👏'];
@@ -26,6 +27,8 @@ export default function MessageItem({
   coHostPeerId,
   onReply,
   onReact,
+  onRequestDownload,
+  onCancelTransfer,
   onScrollToMessage,
   onOpenLightbox,
   onImageLoaded,
@@ -102,13 +105,32 @@ export default function MessageItem({
       );
     }
 
-    // 1. Voice Note Bubble
-    if (msg.isVoiceNote && (msg.audioUrl || msg.audio)) {
+    // 1. Voice Note Bubble (Supports both lazy on-demand & instant playback with 16-pt waveform)
+    if (msg.isVoiceNote || msg.type === 'voice') {
       return (
         <AudioPlayerBubble 
-          audioUrl={msg.audioUrl || msg.audio} 
+          audioUrl={msg.audioUrl || msg.audio || (msg.status === 'ready' ? msg.downloadUrl : null)} 
           durationSec={msg.durationSec || msg.duration || 0} 
-          fileName={msg.fileName} 
+          fileName={msg.fileName}
+          waveform={msg.waveform}
+          fileId={msg.fileId}
+          authorId={msg.authorId}
+          status={msg.status || (msg.audioUrl || msg.audio ? 'ready' : 'idle')}
+          progress={msg.progress || 0}
+          errorReason={msg.errorReason}
+          onRequestDownload={onRequestDownload}
+        />
+      );
+    }
+
+    // 2. WhatsApp-Style Lazy File & Media Preview Card
+    if (msg.type === 'file_card' || msg.fileId || msg.type === 'file') {
+      return (
+        <FilePreviewCard
+          fileInfo={msg}
+          onRequestDownload={onRequestDownload}
+          onCancel={onCancelTransfer}
+          onOpenLightbox={onOpenLightbox}
         />
       );
     }

@@ -31,6 +31,8 @@ export default function ChatArea({
   onCreateNewRoom, onOpenInfoModal, onStartCall,
   callStatus, onSendNudge, latency, showToast,
   onReact,
+  onRequestDownload,
+  onCancelTransfer,
 }) {
   const [inputText, setInputText] = useState('');
   const [copied, setCopied] = useState(false);
@@ -258,6 +260,8 @@ export default function ChatArea({
             remotePeerNickname={remotePeerNickname}
             onReply={setReplyingTo}
             onReact={onReact}
+            onRequestDownload={onRequestDownload}
+            onCancelTransfer={onCancelTransfer}
             onScrollToMessage={handleScrollToMessage}
             onOpenLightbox={onOpenLightbox}
             onImageLoaded={() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })}

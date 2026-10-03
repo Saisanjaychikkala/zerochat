@@ -531,3 +531,278 @@
   50% { transform: scale(1.2); opacity: 1; }
   100% { transform: scale(0.85); opacity: 0.7; }
 }
+
+/* ==========================================================================
+   Cyber-Glass On-Demand File Preview Card (WhatsApp Style)
+   ========================================================================== */
+.file-preview-card {
+  min-width: 250px;
+  max-width: 320px;
+  background: var(--bg-card, rgba(14, 20, 36, 0.75));
+  border: 1px solid var(--border-subtle, rgba(0, 242, 254, 0.2));
+  border-radius: 12px;
+  overflow: hidden;
+  position: relative;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+  display: flex;
+  align-items: center;
+}
+
+.file-preview-card.idle:hover {
+  border-color: rgba(0, 242, 254, 0.45);
+  box-shadow: 0 4px 20px rgba(0, 242, 254, 0.15);
+}
+
+.file-card-backdrop {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center;
+  filter: blur(14px) brightness(0.4);
+  opacity: 0.75;
+  z-index: 1;
+}
+
+.file-card-overlay-content {
+  position: relative;
+  z-index: 2;
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+}
+
+.file-card-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  flex: 1;
+}
+
+.file-icon-box {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  background: rgba(0, 242, 254, 0.1);
+  border: 1px solid rgba(0, 242, 254, 0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: var(--accent-cyan);
+}
+
+.file-icon-box.ready {
+  background: rgba(16, 185, 129, 0.12);
+  border-color: rgba(16, 185, 129, 0.35);
+  color: var(--accent-emerald);
+}
+
+.file-icon-box.expired {
+  background: rgba(239, 68, 68, 0.12);
+  border-color: rgba(239, 68, 68, 0.35);
+  color: #ef4444;
+}
+
+.file-card-details {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.file-card-name {
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: var(--text-main);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.file-card-name.expired {
+  color: var(--text-muted);
+  text-decoration: line-through;
+}
+
+.file-card-meta {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+
+.file-card-meta.expired {
+  color: #ef4444;
+  font-weight: 500;
+}
+
+.file-card-action-btn.download {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 20px;
+  background: linear-gradient(135deg, rgba(0, 242, 254, 0.25), rgba(0, 242, 254, 0.1));
+  border: 1px solid var(--accent-cyan);
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 0 10px rgba(0, 242, 254, 0.25);
+  flex-shrink: 0;
+}
+
+.file-card-action-btn.download:hover {
+  transform: scale(1.04);
+  box-shadow: 0 0 16px rgba(0, 242, 254, 0.5);
+  background: var(--accent-cyan);
+  color: #03050a;
+}
+
+.file-preview-card.ready {
+  padding: 10px 14px;
+  gap: 12px;
+  border-color: rgba(16, 185, 129, 0.3);
+}
+
+.file-card-action-btn.ready {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 20px;
+  background: rgba(16, 185, 129, 0.15);
+  border: 1px solid var(--accent-emerald);
+  color: var(--accent-emerald);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+
+.file-card-action-btn.ready:hover {
+  background: var(--accent-emerald);
+  color: #03050a;
+  box-shadow: 0 0 12px rgba(16, 185, 129, 0.4);
+}
+
+.file-preview-card.expired {
+  padding: 10px 14px;
+  gap: 12px;
+  background: rgba(239, 68, 68, 0.08);
+  border-color: rgba(239, 68, 68, 0.35);
+}
+
+.file-card-badge.expired {
+  padding: 4px 8px;
+  border-radius: 8px;
+  background: rgba(239, 68, 68, 0.18);
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  color: #ef4444;
+  font-size: 0.68rem;
+  font-weight: 600;
+  font-family: var(--font-mono);
+  flex-shrink: 0;
+}
+
+.file-preview-card.downloading {
+  padding: 10px 14px;
+  gap: 12px;
+}
+
+.file-progress-ring-box {
+  position: relative;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.progress-ring-svg {
+  transform: rotate(-90deg);
+}
+
+.progress-ring-track {
+  stroke: rgba(255, 255, 255, 0.1);
+}
+
+.progress-ring-fill {
+  stroke: var(--accent-cyan);
+  stroke-linecap: round;
+  transition: stroke-dashoffset 0.25s linear;
+  filter: drop-shadow(0 0 4px var(--accent-cyan));
+}
+
+.progress-ring-cancel-btn {
+  position: absolute;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: rgba(239, 68, 68, 0.2);
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  color: #ef4444;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.progress-ring-cancel-btn:hover {
+  background: #ef4444;
+  color: #fff;
+  transform: scale(1.1);
+}
+
+.file-ready-image-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.file-ready-meta-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 2px 4px;
+}
+
+.file-ready-name {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 180px;
+}
+
+.file-download-link-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.72rem;
+  color: var(--accent-cyan);
+  text-decoration: none;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 6px;
+  background: rgba(0, 242, 254, 0.08);
+  border: 1px solid rgba(0, 242, 254, 0.2);
+  transition: all 0.2s;
+}
+
+.file-download-link-btn:hover {
+  background: var(--accent-cyan);
+  color: #03050a;
+}

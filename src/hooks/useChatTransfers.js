@@ -1,6 +1,42 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { peerService } from '../services/peerService';
+import { groupRelayEngine } from '../services/webrtc/groupRelayEngine';
 import { playSound } from '../utils/soundEffects';
+
+export function generateThumbnailPreview(file, maxWidth = 140, maxHeight = 140) {
+  return new Promise((resolve) => {
+    if (!file || !file.type?.startsWith('image/')) return resolve(null);
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+        if (width > height) {
+          if (width > maxWidth) {
+            height = Math.round((height * maxWidth) / width);
+            width = maxWidth;
+          }
+        } else {
+          if (height > maxHeight) {
+            width = Math.round((width * maxHeight) / height);
+            height = maxHeight;
+          }
+        }
+        canvas.width = Math.max(1, width);
+        canvas.height = Math.max(1, height);
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL('image/jpeg', 0.6));
+      };
+      img.onerror = () => resolve(null);
+      img.src = e.target.result;
+    };
+    reader.onerror = () => resolve(null);
+    reader.readAsDataURL(file);
+  });
+}
 
 export function useChatTransfers({ soundEnabled, mobileTab, showToast }) {
   const [messages, setMessages] = useState([]);
@@ -35,6 +71,60 @@ export function useChatTransfers({ soundEnabled, mobileTab, showToast }) {
       playSound('message', soundEnabledRef.current);
     });
 
+    // On-Demand File Offer Listener (1-on-1 & Squad)
+    const handleFileOffer = (offer) => {
+      setMessages((prev) => {
+        if (prev.some((m) => m.fileId === offer.fileId)) return prev;
+        return [
+          ...prev,
+          {
+            id: 'file_msg_' + offer.fileId,
+            type: 'file_card',
+            fileId: offer.fileId,
+            fileName: offer.fileName,
+            fileSize: offer.fileSize,
+            fileType: offer.fileType,
+            previewData: offer.previewData,
+            isVoiceNote: !!offer.isVoiceNote,
+            durationSec: offer.durationSec || 0,
+            waveform: offer.waveform || (offer.previewData && offer.previewData.waveform) || null,
+            sender: 'remote',
+            senderNickname: offer.senderNickname || offer.author || 'Peer',
+            authorId: offer.authorId || offer.senderPeerId,
+            timestamp: offer.timestamp || Date.now(),
+            status: 'idle',
+            progress: 0,
+            speedBps: 0,
+            downloadUrl: null,
+          },
+        ];
+      });
+      playSound('message', soundEnabledRef.current);
+    };
+
+    const unsubOffer1 = peerService.on('file_offer', handleFileOffer);
+    const unsubOffer2 = groupRelayEngine.on('file_offer', handleFileOffer);
+
+    // On-Demand File Error / Expired Listener
+    const handleFileError = ({ fileId, reason }) => {
+      setMessages((prev) =>
+        prev.map((m) => {
+          if (m.fileId === fileId) {
+            return {
+              ...m,
+              status: 'expired',
+              errorReason: reason || 'Media expired or unavailable in RAM.',
+            };
+          }
+          return m;
+        })
+      );
+      if (showToast) showToast(reason || 'File download unavailable', 'error');
+    };
+
+    const unsubError1 = peerService.on('file_error', handleFileError);
+    const unsubError2 = groupRelayEngine.on('file_error', handleFileError);
+
     const unsubFileStart = peerService.on('file_start', (fileInfo) => {
       setTransfers((prev) => [
         { ...fileInfo, progress: 0, speedBps: 0, completed: false },
@@ -45,13 +135,21 @@ export function useChatTransfers({ soundEnabled, mobileTab, showToast }) {
       }
     });
 
-    const unsubFileProgress = peerService.on('file_progress', ({ fileId, progress, speedBps }) => {
+    const handleFileProgress = ({ fileId, progress, speedBps }) => {
       setTransfers((prev) =>
         prev.map((t) => (t.fileId === fileId ? { ...t, progress, speedBps } : t))
       );
-    });
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.fileId === fileId ? { ...m, status: 'downloading', progress, speedBps } : m
+        )
+      );
+    };
 
-    const unsubFileComplete = peerService.on('file_complete', (completedInfo) => {
+    const unsubFileProgress = peerService.on('file_progress', handleFileProgress);
+    const unsubGroupProgress = groupRelayEngine.on('file_progress', handleFileProgress);
+
+    const handleFileComplete = (completedInfo) => {
       setTransfers((prev) =>
         prev.map((t) =>
           t.fileId === completedInfo.fileId
@@ -62,33 +160,65 @@ export function useChatTransfers({ soundEnabled, mobileTab, showToast }) {
       playSound('file', soundEnabledRef.current);
       if (showToast) showToast(`Transfer complete: ${completedInfo.fileName}!`, 'success');
 
-      // Post to interactive Chat Stream
+      // Update card to Ready state with blob URL
       const downloadUrl = completedInfo.downloadUrl;
       if (downloadUrl) {
-        const isImage = completedInfo.fileType?.startsWith('image/') || /\.(jpg|jpeg|png|webp|gif|svg)$/i.test(completedInfo.fileName);
-        const isVoice = completedInfo.isVoiceNote || (completedInfo.fileType?.startsWith('audio/') && completedInfo.fileName?.includes('voice_note'));
+        const isImage =
+          completedInfo.fileType?.startsWith('image/') ||
+          /\.(jpg|jpeg|png|webp|gif|svg)$/i.test(completedInfo.fileName);
+        const isVoice =
+          completedInfo.isVoiceNote ||
+          (completedInfo.fileType?.startsWith('audio/') &&
+            completedInfo.fileName?.includes('voice_note'));
 
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: 'file_msg_' + completedInfo.fileId,
-            type: isVoice ? 'voice' : (isImage ? 'image' : 'file'),
-            sender: completedInfo.isSender ? 'local' : 'remote',
-            senderNickname: completedInfo.isSender ? (localStorage.getItem('zerochat_nickname') || 'You') : (completedInfo.senderNickname || 'Peer'),
-            timestamp: Date.now(),
-            delivered: true,
-            isVoiceNote: isVoice,
-            durationSec: completedInfo.durationSec || 0,
-            audioUrl: isVoice ? downloadUrl : null,
-            imageUrl: isImage ? downloadUrl : null,
-            fileName: completedInfo.fileName,
-            fileSize: completedInfo.fileSize,
-            downloadUrl: downloadUrl,
-            text: isVoice ? null : (isImage ? null : `📎 ${completedInfo.fileName}`)
+        setMessages((prev) => {
+          const exists = prev.some((m) => m.fileId === completedInfo.fileId);
+          if (exists) {
+            return prev.map((m) => {
+              if (m.fileId === completedInfo.fileId) {
+                return {
+                  ...m,
+                  status: 'ready',
+                  progress: 100,
+                  downloadUrl,
+                  audioUrl: isVoice ? downloadUrl : null,
+                  imageUrl: isImage ? downloadUrl : null,
+                };
+              }
+              return m;
+            });
           }
-        ]);
+
+          return [
+            ...prev,
+            {
+              id: 'file_msg_' + completedInfo.fileId,
+              type: 'file_card',
+              fileId: completedInfo.fileId,
+              fileName: completedInfo.fileName,
+              fileSize: completedInfo.fileSize,
+              fileType: completedInfo.fileType,
+              sender: completedInfo.isSender ? 'local' : 'remote',
+              senderNickname: completedInfo.isSender
+                ? localStorage.getItem('zerochat_nickname') || 'You'
+                : completedInfo.senderNickname || 'Peer',
+              timestamp: Date.now(),
+              delivered: true,
+              isVoiceNote: isVoice,
+              durationSec: completedInfo.durationSec || 0,
+              status: 'ready',
+              progress: 100,
+              downloadUrl,
+              audioUrl: isVoice ? downloadUrl : null,
+              imageUrl: isImage ? downloadUrl : null,
+            },
+          ];
+        });
       }
-    });
+    };
+
+    const unsubFileComplete = peerService.on('file_complete', handleFileComplete);
+    const unsubGroupComplete = groupRelayEngine.on('file_complete', handleFileComplete);
 
     const unsubFileCancelled = peerService.on('file_cancelled', ({ fileId }) => {
       setTransfers((prev) => prev.filter((t) => t.fileId !== fileId));
@@ -96,7 +226,6 @@ export function useChatTransfers({ soundEnabled, mobileTab, showToast }) {
     });
 
     const unsubSessionBurned = peerService.on('session_burned', ({ burnerNickname }) => {
-      // Hardware & Memory Security: Immediately revoke all local blob memory and wipe RAM state
       setTransfers((prev) => {
         prev.forEach((t) => {
           if (t.downloadUrl) {
@@ -146,9 +275,15 @@ export function useChatTransfers({ soundEnabled, mobileTab, showToast }) {
       unsubMessage();
       unsubAck();
       unsubFlushed();
+      unsubOffer1();
+      unsubOffer2();
+      unsubError1();
+      unsubError2();
       unsubFileStart();
       unsubFileProgress();
+      unsubGroupProgress();
       unsubFileComplete();
+      unsubGroupComplete();
       unsubFileCancelled();
       unsubSessionBurned();
       unsubReaction();
@@ -198,35 +333,84 @@ export function useChatTransfers({ soundEnabled, mobileTab, showToast }) {
   }, [showToast]);
 
   const handleSendFile = useCallback(async (file) => {
-    if (!peerService.isConnected()) {
-      stagedFilesRef.current.push(file);
-      const stagedId = 'staged_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7);
-      setTransfers((prev) => [
-        {
-          fileId: stagedId,
-          fileName: file.name,
-          fileSize: file.size,
-          fileType: file.type,
-          isSender: true,
-          progress: 0,
-          speedBps: 0,
-          completed: false,
-          staged: true,
-        },
-        ...prev,
-      ]);
-      if (showToast) {
-        showToast(`Staged "${file.name}" — will auto-transfer when peer connects`, 'info');
+    let previewData = null;
+    if (file.isVoiceNote) {
+      previewData = {
+        isVoiceNote: true,
+        durationSec: file.durationSec || 0,
+        waveform: file.waveform || null,
+      };
+    } else if (file.type?.startsWith('image/')) {
+      try {
+        previewData = await generateThumbnailPreview(file);
+      } catch (e) {}
+    }
+    const localUrl = URL.createObjectURL(file);
+    let offer;
+
+    if (groupRelayEngine.roomId && (groupRelayEngine.isHost || groupRelayEngine.isAdmitted)) {
+      offer = groupRelayEngine.offerFile(file, previewData);
+    } else {
+      if (!peerService.isConnected()) {
+        stagedFilesRef.current.push(file);
+        const stagedId = 'staged_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7);
+        setTransfers((prev) => [
+          {
+            fileId: stagedId,
+            fileName: file.name,
+            fileSize: file.size,
+            fileType: file.type,
+            isSender: true,
+            progress: 0,
+            speedBps: 0,
+            completed: false,
+            staged: true,
+          },
+          ...prev,
+        ]);
+        if (showToast) {
+          showToast(`Staged "${file.name}" — will offer when peer connects`, 'info');
+        }
+        return;
       }
-      return;
+      offer = peerService.offerFile(file, previewData);
     }
-    try {
-      await peerService.sendFile(file);
-    } catch (err) {
-      console.error('[ZeroChat] Send file failed:', err);
-      if (showToast) showToast('File transfer error', 'error');
-    }
+
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: 'file_msg_' + offer.fileId,
+        type: 'file_card',
+        fileId: offer.fileId,
+        fileName: file.name,
+        fileSize: file.size,
+        fileType: file.type,
+        previewData,
+        isVoiceNote: !!file.isVoiceNote,
+        durationSec: file.durationSec || 0,
+        waveform: file.waveform || (previewData && previewData.waveform) || null,
+        sender: 'local',
+        senderNickname: localStorage.getItem('zerochat_nickname') || 'You',
+        timestamp: Date.now(),
+        status: 'ready',
+        progress: 100,
+        downloadUrl: localUrl,
+        audioUrl: file.isVoiceNote ? localUrl : null,
+        imageUrl: file.type?.startsWith('image/') ? localUrl : null,
+      },
+    ]);
   }, [showToast]);
+
+  const handleRequestDownload = useCallback((fileId, authorId) => {
+    setMessages((prev) =>
+      prev.map((m) => (m.fileId === fileId ? { ...m, status: 'downloading', progress: 0 } : m))
+    );
+    if (authorId && groupRelayEngine.roomId) {
+      groupRelayEngine.requestFileDownload(fileId, authorId);
+    } else {
+      peerService.requestFileDownload(fileId);
+    }
+  }, []);
 
   const handleCancelTransfer = useCallback((fileId) => {
     if (fileId && fileId.startsWith('staged_')) {
@@ -308,6 +492,7 @@ export function useChatTransfers({ soundEnabled, mobileTab, showToast }) {
     setUnreadChatCount,
     handleSendMessage,
     handleSendFile,
+    handleRequestDownload,
     handleCancelTransfer,
     handleReaction,
     resetHistory,

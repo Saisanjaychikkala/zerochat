@@ -97,6 +97,8 @@ export default function AppModals({
           onSetSurface={preferences.setSurface}
           soundEnabled={preferences.soundEnabled}
           onToggleSound={() => preferences.setSoundEnabled(!preferences.soundEnabled)}
+          wireBatchingEnabled={preferences.wireBatchingEnabled}
+          onToggleWireBatching={preferences.toggleWireBatching}
         />
       )}
     </>

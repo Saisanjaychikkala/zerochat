@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { peerService } from '../services/peerService';
+import { groupRelayEngine } from '../services/webrtc/groupRelayEngine';
 
 export function usePreferences(showToast) {
   const [myNickname, setMyNickname] = useState(() => {
@@ -15,6 +16,11 @@ export function usePreferences(showToast) {
     return saved !== null ? JSON.parse(saved) : true;
   });
 
+  const [wireBatchingEnabled, setWireBatchingEnabled] = useState(() => {
+    const saved = localStorage.getItem('zerochat_wire_batching');
+    return saved !== null ? JSON.parse(saved) : true; // Default ON (Recommended)
+  });
+
   const [theme, setTheme] = useState(() => {
     return localStorage.getItem('zerochat_theme') || 'cyber-cyan';
   });
@@ -26,6 +32,11 @@ export function usePreferences(showToast) {
   useEffect(() => {
     localStorage.setItem('zerochat_sound', JSON.stringify(soundEnabled));
   }, [soundEnabled]);
+
+  useEffect(() => {
+    localStorage.setItem('zerochat_wire_batching', JSON.stringify(wireBatchingEnabled));
+    groupRelayEngine.setWireBatching(wireBatchingEnabled);
+  }, [wireBatchingEnabled]);
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
@@ -107,12 +118,29 @@ export function usePreferences(showToast) {
     if (showToast) showToast(`Name updated to ${name}`, 'success');
   };
 
+  const toggleWireBatching = () => {
+    setWireBatchingEnabled((prev) => {
+      const next = !prev;
+      if (showToast) {
+        showToast(
+          next
+            ? 'Dual-Priority Wire Batching enabled (Optimized for host performance)'
+            : 'Dual-Priority Wire Batching disabled (Direct unbatched mode)',
+          'info'
+        );
+      }
+      return next;
+    });
+  };
+
   return {
     myNickname,
     displayName: myNickname,
     myAvatarBg,
     soundEnabled,
     setSoundEnabled,
+    wireBatchingEnabled,
+    toggleWireBatching,
     theme,
     setTheme: handleSetTheme,
     toggleTheme,

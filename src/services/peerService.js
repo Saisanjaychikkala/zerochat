@@ -711,6 +711,38 @@ class PeerService {
         this.emit('status', 'disconnected');
         break;
 
+      case 'file_offer':
+        this.emit('file_offer', {
+          fileId: packet.fileId,
+          fileName: packet.fileName,
+          fileSize: packet.fileSize,
+          fileType: packet.fileType,
+          previewData: packet.previewData,
+          senderNickname: packet.senderNickname || this.remoteNickname || 'Peer',
+          isVoiceNote: !!packet.isVoiceNote,
+          durationSec: packet.durationSec || 0,
+          waveform: packet.waveform || (packet.previewData && packet.previewData.waveform) || null,
+          timestamp: packet.timestamp || Date.now(),
+        });
+        break;
+
+      case 'file_request':
+        this.fileStream.serveFileRequest(
+          this.conn,
+          packet.fileId,
+          this.myNickname,
+          (data) => this.sendJson(data),
+          (e, d) => this.emit(e, d)
+        );
+        break;
+
+      case 'file_error':
+        this.emit('file_error', {
+          fileId: packet.fileId,
+          reason: packet.reason || 'Media expired or unavailable in RAM.',
+        });
+        break;
+
       case 'file_meta':
         this.fileStream.handleFileMeta(packet, this.remoteNickname, (e, d) => this.emit(e, d));
         break;
@@ -883,6 +915,33 @@ class PeerService {
       (e, d) => this.emit(e, d),
       onProgress
     );
+  }
+
+  offerFile(file, previewData = null) {
+    if (!this.isConnected()) {
+      throw new Error('Peer not connected');
+    }
+    const offer = this.fileStream.stageFileOffer(file, previewData);
+    this.sendJson({
+      ...offer,
+      senderNickname: this.myNickname,
+      senderPeerId: this.myPeerId,
+    });
+    return offer;
+  }
+
+  requestFileDownload(fileId) {
+    if (!this.isConnected()) {
+      this.emit('file_error', {
+        fileId,
+        reason: 'Peer not connected. Media unavailable.',
+      });
+      return;
+    }
+    this.sendJson({
+      type: 'file_request',
+      fileId,
+    });
   }
 
   cancelFileTransfer(fileId) {

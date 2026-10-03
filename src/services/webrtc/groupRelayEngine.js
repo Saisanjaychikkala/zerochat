@@ -6,6 +6,7 @@
 import Peer from 'peerjs';
 import { ICE_SERVERS, GROUP_PACKET_TYPES } from './constants.js';
 import { handleGroupPacket } from './groupPacketHandler.js';
+import { FileStreamEngine, unpackBinaryChunk } from './fileStreamEngine.js';
 import {
   passBaton,
   acceptBatonHandoff,
@@ -36,6 +37,14 @@ export class GroupRelayEngine {
     this.listeners = new Map();
     this.heartbeatInterval = null;
     this.isDestroyed = false;
+
+    // Sub-engines & On-Demand Optimizations
+    this.fileStream = new FileStreamEngine();
+    this.wireBatchingEnabled = true; // Host preference: dual-priority wire batching
+    this.batchQueue = [];
+    this.batchTimer = null;
+    this.gameSubscriptions = new Map(); // cardId -> Set<peerId> (On-Demand Spectator Streaming)
+    this.fileRequests = new Map(); // fileId -> requesterPeerId
   }
 
   on(event, cb) {
@@ -141,7 +150,13 @@ export class GroupRelayEngine {
       if (!opts.isReconnecting) this.emit('status', 'knocking');
     });
 
-    conn.on('data', (data) => handleGroupPacket(this, data, conn));
+    conn.on('data', (data) => {
+      if (data instanceof ArrayBuffer || (data.buffer && data.buffer instanceof ArrayBuffer)) {
+        this.handleBinaryData(data, conn);
+        return;
+      }
+      handleGroupPacket(this, data, conn);
+    });
     conn.on('close', () => { if (this.currentHostId === hostPeerId) this.handleHostDisconnect(); });
     conn.on('error', (err) => {
       console.warn('[GroupRelay] Host conn error:', err);
@@ -154,6 +169,25 @@ export class GroupRelayEngine {
         }, 1400);
       }
     });
+  }
+
+  handleBinaryData(data, conn) {
+    if (this.isHost) {
+      const unpacked = unpackBinaryChunk(data);
+      if (unpacked && unpacked.fileId) {
+        const targetPeerId = this.fileRequests.get(unpacked.fileId);
+        if (targetPeerId && targetPeerId !== conn.peer) {
+          const targetConn = this.connections.get(targetPeerId);
+          if (targetConn && targetConn.open) {
+            try { targetConn.send(data); } catch (e) {}
+            return;
+          }
+        }
+      }
+      this.dispatchBroadcast(data, conn.peer);
+    } else {
+      this.fileStream.handleBinaryFileChunk(data, (e, d) => this.emit(e, d));
+    }
   }
 
   reconnectWithPasscode(passcode) {
@@ -180,7 +214,13 @@ export class GroupRelayEngine {
       });
       return;
     }
-    conn.on('data', (data) => handleGroupPacket(this, data, conn));
+    conn.on('data', (data) => {
+      if (data instanceof ArrayBuffer || (data.buffer && data.buffer instanceof ArrayBuffer)) {
+        this.handleBinaryData(data, conn);
+        return;
+      }
+      handleGroupPacket(this, data, conn);
+    });
     conn.on('close', () => this.handlePeerDisconnect(conn.peer));
   }
 
@@ -192,8 +232,7 @@ export class GroupRelayEngine {
     this.pendingKnocks.delete(peerId);
     this.connections.set(peerId, knocker.conn);
 
-    this.roster = this.roster.filter(m => m.peerId !== peerId);
-    this.roster.push({
+    const newMember = {
       peerId,
       nickname: knocker.nickname,
       avatarId: knocker.avatarId,
@@ -201,13 +240,30 @@ export class GroupRelayEngine {
       isCoHost: false,
       latency: 20,
       joinedAt: Date.now()
-    });
+    };
 
-    const pkt = { type: GROUP_PACKET_TYPES.ADMIT, roster: this.roster, hostId: this.myPeerId, successorId: this.designatedSuccessorId, isLocked: this.isLocked };
+    this.roster = this.roster.filter(m => m.peerId !== peerId);
+    this.roster.push(newMember);
+
+    // Knocker receives full verified roster
+    const pkt = {
+      type: GROUP_PACKET_TYPES.ADMIT,
+      roster: this.roster,
+      hostId: this.myPeerId,
+      successorId: this.designatedSuccessorId,
+      isLocked: this.isLocked
+    };
     if (knocker.conn.open) { try { knocker.conn.send(pkt); } catch (e) {} }
     else { knocker.conn.on('open', () => { try { knocker.conn.send(pkt); } catch (e) {} }); }
 
-    this.broadcastRosterSync();
+    // Existing peers receive lightweight delta patch
+    this.broadcast({
+      type: GROUP_PACKET_TYPES.ROSTER_JOIN,
+      member: newMember,
+      hostId: this.myPeerId,
+      successorId: this.designatedSuccessorId
+    }, peerId);
+
     this.emit('knocks_update', Array.from(this.pendingKnocks.values()));
     this.emit('roster_update', this.roster);
   }
@@ -225,11 +281,91 @@ export class GroupRelayEngine {
     }
   }
 
+  setWireBatching(enabled) {
+    this.wireBatchingEnabled = !!enabled;
+    if (!this.wireBatchingEnabled && this.batchQueue.length > 0) {
+      this.flushBatch();
+    }
+  }
+
+  isUrgentPacket(packet) {
+    if (!packet || typeof packet !== 'object') return true;
+    const URGENT_TYPES = [
+      GROUP_PACKET_TYPES.GAME_ACTION,
+      GROUP_PACKET_TYPES.GAME_CARD,
+      GROUP_PACKET_TYPES.KNOCK,
+      GROUP_PACKET_TYPES.KNOCK_ACK,
+      GROUP_PACKET_TYPES.ADMIT,
+      GROUP_PACKET_TYPES.DECLINE,
+      GROUP_PACKET_TYPES.CHALLENGE,
+      GROUP_PACKET_TYPES.KICK,
+      GROUP_PACKET_TYPES.NUDGE,
+      GROUP_PACKET_TYPES.CALL_RING,
+      GROUP_PACKET_TYPES.CALL_OFFER,
+      GROUP_PACKET_TYPES.CALL_ANSWER,
+      GROUP_PACKET_TYPES.CALL_REJECT,
+      GROUP_PACKET_TYPES.CALL_END,
+      GROUP_PACKET_TYPES.BATON_OFFER,
+      GROUP_PACKET_TYPES.BATON_ACCEPT,
+      GROUP_PACKET_TYPES.BATON_MIGRATED,
+      GROUP_PACKET_TYPES.LOCK_SYNC,
+      GROUP_PACKET_TYPES.ROSTER_JOIN,
+      GROUP_PACKET_TYPES.ROSTER_LEAVE,
+      GROUP_PACKET_TYPES.ROSTER_UPDATE,
+      GROUP_PACKET_TYPES.FILE_OFFER,
+      GROUP_PACKET_TYPES.FILE_REQUEST,
+      GROUP_PACKET_TYPES.FILE_ERROR,
+      GROUP_PACKET_TYPES.GAME_SUBSCRIBE,
+      GROUP_PACKET_TYPES.GAME_UNSUBSCRIBE
+    ];
+    return URGENT_TYPES.includes(packet.type);
+  }
+
   broadcast(packet, excludePeerId = null) {
     if (!this.isHost) return;
+
+    if (!this.wireBatchingEnabled || this.isUrgentPacket(packet) || (packet instanceof ArrayBuffer)) {
+      this.dispatchBroadcast(packet, excludePeerId);
+      return;
+    }
+
+    // Coalesce relaxed packets (reactions, text, typing) in 25ms tick
+    this.batchQueue.push({ packet, excludePeerId });
+    if (!this.batchTimer) {
+      this.batchTimer = setTimeout(() => this.flushBatch(), 25);
+    }
+  }
+
+  dispatchBroadcast(packet, excludePeerId = null) {
     this.connections.forEach((conn, peerId) => {
       if (peerId !== excludePeerId && conn.open) {
         try { conn.send(packet); } catch (e) {}
+      }
+    });
+  }
+
+  flushBatch() {
+    if (this.batchTimer) {
+      clearTimeout(this.batchTimer);
+      this.batchTimer = null;
+    }
+    if (this.batchQueue.length === 0) return;
+
+    const queued = [...this.batchQueue];
+    this.batchQueue = [];
+
+    this.connections.forEach((conn, peerId) => {
+      if (!conn.open) return;
+      const relevant = queued.filter(item => item.excludePeerId !== peerId).map(item => item.packet);
+      if (relevant.length === 1) {
+        try { conn.send(relevant[0]); } catch (e) {}
+      } else if (relevant.length > 1) {
+        try {
+          conn.send({
+            type: GROUP_PACKET_TYPES.BATCH,
+            packets: relevant
+          });
+        } catch (e) {}
       }
     });
   }
@@ -243,6 +379,16 @@ export class GroupRelayEngine {
     });
   }
 
+  broadcastRosterUpdate(peerId, patch) {
+    this.roster = this.roster.map(m => m.peerId === peerId ? { ...m, ...patch } : m);
+    this.broadcast({
+      type: GROUP_PACKET_TYPES.ROSTER_UPDATE,
+      peerId,
+      patch
+    });
+    this.emit('roster_update', this.roster);
+  }
+
   sendChat(text, replyTo = null, extra = {}) {
     const msg = {
       id: extra.id || `gmsg-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
@@ -252,6 +398,73 @@ export class GroupRelayEngine {
     };
     if (this.isHost) { this.broadcast(msg); this.emit('message', msg); }
     else if (this.isAdmitted && this.hostConn?.open) { this.hostConn.send(msg); this.emit('message', msg); }
+  }
+
+  offerFile(file, previewData = null) {
+    const offer = this.fileStream.stageFileOffer(file, previewData);
+    const packet = {
+      type: GROUP_PACKET_TYPES.FILE_OFFER,
+      ...offer,
+      author: this.myProfile.nickname,
+      authorId: this.myPeerId,
+      timestamp: Date.now()
+    };
+    if (this.isHost) {
+      this.broadcast(packet);
+      this.emit('file_offer', packet);
+    } else if (this.isAdmitted && this.hostConn?.open) {
+      this.hostConn.send(packet);
+      this.emit('file_offer', packet);
+    }
+    return offer;
+  }
+
+  requestFileDownload(fileId, authorId) {
+    if (!authorId || !this.roster.some(m => m.peerId === authorId)) {
+      this.emit('file_error', {
+        fileId,
+        reason: 'Sender disconnected from squad. Media unavailable in RAM.'
+      });
+      return;
+    }
+
+    const packet = {
+      type: GROUP_PACKET_TYPES.FILE_REQUEST,
+      fileId,
+      authorId,
+      requesterId: this.myPeerId
+    };
+
+    if (this.isHost) {
+      this.fileRequests.set(fileId, this.myPeerId);
+      const authorConn = this.connections.get(authorId);
+      if (authorConn?.open) {
+        try { authorConn.send(packet); } catch (e) {}
+      } else {
+        this.emit('file_error', { fileId, reason: 'Sender disconnected from squad.' });
+      }
+    } else if (this.isAdmitted && this.hostConn?.open) {
+      this.hostConn.send(packet);
+    }
+  }
+
+  subscribeGameEvents(cardId) {
+    const pkt = { type: GROUP_PACKET_TYPES.GAME_SUBSCRIBE, cardId, peerId: this.myPeerId };
+    if (this.isHost) {
+      if (!this.gameSubscriptions.has(cardId)) this.gameSubscriptions.set(cardId, new Set());
+      this.gameSubscriptions.get(cardId).add(this.myPeerId);
+    } else if (this.hostConn?.open) {
+      this.hostConn.send(pkt);
+    }
+  }
+
+  unsubscribeGameEvents(cardId) {
+    const pkt = { type: GROUP_PACKET_TYPES.GAME_UNSUBSCRIBE, cardId, peerId: this.myPeerId };
+    if (this.isHost) {
+      this.gameSubscriptions.get(cardId)?.delete(this.myPeerId);
+    } else if (this.hostConn?.open) {
+      this.hostConn.send(pkt);
+    }
   }
 
   sendVoice(audioData, duration) {
@@ -301,7 +514,17 @@ export class GroupRelayEngine {
     const packet = { type: GROUP_PACKET_TYPES.GAME_ACTION, ...actionData, timestamp: Date.now() };
     if (actionData.action === 'game_event') {
       if (this.isHost) {
-        this.broadcast(packet);
+        // Forward to subscribers if present, otherwise broadcast
+        const subscribers = actionData.cardId ? this.gameSubscriptions.get(actionData.cardId) : null;
+        if (subscribers && subscribers.size > 0) {
+          this.connections.forEach((conn, peerId) => {
+            if (subscribers.has(peerId) && conn.open) {
+              try { conn.send(packet); } catch (e) {}
+            }
+          });
+        } else {
+          this.dispatchBroadcast(packet);
+        }
       } else if (this.isAdmitted && this.hostConn?.open) {
         this.hostConn.send(packet);
       }
@@ -316,7 +539,17 @@ export class GroupRelayEngine {
     this.connections.delete(peerId);
     this.roster = this.roster.filter(m => m.peerId !== peerId);
     if (this.designatedSuccessorId === peerId) this.designatedSuccessorId = null;
-    this.broadcastRosterSync();
+
+    // Clean up spectator game subscriptions
+    this.gameSubscriptions.forEach(subs => subs.delete(peerId));
+
+    // Broadcast lightweight ROSTER_LEAVE delta!
+    this.broadcast({
+      type: GROUP_PACKET_TYPES.ROSTER_LEAVE,
+      peerId,
+      hostId: this.myPeerId,
+      successorId: this.designatedSuccessorId
+    });
     this.emit('roster_update', this.roster);
   }
 
@@ -333,9 +566,14 @@ export class GroupRelayEngine {
     this.isDestroyed = true;
     this.isAdmitted = false;
     if (this.heartbeatInterval) clearInterval(this.heartbeatInterval);
+    if (this.batchTimer) clearTimeout(this.batchTimer);
+    this.batchQueue = [];
     this.connections.forEach(conn => { try { conn.close(); } catch (e) {} });
     this.connections.clear();
     this.pendingKnocks.clear();
+    this.gameSubscriptions.clear();
+    this.fileRequests.clear();
+    if (this.fileStream) this.fileStream.clear();
     if (this.hostConn) { try { this.hostConn.close(); } catch (e) {} this.hostConn = null; }
     if (this.peer && !this.peer.destroyed) { try { this.peer.destroy(); } catch (e) {} this.peer = null; }
     this.roster = [];

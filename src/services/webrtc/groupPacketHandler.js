@@ -124,6 +124,110 @@ export function handleGroupPacket(engine, data, conn) {
       }
       break;
 
+    case GROUP_PACKET_TYPES.BATCH:
+      if (Array.isArray(data.packets)) {
+        data.packets.forEach((p) => handleGroupPacket(engine, p, conn));
+      }
+      break;
+
+    case GROUP_PACKET_TYPES.ROSTER_JOIN:
+      if (data.member) {
+        engine.roster = engine.roster.filter(m => m.peerId !== data.member.peerId);
+        engine.roster.push(data.member);
+        engine.currentHostId = data.hostId || engine.currentHostId;
+        engine.designatedSuccessorId = data.successorId || engine.designatedSuccessorId;
+        engine.emit('roster_update', engine.roster);
+      }
+      break;
+
+    case GROUP_PACKET_TYPES.ROSTER_LEAVE:
+      engine.roster = engine.roster.filter(m => m.peerId !== data.peerId);
+      engine.currentHostId = data.hostId || engine.currentHostId;
+      engine.designatedSuccessorId = data.successorId || engine.designatedSuccessorId;
+      engine.emit('roster_update', engine.roster);
+      break;
+
+    case GROUP_PACKET_TYPES.ROSTER_UPDATE:
+      if (data.peerId && data.patch) {
+        engine.roster = engine.roster.map(m => m.peerId === data.peerId ? { ...m, ...data.patch } : m);
+        engine.emit('roster_update', engine.roster);
+      }
+      break;
+
+    case GROUP_PACKET_TYPES.FILE_OFFER:
+      if (engine.isHost) {
+        if (!engine.connections.has(conn.peer)) return;
+        engine.emit('file_offer', data);
+        engine.broadcast(data, conn.peer);
+      } else {
+        if (conn !== engine.hostConn) return;
+        engine.emit('file_offer', data);
+      }
+      break;
+
+    case GROUP_PACKET_TYPES.FILE_REQUEST:
+      if (engine.isHost) {
+        engine.fileRequests.set(data.fileId, conn.peer);
+        if (data.authorId === engine.myPeerId) {
+          engine.fileStream.serveFileRequest(
+            conn,
+            data.fileId,
+            engine.myProfile.nickname,
+            (pkt) => conn.send(pkt),
+            (e, d) => engine.emit(e, d)
+          );
+        } else {
+          const authorConn = engine.connections.get(data.authorId);
+          if (authorConn?.open) {
+            try { authorConn.send(data); } catch (e) {}
+          } else {
+            sendPacket(conn, {
+              type: GROUP_PACKET_TYPES.FILE_ERROR,
+              fileId: data.fileId,
+              reason: 'Sender disconnected from squad. Media unavailable.'
+            });
+          }
+        }
+      } else {
+        engine.fileStream.serveFileRequest(
+          conn,
+          data.fileId,
+          engine.myProfile.nickname,
+          (pkt) => conn.send(pkt),
+          (e, d) => engine.emit(e, d)
+        );
+      }
+      break;
+
+    case GROUP_PACKET_TYPES.FILE_ERROR:
+      if (engine.isHost) {
+        const reqPeerId = engine.fileRequests.get(data.fileId);
+        if (reqPeerId) {
+          const reqConn = engine.connections.get(reqPeerId);
+          if (reqConn?.open) {
+            try { reqConn.send(data); } catch (e) {}
+          }
+        }
+      } else {
+        engine.emit('file_error', data);
+      }
+      break;
+
+    case GROUP_PACKET_TYPES.GAME_SUBSCRIBE:
+      if (engine.isHost && data.cardId) {
+        if (!engine.gameSubscriptions.has(data.cardId)) {
+          engine.gameSubscriptions.set(data.cardId, new Set());
+        }
+        engine.gameSubscriptions.get(data.cardId).add(conn.peer);
+      }
+      break;
+
+    case GROUP_PACKET_TYPES.GAME_UNSUBSCRIBE:
+      if (engine.isHost && data.cardId) {
+        engine.gameSubscriptions.get(data.cardId)?.delete(conn.peer);
+      }
+      break;
+
     case GROUP_PACKET_TYPES.ROSTER_SYNC:
       engine.roster = data.roster || [];
       engine.currentHostId = data.hostId || engine.currentHostId;

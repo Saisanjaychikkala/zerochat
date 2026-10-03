@@ -35,6 +35,9 @@ export function GroupChatWorkspace({
   onSendMessage,
   onSendVoice,
   onSendReaction,
+  onOfferFile,
+  onRequestDownload,
+  onCancelTransfer,
   onAdmitKnocker,
   onDeclineKnocker,
   onPassBaton,
@@ -71,8 +74,14 @@ export function GroupChatWorkspace({
         sender: isMe ? 'local' : 'remote',
         senderNickname: msg.author || msg.senderNickname || (isMe ? (myNickname || 'You') : 'Peer'),
         isVoiceNote: isVoice,
-        audioUrl: msg.audio || msg.audioUrl,
+        audioUrl: msg.audio || msg.audioUrl || (msg.status === 'ready' ? msg.downloadUrl : null),
         durationSec: msg.duration || msg.durationSec || 0,
+        waveform: msg.waveform,
+        fileId: msg.fileId,
+        previewData: msg.previewData,
+        status: msg.status || (msg.audio || msg.audioUrl || msg.downloadUrl ? 'ready' : 'idle'),
+        progress: msg.progress !== undefined ? msg.progress : (msg.status === 'ready' || msg.audioUrl || msg.downloadUrl ? 100 : 0),
+        errorReason: msg.errorReason,
         delivered: true,
         timestamp: msg.timestamp || Date.now()
       };
@@ -94,6 +103,10 @@ export function GroupChatWorkspace({
   };
 
   const handleSendFile = (file) => {
+    if (onOfferFile) {
+      onOfferFile(file);
+      return;
+    }
     const reader = new FileReader();
     if (file.isVoiceNote) {
       reader.onload = () => onSendVoice(reader.result, file.durationSec || 0);
@@ -221,6 +234,8 @@ export function GroupChatWorkspace({
                   coHostPeerId={designatedSuccessorId}
                   onReply={setReplyingTo}
                   onReact={onSendReaction}
+                  onRequestDownload={onRequestDownload}
+                  onCancelTransfer={onCancelTransfer}
                   onScrollToMessage={handleScrollToMessage}
                   onOpenLightbox={(url, name) => setActiveLightbox({ url, name })}
                   onImageLoaded={() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })}

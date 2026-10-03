@@ -20,6 +20,7 @@ export default function ChatWorkspace({
     transfers,
     handleSendMessage,
     handleSendFile,
+    handleRequestDownload,
     handleCancelTransfer,
   } = chatTransfers;
 
@@ -53,6 +54,8 @@ export default function ChatWorkspace({
         setMessages={setMessages}
         onSendMessage={handleSendMessage}
         onSendFile={handleSendFile}
+        onRequestDownload={handleRequestDownload}
+        onCancelTransfer={handleCancelTransfer}
         onReact={chatTransfers.handleReaction}
         status={status}
         remotePeerId={remotePeerId}

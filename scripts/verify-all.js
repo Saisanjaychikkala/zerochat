@@ -395,6 +395,92 @@ async function runTests() {
   assert(variablesCss.includes('--accent-cyan:'), 'variables.css defines cyber-cyan accent token');
   assert(variablesCss.includes('--accent-purple:'), 'variables.css defines cyber-purple accent token');
 
+  // ─── [Suite 11] Binary ZCFC Chunk Packing & Zero-Copy Framing ─────
+  console.log('\n[Test Suite 11] Binary ZCFC Chunk Packing & Zero-Copy Framing');
+  const { packBinaryChunk, unpackBinaryChunk } = await import('../src/services/webrtc/fileStreamEngine.js');
+  assert(typeof packBinaryChunk === 'function', 'packBinaryChunk is exported');
+  assert(typeof unpackBinaryChunk === 'function', 'unpackBinaryChunk is exported');
+
+  const samplePayload = new Uint8Array([10, 20, 30, 40, 50, 60, 70, 80]);
+  const testFileId = 'file_abc1234_999';
+  const packedBuffer = packBinaryChunk(testFileId, 2, 10, samplePayload);
+
+  assert(packedBuffer instanceof ArrayBuffer, 'packBinaryChunk returns an ArrayBuffer');
+  assert(packedBuffer.byteLength === 13 + testFileId.length + samplePayload.byteLength, 'Packed buffer length equals dynamic header + payload');
+
+  const unpacked = unpackBinaryChunk(packedBuffer);
+  assert(unpacked !== null, 'unpackBinaryChunk successfully deserializes ZCFC packet');
+  assert(unpacked.fileId === testFileId, `unpacked fileId matches (${unpacked.fileId})`);
+  assert(unpacked.chunkIndex === 2, 'unpacked chunkIndex matches 2');
+  assert(unpacked.totalChunks === 10, 'unpacked totalChunks matches 10');
+  assert(unpacked.payload.length === 8 && unpacked.payload[0] === 10 && unpacked.payload[7] === 80, 'Payload bytes intact and identical');
+
+  const invalidBuffer = new Uint8Array([0x00, 0x01, 0x02, 0x03, 0x04]).buffer;
+  assert(unpackBinaryChunk(invalidBuffer) === null, 'unpackBinaryChunk returns null for non-ZCFC data');
+
+  // ─── [Suite 12] Roster Delta Sync Wire Protocol ──────────────────────
+  console.log('\n[Test Suite 12] Roster Delta Sync (ROSTER_JOIN, ROSTER_LEAVE, ROSTER_UPDATE)');
+  const mockRosterEngine = {
+    isHost: false,
+    roster: [
+      { peerId: 'host-1', nickname: 'Host', isHost: true },
+      { peerId: 'peer-2', nickname: 'Alice', isHost: false }
+    ],
+    emit: (evt, data) => {}
+  };
+  const mockHostConn = { peer: 'host-1', open: true };
+
+  // 1. ROSTER_JOIN
+  const joinPacket = {
+    type: GROUP_PACKET_TYPES.ROSTER_JOIN,
+    member: { peerId: 'peer-3', nickname: 'Bob', isHost: false }
+  };
+  handleGroupPacket(mockRosterEngine, joinPacket, mockHostConn);
+  assert(mockRosterEngine.roster.some(m => m.peerId === 'peer-3'), 'ROSTER_JOIN adds member to roster without full array retransmission');
+
+  // 2. ROSTER_UPDATE
+  const updatePacket = {
+    type: GROUP_PACKET_TYPES.ROSTER_UPDATE,
+    peerId: 'peer-3',
+    patch: { nickname: 'Bobby' }
+  };
+  handleGroupPacket(mockRosterEngine, updatePacket, mockHostConn);
+  const updatedMember = mockRosterEngine.roster.find(m => m.peerId === 'peer-3');
+  assert(updatedMember && updatedMember.nickname === 'Bobby', 'ROSTER_UPDATE applies patch accurately to member');
+
+  // 3. ROSTER_LEAVE
+  const leavePacket = {
+    type: GROUP_PACKET_TYPES.ROSTER_LEAVE,
+    peerId: 'peer-2'
+  };
+  handleGroupPacket(mockRosterEngine, leavePacket, mockHostConn);
+  assert(!mockRosterEngine.roster.some(m => m.peerId === 'peer-2'), 'ROSTER_LEAVE removes disconnected peer from roster');
+
+  // ─── [Suite 13] Dual-Priority Wire Lanes & Urgent Packet Filtering ───
+  console.log('\n[Test Suite 13] Dual-Priority Wire Lanes & Urgent Filter');
+  const { groupRelayEngine } = await import('../src/services/webrtc/groupRelayEngine.js');
+  assert(typeof groupRelayEngine.isUrgentPacket === 'function', 'groupRelayEngine.isUrgentPacket exists');
+
+  assert(groupRelayEngine.isUrgentPacket({ type: GROUP_PACKET_TYPES.GAME_ACTION }) === true, 'GAME_ACTION classified in 0ms Instant Lane');
+  assert(groupRelayEngine.isUrgentPacket({ type: GROUP_PACKET_TYPES.CALL_RING }) === true, 'CALL_RING classified in 0ms Instant Lane');
+  assert(groupRelayEngine.isUrgentPacket({ type: GROUP_PACKET_TYPES.ROSTER_JOIN }) === true, 'ROSTER_JOIN classified in 0ms Instant Lane');
+  assert(groupRelayEngine.isUrgentPacket({ type: GROUP_PACKET_TYPES.REACTION }) === false, 'REACTION coalesced into 25ms Micro-Tick Lane');
+  assert(groupRelayEngine.isUrgentPacket({ type: GROUP_PACKET_TYPES.TYPING }) === false, 'TYPING coalesced into 25ms Micro-Tick Lane');
+
+  // ─── [Suite 14] 16-Point Normalized Audio Waveform Generation ────────
+  console.log('\n[Test Suite 14] 16-Point Normalized Audio Waveform Generation');
+  const { voiceRecorder } = await import('../src/utils/voiceRecorder.js');
+  assert(typeof voiceRecorder.calculateNormalizedWaveform === 'function', 'calculateNormalizedWaveform is exported');
+
+  const defaultWave = voiceRecorder.calculateNormalizedWaveform([], 16);
+  assert(Array.isArray(defaultWave) && defaultWave.length === 16, 'calculateNormalizedWaveform produces exactly 16 points for empty sample');
+
+  const mockSamples = [0.05, 0.1, 0.4, 0.8, 0.9, 0.3, 0.1, 0.6, 0.95, 0.7, 0.4, 0.2, 0.5, 0.85, 0.4, 0.1];
+  const normalizedWave = voiceRecorder.calculateNormalizedWaveform(mockSamples, 16);
+  assert(normalizedWave.length === 16, 'calculateNormalizedWaveform produces exactly 16 points for recorded samples');
+  assert(normalizedWave.every(val => typeof val === 'number' && val >= 0.08 && val <= 1.0), 'All waveform points normalized within [0.08, 1.0]');
+  assert(Math.max(...normalizedWave) === 1.0, 'Peak volume normalized to 1.0');
+
   // ─── Summary ───────────────────────────────────────────────────────
   console.log('\n====================================================');
   console.log(` Verification Complete: ${passedTests}/${totalTests} tests passed`);

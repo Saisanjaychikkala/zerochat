@@ -4,7 +4,7 @@
  */
 import React from 'react';
 import { createPortal } from 'react-dom';
-import { X, Volume2, VolumeX, Sun, Monitor, Circle } from 'lucide-react';
+import { X, Volume2, VolumeX, Sun, Monitor, Circle, Zap } from 'lucide-react';
 
 const THEMES = [
   { id: 'cyber-cyan',       label: 'Cyber Cyan',      color: '#00f2fe' },
@@ -31,7 +31,9 @@ export function SettingsModal({
   currentSurface,
   onSetSurface,
   soundEnabled,
-  onToggleSound
+  onToggleSound,
+  wireBatchingEnabled,
+  onToggleWireBatching
 }) {
   if (!isOpen || typeof document === 'undefined') return null;
 
@@ -111,6 +113,35 @@ export function SettingsModal({
                   {soundEnabled ? <Volume2 size={16} /> : <VolumeX size={16} />}
                 </span>
                 <span className={`toggle-pill ${soundEnabled ? 'on' : 'off'}`} />
+              </div>
+            </button>
+          </section>
+
+          {/* Network & Relay Performance */}
+          <section className="settings-section">
+            <div className="section-label-row" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+              <h3 className="settings-section-label" style={{ margin: 0 }}>Network & Relay</h3>
+              <span className="recommended-tag" style={{ fontSize: '10px', color: 'var(--accent-cyan)', background: 'rgba(0, 242, 254, 0.1)', border: '1px solid rgba(0, 242, 254, 0.25)', padding: '2px 7px', borderRadius: '12px', fontWeight: 600, letterSpacing: '0.04em' }}>Recommended</span>
+            </div>
+            <button
+              type="button"
+              className={`sound-toggle-btn ${wireBatchingEnabled ? 'enabled' : 'disabled'}`}
+              onClick={onToggleWireBatching}
+              title="Dual-Priority Wire Batching (Recommended for Host Efficiency)"
+            >
+              <div className="sound-toggle-left">
+                <span className="sound-toggle-name">Dual-Priority Wire Batching</span>
+                <span className="sound-toggle-desc">
+                  {wireBatchingEnabled 
+                    ? '25ms tick coalescing for typing & reactions • 0ms instant games' 
+                    : 'Direct unbatched delivery for all packets'}
+                </span>
+              </div>
+              <div className="sound-toggle-right">
+                <span className="sound-toggle-icon">
+                  <Zap size={16} color={wireBatchingEnabled ? 'var(--accent-cyan)' : 'inherit'} />
+                </span>
+                <span className={`toggle-pill ${wireBatchingEnabled ? 'on' : 'off'}`} />
               </div>
             </button>
           </section>

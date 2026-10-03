@@ -241,6 +241,9 @@ export default function App() {
             onSendMessage={groupSession.sendGroupChat}
             onSendVoice={groupSession.sendGroupVoice}
             onSendReaction={groupSession.sendGroupReaction}
+            onOfferFile={groupSession.offerGroupFile}
+            onRequestDownload={groupSession.requestGroupDownload}
+            onCancelTransfer={groupSession.cancelGroupTransfer}
             onAdmitKnocker={groupSession.admitKnocker}
             onDeclineKnocker={groupSession.declineKnocker}
             onPassBaton={groupSession.passBaton}
