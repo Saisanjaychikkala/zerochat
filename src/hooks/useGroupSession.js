@@ -358,7 +358,7 @@ export function useGroupSession({ soundEnabled, showToast }) {
         durationSec: file.durationSec || 0,
         waveform: file.waveform || null,
       };
-    } else if (!preview && file.type?.startsWith('image/')) {
+    } else if (!preview && (file.type?.startsWith('image/') || /\.(jpe?g|png|webp|gif|bmp|svg|avif)$/i.test(file.name || ''))) {
       try {
         preview = await generateThumbnailPreview(file);
       } catch (e) {}

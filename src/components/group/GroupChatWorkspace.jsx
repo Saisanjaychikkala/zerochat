@@ -164,6 +164,7 @@ export function GroupChatWorkspace({
         <GroupHeaderBar
           squadRoomId={squadRoomId}
           memberCount={members.length}
+          pendingKnocksCount={isHost ? (pendingKnocks?.length || 0) : 0}
           isHost={isHost}
           isLocked={isLocked}
           latency={latency}

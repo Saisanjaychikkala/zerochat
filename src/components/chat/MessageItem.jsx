@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { 
   Check, 
   CheckCheck, 
@@ -8,7 +8,8 @@ import {
   CopyCheck,
   Smile,
   Crown,
-  Shield
+  Shield,
+  MoreHorizontal
 } from 'lucide-react';
 import AudioPlayerBubble from '../AudioPlayerBubble';
 import ReplyQuoteBox from './ReplyQuoteBox';
@@ -43,6 +44,9 @@ export default function MessageItem({
   const [copiedCode, setCopiedCode] = useState(false);
   const [copiedText, setCopiedText] = useState(false);
   const [showReactMenu, setShowReactMenu] = useState(false);
+  const [showMobileActions, setShowMobileActions] = useState(false);
+  const touchTimerRef = useRef(null);
+  const touchStartPosRef = useRef({ x: 0, y: 0 });
 
   // System notification row
   if (msg.type === 'system') {
@@ -81,6 +85,54 @@ export default function MessageItem({
       onReact(msg.id, emoji);
     }
     setShowReactMenu(false);
+    setShowMobileActions(false);
+  };
+
+  const handleReplyClick = () => {
+    if (onReply) {
+      onReply(msg);
+      setShowMobileActions(false);
+    }
+  };
+
+  const handleBubbleClick = (e) => {
+    if (e.target.closest('button, a, input, select, textarea, .wa-media-card, .telegram-doc-card, .in-chat-game-card, .copy-code-btn, .audio-bubble-container')) {
+      return;
+    }
+    setShowMobileActions(prev => !prev);
+  };
+
+  const handleTouchStart = (e) => {
+    if (e.target.closest('button, a, input, select, textarea, .wa-media-card, .telegram-doc-card, .in-chat-game-card, .copy-code-btn, .audio-bubble-container')) {
+      return;
+    }
+    const touch = e.touches[0];
+    touchStartPosRef.current = { x: touch.clientX, y: touch.clientY };
+    touchTimerRef.current = setTimeout(() => {
+      setShowMobileActions(true);
+      setShowReactMenu(true);
+      if (typeof navigator !== 'undefined' && navigator.vibrate) {
+        try { navigator.vibrate(25); } catch (_) {}
+      }
+    }, 380);
+  };
+
+  const handleTouchMove = (e) => {
+    if (!touchTimerRef.current) return;
+    const touch = e.touches[0];
+    const dx = Math.abs(touch.clientX - touchStartPosRef.current.x);
+    const dy = Math.abs(touch.clientY - touchStartPosRef.current.y);
+    if (dx > 10 || dy > 10) {
+      clearTimeout(touchTimerRef.current);
+      touchTimerRef.current = null;
+    }
+  };
+
+  const handleTouchEnd = () => {
+    if (touchTimerRef.current) {
+      clearTimeout(touchTimerRef.current);
+      touchTimerRef.current = null;
+    }
   };
 
   const isLocal = msg.sender === 'local' || (myPeerId && msg.authorId === myPeerId);
@@ -209,8 +261,15 @@ export default function MessageItem({
         </div>
       )}
 
-      <div className="message-bubble-wrapper">
-        <div className={`message-bubble ${isGameCard ? 'game-card-bubble' : isMediaCard ? 'media-card-bubble' : ''}`}>
+      <div className={`message-bubble-wrapper ${showMobileActions ? 'mobile-active' : ''}`}>
+        <div 
+          className={`message-bubble ${isGameCard ? 'game-card-bubble' : isMediaCard ? 'media-card-bubble' : ''}`}
+          onClick={handleBubbleClick}
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+          onTouchCancel={handleTouchEnd}
+        >
           {msg.replyTo && (
             <ReplyQuoteBox 
               replyTo={msg.replyTo} 
@@ -220,13 +279,45 @@ export default function MessageItem({
           {renderContent()}
         </div>
 
-        {/* Floating Cyber Action Bar (Hover / Tap) */}
-        <div className="message-action-dock">
+        {/* Subtle touch trigger button for mobile phones */}
+        <button
+          type="button"
+          className="mobile-bubble-action-trigger"
+          onClick={(e) => {
+            e.stopPropagation();
+            setShowMobileActions((prev) => !prev);
+          }}
+          title="Message options"
+          aria-label="Message options"
+        >
+          <MoreHorizontal size={13} />
+        </button>
+
+        {/* Invisible Backdrop to dismiss mobile actions on touch outside */}
+        {showMobileActions && (
+          <div
+            className="mobile-actions-backdrop"
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowMobileActions(false);
+              setShowReactMenu(false);
+            }}
+          />
+        )}
+
+        {/* Floating Cyber Action Bar (Hover on Desktop / Tap on Phone) */}
+        <div 
+          className="message-action-dock"
+          onClick={(e) => e.stopPropagation()}
+        >
           {/* Reaction Trigger */}
           <div className="reaction-trigger-wrap" style={{ position: 'relative' }}>
             <button
               type="button"
-              onClick={() => setShowReactMenu(!showReactMenu)}
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowReactMenu(prev => !prev);
+              }}
               className="message-action-btn"
               title="Add Reaction"
             >
@@ -234,12 +325,18 @@ export default function MessageItem({
             </button>
 
             {showReactMenu && (
-              <div className="reaction-picker-flyout">
+              <div 
+                className="reaction-picker-flyout"
+                onClick={(e) => e.stopPropagation()}
+              >
                 {QUICK_EMOJIS.map(e => (
                   <button
                     key={e}
                     type="button"
-                    onClick={() => handleToggleReaction(e)}
+                    onClick={(evt) => {
+                      evt.stopPropagation();
+                      handleToggleReaction(e);
+                    }}
                     className="reaction-emoji-btn"
                     title={`React with ${e}`}
                   >
@@ -254,7 +351,10 @@ export default function MessageItem({
           {onReply && (
             <button
               type="button"
-              onClick={() => onReply(msg)}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleReplyClick();
+              }}
               className="message-action-btn"
               title="Reply to message"
             >
@@ -266,7 +366,10 @@ export default function MessageItem({
           {msg.text && (
             <button
               type="button"
-              onClick={handleCopyMessageText}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleCopyMessageText();
+              }}
               className="message-action-btn"
               title="Copy Text"
             >

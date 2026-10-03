@@ -3,37 +3,53 @@ import { peerService } from '../services/peerService';
 import { groupRelayEngine } from '../services/webrtc/groupRelayEngine';
 import { playSound } from '../utils/soundEffects';
 
-export function generateThumbnailPreview(file, maxWidth = 140, maxHeight = 140) {
+export function generateThumbnailPreview(file, maxWidth = 180, maxHeight = 180) {
   return new Promise((resolve) => {
-    if (!file || !file.type?.startsWith('image/')) return resolve(null);
+    if (!file) return resolve(null);
+    const isImage = file.type?.startsWith('image/') || /\.(jpe?g|png|webp|gif|bmp|svg|avif)$/i.test(file.name || '');
+    if (!isImage) return resolve(null);
+
+    const safetyTimer = setTimeout(() => resolve(null), 3000);
+
     const reader = new FileReader();
     reader.onload = (e) => {
       const img = new Image();
       img.onload = () => {
-        const canvas = document.createElement('canvas');
-        let width = img.width;
-        let height = img.height;
-        if (width > height) {
-          if (width > maxWidth) {
-            height = Math.round((height * maxWidth) / width);
-            width = maxWidth;
+        clearTimeout(safetyTimer);
+        try {
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+          if (width > height) {
+            if (width > maxWidth) {
+              height = Math.round((height * maxWidth) / width);
+              width = maxWidth;
+            }
+          } else {
+            if (height > maxHeight) {
+              width = Math.round((width * maxHeight) / height);
+              height = maxHeight;
+            }
           }
-        } else {
-          if (height > maxHeight) {
-            width = Math.round((width * maxHeight) / height);
-            height = maxHeight;
-          }
+          canvas.width = Math.max(1, width);
+          canvas.height = Math.max(1, height);
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+          resolve(canvas.toDataURL('image/jpeg', 0.55));
+        } catch (err) {
+          resolve(null);
         }
-        canvas.width = Math.max(1, width);
-        canvas.height = Math.max(1, height);
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, 0, width, height);
-        resolve(canvas.toDataURL('image/jpeg', 0.6));
       };
-      img.onerror = () => resolve(null);
+      img.onerror = () => {
+        clearTimeout(safetyTimer);
+        resolve(null);
+      };
       img.src = e.target.result;
     };
-    reader.onerror = () => resolve(null);
+    reader.onerror = () => {
+      clearTimeout(safetyTimer);
+      resolve(null);
+    };
     reader.readAsDataURL(file);
   });
 }
@@ -291,6 +307,7 @@ export function useChatTransfers({ soundEnabled, mobileTab, showToast }) {
   }, [showToast]);
 
   const stagedFilesRef = useRef([]);
+  const handleSendFileRef = useRef(null);
 
   // Auto-flush staged files when a peer connection is established
   useEffect(() => {
@@ -300,11 +317,13 @@ export function useChatTransfers({ soundEnabled, mobileTab, showToast }) {
         stagedFilesRef.current = [];
         setTransfers((prev) => prev.filter((t) => !t.staged));
         if (showToast) {
-          showToast(`Peer connected! Auto-sending ${toSend.length} staged file(s)...`, 'info');
+          showToast(`Peer connected! Auto-offering ${toSend.length} staged file(s)...`, 'info');
         }
         for (const file of toSend) {
           try {
-            await peerService.sendFile(file);
+            if (handleSendFileRef.current) {
+              await handleSendFileRef.current(file);
+            }
           } catch (e) {
             console.error('[ZeroChat] Auto-send staged file failed:', e);
           }
@@ -334,13 +353,14 @@ export function useChatTransfers({ soundEnabled, mobileTab, showToast }) {
 
   const handleSendFile = useCallback(async (file) => {
     let previewData = null;
+    const isImageFile = file.type?.startsWith('image/') || /\.(jpe?g|png|webp|gif|bmp|svg|avif)$/i.test(file.name || '');
     if (file.isVoiceNote) {
       previewData = {
         isVoiceNote: true,
         durationSec: file.durationSec || 0,
         waveform: file.waveform || null,
       };
-    } else if (file.type?.startsWith('image/')) {
+    } else if (isImageFile) {
       try {
         previewData = await generateThumbnailPreview(file);
       } catch (e) {}
@@ -400,6 +420,8 @@ export function useChatTransfers({ soundEnabled, mobileTab, showToast }) {
       },
     ]);
   }, [showToast]);
+
+  handleSendFileRef.current = handleSendFile;
 
   const handleRequestDownload = useCallback((fileId, authorId) => {
     setMessages((prev) =>

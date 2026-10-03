@@ -5,6 +5,7 @@ import { copyToClipboard } from '../../utils/clipboard';
 export function GroupHeaderBar({
   squadRoomId,
   memberCount,
+  pendingKnocksCount = 0,
   isHost,
   isLocked,
   latency,
@@ -100,12 +101,17 @@ export function GroupHeaderBar({
         <button
           type="button"
           onClick={onToggleDrawer}
-          className="squad-occupancy-pill"
+          className={`squad-occupancy-pill ${pendingKnocksCount > 0 ? 'has-knocks' : ''}`}
           title="Toggle Squad Member Drawer"
         >
           <Users size={13} />
           <span className="occupancy-count">{memberCount || 1}</span>
           <span className="occupancy-label"> Members</span>
+          {pendingKnocksCount > 0 && (
+            <span className="squad-knock-badge animate-pulse" title={`${pendingKnocksCount} knocker(s) waiting`}>
+              +{pendingKnocksCount}
+            </span>
+          )}
         </button>
 
         {/* Settings */}

@@ -88,6 +88,22 @@
   border-color: var(--border-hover);
 }
 
+.squad-occupancy-pill.has-knocks {
+  border-color: rgba(245, 158, 11, 0.6);
+  background: rgba(245, 158, 11, 0.12);
+  box-shadow: 0 0 12px rgba(245, 158, 11, 0.25);
+}
+
+.squad-knock-badge {
+  background: #f59e0b;
+  color: #000;
+  font-size: 0.65rem;
+  font-weight: 800;
+  padding: 1px 6px;
+  border-radius: 999px;
+  margin-left: 2px;
+}
+
 .relay-status-chip {
   display: inline-flex;
   align-items: center;

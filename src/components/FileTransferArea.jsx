@@ -201,20 +201,20 @@ export default function FileTransferArea({
             transfers.map((item) => (
               <div key={item.fileId} className="transfer-item">
                 <div className="transfer-header">
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, flex: 1, marginRight: '8px' }}>
                     {getFileIcon(item.fileName, item.fileType)}
-                    <div style={{ minWidth: 0 }}>
+                    <div style={{ minWidth: 0, flex: 1 }}>
                       <p style={{ 
                         fontSize: '0.82rem', 
                         fontWeight: 600, 
                         whiteSpace: 'nowrap', 
                         overflow: 'hidden', 
                         textOverflow: 'ellipsis', 
-                        maxWidth: '210px'
-                      }}>
+                        margin: 0
+                      }} title={item.fileName}>
                         {item.fileName}
                       </p>
-                      <span style={{ fontSize: '0.7rem', color: 'var(--text-dim)' }}>
+                      <span style={{ fontSize: '0.7rem', color: 'var(--text-dim)', display: 'block', marginTop: '2px' }}>
                         {formatBytes(item.fileSize)} • {item.isSender ? 'Outgoing' : `From ${item.senderNickname || remotePeerNickname || 'Peer'}`}
                       </span>
                     </div>

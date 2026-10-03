@@ -16,7 +16,8 @@ import {
   CheckCircle, 
   AlertTriangle,
   Eye,
-  Sparkles
+  Sparkles,
+  Image as ImageIcon
 } from 'lucide-react';
 import AudioPlayerBubble from '../AudioPlayerBubble';
 
@@ -206,7 +207,12 @@ export default function FilePreviewCard({
           {previewData ? (
             <div className="wa-media-backdrop blur" style={{ backgroundImage: `url(${previewData})` }} />
           ) : (
-            <div className="wa-media-backdrop pattern" />
+            <div className="wa-media-backdrop pattern">
+              <div className="wa-media-pattern-content">
+                <ImageIcon size={32} color="var(--accent-cyan)" />
+                <span className="wa-media-pattern-label">Loading...</span>
+              </div>
+            </div>
           )}
           <div className="wa-media-center-action">
             <div className="wa-progress-circle-wrap">
@@ -226,7 +232,10 @@ export default function FilePreviewCard({
               <button
                 type="button"
                 className="wa-progress-cancel-btn"
-                onClick={() => onCancel && onCancel(fileId)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onCancel && onCancel(fileId);
+                }}
                 title="Cancel download"
               >
                 <X size={15} />
@@ -263,18 +272,40 @@ export default function FilePreviewCard({
       <div 
         className="wa-media-card idle"
         onClick={() => onRequestDownload && onRequestDownload(fileId, authorId)}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            onRequestDownload && onRequestDownload(fileId, authorId);
+          }
+        }}
         title={`Click to download ${fileName} (${formattedSize})`}
       >
         {previewData ? (
           <div className="wa-media-backdrop blur" style={{ backgroundImage: `url(${previewData})` }} />
         ) : (
-          <div className="wa-media-backdrop pattern" />
+          <div className="wa-media-backdrop pattern">
+            <div className="wa-media-pattern-content">
+              <ImageIcon size={32} color="var(--accent-cyan)" />
+              <span className="wa-media-pattern-label">Photo</span>
+            </div>
+          </div>
         )}
         <div className="wa-media-center-action">
-          <div className="wa-center-download-btn">
-            <Download size={20} />
-          </div>
-          <span className="wa-download-pill">{formattedSize}</span>
+          <button 
+            type="button"
+            className="wa-center-download-btn"
+            onClick={(e) => {
+              e.stopPropagation();
+              onRequestDownload && onRequestDownload(fileId, authorId);
+            }}
+            title={`Download ${fileName} (${formattedSize})`}
+            aria-label={`Download ${fileName}`}
+          >
+            <Download size={22} />
+          </button>
+          <span className="wa-download-pill">{formattedSize} • Tap to Load</span>
         </div>
         <div className="wa-media-glass-bar compact">
           <span className="wa-media-name" title={fileName}>{fileName}</span>
