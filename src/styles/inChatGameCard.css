@@ -4,8 +4,8 @@
 
 .in-chat-game-card {
   width: 100%;
-  max-width: 440px;
-  margin: 8px auto;
+  max-width: 420px;
+  margin: 4px 0;
   padding: 12px 14px;
   border-radius: var(--radius-md);
   background: rgba(14, 19, 32, 0.78);
@@ -14,6 +14,7 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
+  box-sizing: border-box;
   transition: all 0.2s ease;
 }
 
@@ -117,6 +118,7 @@
   align-items: center;
   gap: 6px;
   min-width: 0;
+  flex: 1;
   overflow: hidden;
 }
 
@@ -176,6 +178,9 @@
 .in-chat-player-role {
   font-size: 0.65rem;
   color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .in-chat-ready-dot {

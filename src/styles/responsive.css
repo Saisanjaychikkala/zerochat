@@ -200,10 +200,13 @@
   }
 
   .main-workspace {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
     grid-template-rows: 1fr;
     flex: 1;
     min-height: 0;
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
   }
 
   /* Show only the active view on mobile */
@@ -254,8 +257,19 @@
     background: rgba(14, 20, 36, 0.96);
     border: 1px solid var(--border-accent);
     box-shadow: 0 4px 18px rgba(0, 0, 0, 0.6);
-    position: relative;
+    position: absolute;
+    top: -16px;
     z-index: 26;
+  }
+
+  .message-row.sent .message-action-dock {
+    right: 8px;
+    left: auto;
+  }
+
+  .message-row.received .message-action-dock {
+    left: 8px;
+    right: auto;
   }
 
   .message-bubble-wrapper.mobile-active .message-action-dock,

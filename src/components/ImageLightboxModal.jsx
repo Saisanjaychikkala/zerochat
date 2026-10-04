@@ -77,13 +77,15 @@ export default function ImageLightboxModal({ isOpen = true, onClose, imageUrl, i
             </a>
 
             <button 
+              type="button"
               onClick={onClose} 
-              className="btn btn-icon"
-              style={{ width: '36px', height: '36px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
-              title="Close Preview (or swipe down)"
+              className="btn btn-secondary text-xs"
+              style={{ padding: '6px 12px', height: '36px', display: 'inline-flex', alignItems: 'center', gap: '5px' }}
+              title="Close Preview (Esc or swipe down)"
               aria-label="Close Preview"
             >
-              <X size={18} />
+              <X size={16} />
+              <span>Close</span>
             </button>
           </div>
         </div>

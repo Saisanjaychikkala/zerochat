@@ -687,6 +687,36 @@ async function runTests() {
 
   assert(guestBConnPackets.some(p => (p.type === GROUP_PACKET_TYPES.FILE_ERROR || p.type === 'file_error') && p.fileId === 'file_missing_999'), 'Host immediately sends FILE_ERROR to requester if author is disconnected');
 
+  // ─── [Suite 17] UI/UX Ergonomics, Lightbox, Game Alignment & Mobile Overflow ─
+  console.log('\n[Test Suite 17] UI/UX Ergonomics, Lightbox, Game Alignment & Mobile Overflow');
+  const groupChatSrc = fs.readFileSync(path.join(ROOT, 'src', 'components', 'group', 'GroupChatWorkspace.jsx'), 'utf8');
+  assert(groupChatSrc.includes("import ImageLightboxModal from '../ImageLightboxModal';"), 'GroupChatWorkspace imports ImageLightboxModal');
+  assert(groupChatSrc.includes('<ImageLightboxModal'), 'GroupChatWorkspace renders ImageLightboxModal');
+  assert(!groupChatSrc.includes('<div className="lightbox-overlay"'), 'GroupChatWorkspace removed unstyled flex sibling lightbox overlay');
+
+  const messageItemSrc = fs.readFileSync(path.join(ROOT, 'src', 'components', 'chat', 'MessageItem.jsx'), 'utf8');
+  assert(messageItemSrc.includes("${isLocal ? 'sent' : 'received'} ${isGameCard ? 'game-row' : ''}"), 'MessageItem aligns game cards to sent or received side');
+  assert(messageItemSrc.includes('{!isGameCard && ('), 'MessageItem hides mobile 3-dots trigger on game cards to prevent squeezing');
+
+  const chatCssSrc = fs.readFileSync(path.join(ROOT, 'src', 'styles', 'chat.css'), 'utf8');
+  assert(chatCssSrc.includes('.message-row.game-row.sent {'), 'chat.css contains .message-row.game-row.sent alignment');
+  assert(chatCssSrc.includes('.message-row.game-row.received {'), 'chat.css contains .message-row.game-row.received alignment');
+  assert(!chatCssSrc.includes('align-self: center !important;'), 'chat.css removed forced center alignment from game-row');
+  assert(chatCssSrc.includes('.message-action-dock {\n  display: flex;\n  align-items: center;\n  gap: 2px;\n  opacity: 0;\n  pointer-events: none;\n  background: var(--bg-panel);\n  border: 1px solid var(--border-subtle);\n  border-radius: 20px;\n  padding: 2px 4px;\n  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);\n  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);\n  flex-shrink: 0;\n  position: absolute;'), 'chat.css positions message-action-dock absolutely to avoid stealing bubble width');
+
+  const inChatGameCss = fs.readFileSync(path.join(ROOT, 'src', 'styles', 'inChatGameCard.css'), 'utf8');
+  assert(inChatGameCss.includes('white-space: nowrap;') && inChatGameCss.includes('.in-chat-player-role'), 'inChatGameCard.css enforces white-space: nowrap on player role');
+  assert(inChatGameCss.includes('margin: 4px 0;'), 'inChatGameCard.css avoids auto centering margin');
+
+  const responsiveCssSrc = fs.readFileSync(path.join(ROOT, 'src', 'styles', 'responsive.css'), 'utf8');
+  assert(responsiveCssSrc.includes('grid-template-columns: minmax(0, 1fr);'), 'responsive.css uses minmax(0, 1fr) for mobile workspace to prevent layout blowouts');
+
+  const layoutCssSrc = fs.readFileSync(path.join(ROOT, 'src', 'styles', 'layout.css'), 'utf8');
+  assert(layoutCssSrc.includes('.sidebar-container {\n  display: flex;\n  flex-direction: column;\n  gap: 12px;\n  height: 100%;\n  min-height: 0;\n  min-width: 0;\n  max-width: 100%;\n  width: 100%;\n  box-sizing: border-box;\n  overflow-x: hidden;'), 'layout.css enforces overflow-x: hidden and box-sizing on sidebar-container');
+
+  const modalsCssSrc = fs.readFileSync(path.join(ROOT, 'src', 'styles', 'modals.css'), 'utf8');
+  assert(modalsCssSrc.includes('.lightbox-overlay {') && modalsCssSrc.includes('position: fixed !important;'), 'modals.css defines .lightbox-overlay with position: fixed');
+
   // ─── Summary ───────────────────────────────────────────────────────
   console.log('\n====================================================');
   console.log(` Verification Complete: ${passedTests}/${totalTests} tests passed`);

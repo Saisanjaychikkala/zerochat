@@ -184,6 +184,7 @@ export default function FilePreviewCard({
               download={fileName}
               className="wa-media-save-btn"
               title={`Save ${fileName} to disk`}
+              onClick={(e) => e.stopPropagation()}
             >
               <Download size={14} />
               <span>Save</span>
@@ -339,6 +340,7 @@ export default function FilePreviewCard({
           download={fileName}
           className="telegram-action-btn ready"
           title={`Save ${fileName} to disk`}
+          onClick={(e) => e.stopPropagation()}
         >
           <Download size={15} />
           <span>Save</span>

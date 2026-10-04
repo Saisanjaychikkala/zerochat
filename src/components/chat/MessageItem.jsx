@@ -150,7 +150,9 @@ export default function MessageItem({
     }
   };
 
-  const isLocal = msg.sender === 'local' || (myPeerId && msg.authorId === myPeerId);
+  const isLocal = msg.sender === 'local' || 
+    (myPeerId && (msg.authorId === myPeerId || msg.creatorPeerId === myPeerId || (msg.hostPeerId === myPeerId && !msg.guestPeerId))) ||
+    (myClientId && (msg.creatorClientId === myClientId || (!msg.authorId && msg.hostClientId === myClientId)));
   const authorName = isLocal 
     ? (myNickname || 'You') 
     : (msg.author || msg.senderNickname || remotePeerNickname || 'Peer');
@@ -253,9 +255,9 @@ export default function MessageItem({
   return (
     <div 
       id={'msg_' + msg.id}
-      className={`message-row ${isGameCard ? 'game-row' : (isLocal ? 'sent' : 'received')} ${isMediaCard ? 'media-row' : ''}`}
+      className={`message-row ${isLocal ? 'sent' : 'received'} ${isGameCard ? 'game-row' : ''} ${isMediaCard ? 'media-row' : ''}`}
     >
-      {!isGameCard && (
+      {(!isGameCard || !isLocal) && (
         <div className="message-sender-meta">
           <span className="message-sender-name">{authorName}</span>
           {isAuthorHost && (
@@ -295,18 +297,20 @@ export default function MessageItem({
         </div>
 
         {/* Subtle touch trigger button for mobile phones */}
-        <button
-          type="button"
-          className="mobile-bubble-action-trigger"
-          onClick={(e) => {
-            e.stopPropagation();
-            setShowMobileActions((prev) => !prev);
-          }}
-          title="Message options"
-          aria-label="Message options"
-        >
-          <MoreHorizontal size={13} />
-        </button>
+        {!isGameCard && (
+          <button
+            type="button"
+            className="mobile-bubble-action-trigger"
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowMobileActions((prev) => !prev);
+            }}
+            title="Message options"
+            aria-label="Message options"
+          >
+            <MoreHorizontal size={13} />
+          </button>
+        )}
 
         {/* Invisible Backdrop to dismiss mobile actions on touch outside */}
         {showMobileActions && (

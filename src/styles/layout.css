@@ -141,6 +141,11 @@
   gap: 12px;
   height: 100%;
   min-height: 0;
+  min-width: 0;
+  max-width: 100%;
+  width: 100%;
+  box-sizing: border-box;
+  overflow-x: hidden;
 }
 
 .file-drop-card {
@@ -149,6 +154,10 @@
   flex-direction: column;
   gap: 12px;
   flex-shrink: 0;
+  min-width: 0;
+  max-width: 100%;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .drop-zone {
@@ -164,6 +173,10 @@
   background: rgba(255, 255, 255, 0.01);
   cursor: pointer;
   transition: all 0.2s ease;
+  min-width: 0;
+  max-width: 100%;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .drop-zone:hover, .drop-zone.active {
@@ -174,10 +187,15 @@
 .transfers-list {
   flex: 1;
   overflow-y: auto;
+  overflow-x: hidden;
   display: flex;
   flex-direction: column;
   gap: 8px;
   padding-right: 4px;
+  min-width: 0;
+  max-width: 100%;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .transfer-item {
@@ -188,6 +206,10 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
+  min-width: 0;
+  max-width: 100%;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .transfer-header {

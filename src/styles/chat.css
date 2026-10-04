@@ -156,7 +156,7 @@
   padding: 0 4px;
 }
 
-/* Floating Cyber Action Dock */
+/* Floating Cyber Action Dock (Absolute positioned to never consume horizontal bubble space) */
 .message-action-dock {
   display: flex;
   align-items: center;
@@ -170,8 +170,19 @@
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   flex-shrink: 0;
-  position: relative;
+  position: absolute;
+  top: -12px;
   z-index: 26;
+}
+
+.message-row.sent .message-action-dock {
+  right: 6px;
+  left: auto;
+}
+
+.message-row.received .message-action-dock {
+  left: 6px;
+  right: auto;
 }
 
 .message-bubble-wrapper.mobile-active {
@@ -625,10 +636,27 @@
 }
 
 .message-row.game-row {
-  align-self: center !important;
-  align-items: center !important;
-  max-width: 100% !important;
+  max-width: min(440px, 92vw) !important;
+  width: auto !important;
+}
+
+.message-row.game-row.sent {
+  align-self: flex-end !important;
+  align-items: flex-end !important;
+}
+
+.message-row.game-row.received {
+  align-self: flex-start !important;
+  align-items: flex-start !important;
+}
+
+.message-row.game-row .message-bubble {
+  background: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+  box-shadow: none !important;
   width: 100% !important;
+  max-width: 100% !important;
 }
 
 /* ==========================================================================

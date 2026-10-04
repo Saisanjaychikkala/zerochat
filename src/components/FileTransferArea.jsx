@@ -201,9 +201,9 @@ export default function FileTransferArea({
             transfers.map((item) => (
               <div key={item.fileId} className="transfer-item">
                 <div className="transfer-header">
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, flex: 1, marginRight: '8px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, flex: 1, marginRight: '8px', overflow: 'hidden' }}>
                     {getFileIcon(item.fileName, item.fileType)}
-                    <div style={{ minWidth: 0, flex: 1 }}>
+                    <div style={{ minWidth: 0, flex: 1, overflow: 'hidden' }}>
                       <p style={{ 
                         fontSize: '0.82rem', 
                         fontWeight: 600, 
@@ -214,7 +214,7 @@ export default function FileTransferArea({
                       }} title={item.fileName}>
                         {item.fileName}
                       </p>
-                      <span style={{ fontSize: '0.7rem', color: 'var(--text-dim)', display: 'block', marginTop: '2px' }}>
+                      <span style={{ fontSize: '0.7rem', color: 'var(--text-dim)', display: 'block', marginTop: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                         {formatBytes(item.fileSize)} • {item.isSender ? 'Outgoing' : `From ${item.senderNickname || remotePeerNickname || 'Peer'}`}
                       </span>
                     </div>
@@ -226,7 +226,10 @@ export default function FileTransferArea({
                         {item.downloadUrl && item.fileType?.startsWith('image/') && (
                           <button
                             type="button"
-                            onClick={() => onOpenLightbox && onOpenLightbox(item.downloadUrl, item.fileName)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onOpenLightbox && onOpenLightbox(item.downloadUrl, item.fileName);
+                            }}
                             className="btn btn-secondary"
                             style={{ padding: '0 8px', height: '30px', fontSize: '0.75rem', flexShrink: 0 }}
                             title="Preview Image"
@@ -239,6 +242,7 @@ export default function FileTransferArea({
                           <a 
                             href={item.downloadUrl} 
                             download={item.fileName} 
+                            onClick={(e) => e.stopPropagation()}
                             className="btn btn-primary"
                             style={{ 
                               padding: '0 12px', 

@@ -14,6 +14,7 @@ import { GROUP_PACKET_TYPES } from '../../services/webrtc/constants';
 import { groupRelayEngine } from '../../services/webrtc/groupRelayEngine';
 import { buildGameCardMsg } from './groupGameHelpers';
 import { getClientId } from '../../services/identity';
+import ImageLightboxModal from '../ImageLightboxModal';
 
 export function GroupChatWorkspace({
   squadRoomId,
@@ -68,8 +69,11 @@ export function GroupChatWorkspace({
 
   // Transform messages to feed standard MessageItem component
   const formattedMessages = useMemo(() => {
+    const myId = getClientId();
     return messages.map((msg) => {
-      const isMe = (myPeerId && msg.authorId === myPeerId) || msg.sender === 'local';
+      const isMe = (myPeerId && (msg.authorId === myPeerId || msg.creatorPeerId === myPeerId)) || 
+                   (myId && msg.creatorClientId === myId) || 
+                   msg.sender === 'local';
       const isVoice = msg.type === GROUP_PACKET_TYPES.VOICE || msg.type === 'voice' || msg.isVoiceNote || !!(msg.audio || msg.audioUrl);
       return {
         ...msg,
@@ -352,17 +356,13 @@ export function GroupChatWorkspace({
         </div>
       )}
 
-      {/* Lightbox Modal */}
-      {activeLightbox && (
-        <div className="lightbox-overlay" onClick={() => setActiveLightbox(null)}>
-          <div className="lightbox-content" onClick={(e) => e.stopPropagation()}>
-            <img src={activeLightbox.url} alt={activeLightbox.name || 'Enlarged preview'} />
-            <button type="button" className="btn btn-icon lightbox-close" onClick={() => setActiveLightbox(null)}>
-              <X size={20} />
-            </button>
-          </div>
-        </div>
-      )}
+      {/* Image Lightbox Modal */}
+      <ImageLightboxModal
+        isOpen={!!activeLightbox}
+        onClose={() => setActiveLightbox(null)}
+        imageUrl={activeLightbox?.url}
+        imageName={activeLightbox?.name}
+      />
     </div>
   );
 }
